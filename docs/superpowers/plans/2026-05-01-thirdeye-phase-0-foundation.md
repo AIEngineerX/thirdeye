@@ -6,9 +6,11 @@
 
 **Architecture:** Bun-workspace monorepo (`apps/api`, `packages/db`, `packages/shared`). Hono serves `POST /api/db/auth` issuing random base64url tokens persisted in `auth_tokens`. Middleware validates `X-Auth-Token` on protected routes. Drizzle-generated SQL migrations applied to a real Postgres via `bun run migrate`. Tests run with `bun:test` against an actual Postgres container (no mocks).
 
-**Tech Stack:** Bun, Hono, Drizzle, drizzle-kit, postgres-js, Postgres 16, Docker Compose, GitHub Actions, TypeScript strict.
+**Tech Stack:** Bun 1.2.x, Hono ^4.6, Drizzle ORM ^0.39, drizzle-kit ^0.31, postgres-js ^3.4, Postgres 16, Biome ^1.9 (lint+format), Docker Compose, GitHub Actions, TypeScript strict.
 
 **Spec reference:** `docs/superpowers/specs/2026-05-01-thirdeye-design.md` — §5 stack, §7 auth model, §9 data model, §15 deployment.
+
+**Corrections applied from gap analysis (2026-05-02):** single-root tsconfig with paths instead of project references; `@types/bun` (not `bun-types`); CORS `allowHeaders`/`allowMethods` for `X-Auth-Token` + `X-User-Helius-Key`; `bigserial` `mode: "number"` (BigInt isn't JSON-serializable); idiomatic `export default { port, fetch }` Bun pattern; `app.onError`/`app.notFound`; `.dockerignore`, `.gitattributes`, `.env` copy step; bumped Drizzle to current; `bun --hot` for dev; Biome formatter; CONTRIBUTING.md stub.
 
 ---
 
@@ -16,24 +18,27 @@
 
 ```
 thirdeye/
-├── package.json                       # NEW — Bun workspaces root
+├── package.json                       # NEW — Bun workspaces root, scripts
 ├── bun.lockb                          # NEW — generated
-├── tsconfig.base.json                 # NEW — shared TS settings
-├── tsconfig.json                      # NEW — root project refs
+├── tsconfig.json                      # NEW — single root tsconfig with path aliases
+├── biome.json                         # NEW — lint + format config
 ├── docker-compose.yml                 # NEW — app + postgres
 ├── .env.example                       # NEW
 ├── .editorconfig                      # NEW
+├── .gitattributes                     # NEW — line endings (LF everywhere except .bat)
+├── .dockerignore                      # NEW — keep build context clean
+├── CONTRIBUTING.md                    # NEW — OSS contributor stub
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                     # NEW — lint, typecheck, test
+│       └── ci.yml                     # NEW — lint, typecheck, migrate, test
 ├── apps/
 │   └── api/
 │       ├── package.json               # NEW
-│       ├── tsconfig.json              # NEW
-│       ├── Dockerfile                 # NEW — multi-stage Bun build
+│       ├── tsconfig.json              # NEW (extends root, no composite)
+│       ├── Dockerfile                 # NEW — multi-stage Bun 1.2 build
 │       ├── src/
-│       │   ├── index.ts               # NEW — Hono app + server boot
-│       │   ├── env.ts                 # NEW — env var schema + parse
+│       │   ├── index.ts               # NEW — Hono app, error handlers, idiomatic Bun export
+│       │   ├── env.ts                 # NEW — env var validation
 │       │   ├── routes/
 │       │   │   └── auth.ts            # NEW — POST /api/db/auth
 │       │   ├── middleware/
@@ -56,24 +61,24 @@ thirdeye/
         ├── tsconfig.json              # NEW
         ├── drizzle.config.ts          # NEW
         ├── scripts/
-        │   └── migrate.ts             # NEW — apply migrations
+        │   └── migrate.ts             # NEW — apply migrations (location-independent)
         ├── src/
         │   ├── index.ts               # NEW — client + db handle
         │   └── schema.ts              # NEW — all 6 tables (spec §9)
         └── drizzle/                   # GENERATED — sql migrations
 ```
 
-Each file has one responsibility: `tokens.ts` generates random tokens, `routes/auth.ts` is the single auth endpoint, `middleware/auth.ts` is the single validator, `schema.ts` is the only place table definitions live.
+Each file has one responsibility. Bun workspaces resolve `@thirdeye/*` package imports at runtime via `package.json`; TypeScript resolves them at compile time via the root `tsconfig.json` `paths` map.
 
 ---
 
-## Task 1: Root Bun monorepo
+## Task 1: Root Bun monorepo + single-tsconfig + line endings
 
 **Files:**
 - Create: `package.json`
-- Create: `tsconfig.base.json`
 - Create: `tsconfig.json`
 - Create: `.editorconfig`
+- Create: `.gitattributes`
 
 - [ ] **Step 1: Write `package.json`**
 
@@ -90,17 +95,20 @@ Each file has one responsibility: `tokens.ts` generates random tokens, `routes/a
   "scripts": {
     "typecheck": "bun --bun tsc --noEmit -p tsconfig.json",
     "test": "bun test",
-    "dev": "bun --watch run apps/api/src/index.ts",
-    "migrate": "bun run packages/db/scripts/migrate.ts"
+    "dev": "bun --hot run apps/api/src/index.ts",
+    "migrate": "bun run packages/db/scripts/migrate.ts",
+    "lint": "biome check .",
+    "format": "biome format --write ."
   },
   "devDependencies": {
     "typescript": "^5.6.0",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@biomejs/biome": "^1.9.0"
   }
 }
 ```
 
-- [ ] **Step 2: Write `tsconfig.base.json`**
+- [ ] **Step 2: Write `tsconfig.json` (single root, path aliases — no project references)**
 
 ```json
 {
@@ -118,25 +126,23 @@ Each file has one responsibility: `tokens.ts` generates random tokens, `routes/a
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "types": ["bun-types"]
-  }
-}
-```
-
-- [ ] **Step 3: Write `tsconfig.json` (root composite)**
-
-```json
-{
-  "files": [],
-  "references": [
-    { "path": "./packages/shared" },
-    { "path": "./packages/db" },
-    { "path": "./apps/api" }
+    "types": ["@types/bun"],
+    "baseUrl": ".",
+    "paths": {
+      "@thirdeye/*": ["packages/*/src", "apps/*/src"]
+    }
+  },
+  "include": [
+    "apps/**/src/**/*",
+    "apps/**/tests/**/*",
+    "packages/**/src/**/*",
+    "packages/**/scripts/**/*",
+    "packages/**/drizzle.config.ts"
   ]
 }
 ```
 
-- [ ] **Step 4: Write `.editorconfig`**
+- [ ] **Step 3: Write `.editorconfig`**
 
 ```
 root = true
@@ -153,16 +159,25 @@ insert_final_newline = true
 trim_trailing_whitespace = false
 ```
 
+- [ ] **Step 4: Write `.gitattributes`**
+
+```
+* text=auto eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.lockb binary
+```
+
 - [ ] **Step 5: Verify `bun install` works**
 
 Run: `bun install`
-Expected: creates `bun.lockb`, no errors. `node_modules/typescript` exists.
+Expected: creates `bun.lockb`, no errors. `node_modules/typescript`, `node_modules/@types/bun`, `node_modules/@biomejs/biome` all exist.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add package.json tsconfig.base.json tsconfig.json .editorconfig bun.lockb
-git commit -m "chore: monorepo — initialize bun workspaces with strict typescript"
+git add package.json tsconfig.json .editorconfig .gitattributes bun.lockb
+git commit -m "chore: monorepo — initialize bun workspaces with strict typescript and biome"
 ```
 
 ---
@@ -193,12 +208,7 @@ git commit -m "chore: monorepo — initialize bun workspaces with strict typescr
 
 ```json
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "rootDir": "src",
-    "outDir": "dist"
-  },
+  "extends": "../../tsconfig.json",
   "include": ["src/**/*"]
 }
 ```
@@ -215,7 +225,7 @@ export const PACKAGE_NAME = "@thirdeye/shared" as const;
 
 - [ ] **Step 4: Run typecheck**
 
-Run: `bun --bun tsc --noEmit -p packages/shared/tsconfig.json`
+Run: `bun run typecheck`
 Expected: no errors.
 
 - [ ] **Step 5: Commit**
@@ -236,7 +246,7 @@ git commit -m "chore: shared — add empty workspace package for shared types"
 - Create: `packages/db/src/schema.ts`
 - Create: `packages/db/src/index.ts`
 
-- [ ] **Step 1: Write `packages/db/package.json`**
+- [ ] **Step 1: Write `packages/db/package.json`** (Drizzle on current versions)
 
 ```json
 {
@@ -249,16 +259,12 @@ git commit -m "chore: shared — add empty workspace package for shared types"
     ".": "./src/index.ts",
     "./schema": "./src/schema.ts"
   },
-  "scripts": {
-    "generate": "drizzle-kit generate",
-    "migrate": "bun run scripts/migrate.ts"
-  },
   "dependencies": {
-    "drizzle-orm": "^0.36.0",
+    "drizzle-orm": "^0.39.0",
     "postgres": "^3.4.0"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.30.0"
+    "drizzle-kit": "^0.31.0"
   }
 }
 ```
@@ -267,12 +273,7 @@ git commit -m "chore: shared — add empty workspace package for shared types"
 
 ```json
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "rootDir": ".",
-    "outDir": "dist"
-  },
+  "extends": "../../tsconfig.json",
   "include": ["src/**/*", "scripts/**/*", "drizzle.config.ts"]
 }
 ```
@@ -292,7 +293,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 4: Write `packages/db/src/schema.ts`** (all 6 tables, mirroring spec §9 exactly)
+- [ ] **Step 4: Write `packages/db/src/schema.ts`** (`bigserial` uses `mode: "number"` so JSON.stringify doesn't choke on BigInt)
 
 ```typescript
 import {
@@ -341,10 +342,13 @@ export const wallets = pgTable(
 );
 
 // Wallet checks — history of /wallet-check writes, spec §9
+// `id` mode: "number" — JS number is safe to 2^53, far beyond any realistic count.
+// `mode: "bigint"` would return native BigInt which is NOT JSON-serializable
+// and would throw inside Hono's c.json().
 export const walletChecks = pgTable(
   "wallet_checks",
   {
-    id: bigserial("id", { mode: "bigint" }).primaryKey(),
+    id: bigserial("id", { mode: "number" }).primaryKey(),
     address: text("address")
       .notNull()
       .references(() => wallets.address),
@@ -362,7 +366,7 @@ export const walletChecks = pgTable(
 export const tokenScans = pgTable(
   "token_scans",
   {
-    id: bigserial("id", { mode: "bigint" }).primaryKey(),
+    id: bigserial("id", { mode: "number" }).primaryKey(),
     mint: text("mint").notNull(),
     symbol: text("symbol"),
     name: text("name"),
@@ -428,11 +432,11 @@ export function createDb(url: string): { db: DbClient; sql: postgres.Sql } {
 - [ ] **Step 6: Install deps**
 
 Run: `bun install`
-Expected: `drizzle-orm`, `postgres`, `drizzle-kit` resolved into `node_modules`.
+Expected: `drizzle-orm@^0.39`, `postgres@^3.4`, `drizzle-kit@^0.31` resolve.
 
 - [ ] **Step 7: Run typecheck**
 
-Run: `bun --bun tsc --noEmit -p packages/db/tsconfig.json`
+Run: `bun run typecheck`
 Expected: no errors.
 
 - [ ] **Step 8: Commit**
@@ -444,7 +448,7 @@ git commit -m "chore: db — add drizzle schema for all six tables (spec §9)"
 
 ---
 
-## Task 4: Postgres via docker-compose
+## Task 4: Postgres via docker-compose + `.env` setup
 
 **Files:**
 - Create: `docker-compose.yml`
@@ -482,7 +486,7 @@ volumes:
 # Postgres connection — used by API server and migrations
 DATABASE_URL=postgres://thirdeye:thirdeye@localhost:5432/thirdeye
 
-# Helius API key (Phase 1)
+# Helius API key (Phase 1) — required for real Helius proxying
 # HELIUS_API_KEY=
 
 # Public instance mode — when true, anonymous-token rate limits are enforced (spec §16)
@@ -495,17 +499,22 @@ PORT=3001
 CORS_ORIGIN=http://localhost:3000
 ```
 
-- [ ] **Step 3: Bring up Postgres**
+- [ ] **Step 3: Copy to local `.env`**
+
+Run: `cp .env.example .env`
+(`.env` is in `.gitignore`; never committed.)
+
+- [ ] **Step 4: Bring up Postgres**
 
 Run: `docker compose up -d postgres`
 Wait for healthy: `docker compose ps postgres` shows `(healthy)`.
 
-- [ ] **Step 4: Verify connection**
+- [ ] **Step 5: Verify connection**
 
 Run: `docker compose exec postgres psql -U thirdeye -d thirdeye -c "SELECT version();"`
 Expected: version output, no error.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add docker-compose.yml .env.example
@@ -514,12 +523,12 @@ git commit -m "chore: docker — add postgres service and env example"
 
 ---
 
-## Task 5: Drizzle migration generation + apply script
+## Task 5: Drizzle migration generation + apply script (location-independent)
 
 **Files:**
 - Create: `packages/db/scripts/migrate.ts`
 
-- [ ] **Step 1: Write `packages/db/scripts/migrate.ts`**
+- [ ] **Step 1: Write `packages/db/scripts/migrate.ts`** (uses `import.meta.url` so it runs from any cwd)
 
 ```typescript
 import { drizzle } from "drizzle-orm/postgres-js";
@@ -532,10 +541,13 @@ if (!url) {
   process.exit(1);
 }
 
+// Resolve `../drizzle` relative to this script — works from any cwd
+const migrationsFolder = new URL("../drizzle", import.meta.url).pathname;
+
 const sql = postgres(url, { max: 1 });
 const db = drizzle(sql);
 
-await migrate(db, { migrationsFolder: "./packages/db/drizzle" });
+await migrate(db, { migrationsFolder });
 console.log("migrations applied");
 await sql.end();
 ```
@@ -543,11 +555,11 @@ await sql.end();
 - [ ] **Step 2: Generate the initial migration**
 
 Run from repo root: `bunx drizzle-kit generate --config=packages/db/drizzle.config.ts`
-Expected: a new SQL file appears at `packages/db/drizzle/0000_<name>.sql` containing 6 `CREATE TABLE` statements + indexes.
+Expected: a new SQL file appears at `packages/db/drizzle/0000_<adjective>_<noun>.sql` containing 6 `CREATE TABLE` statements + indexes.
 
 - [ ] **Step 3: Apply the migration**
 
-Run: `DATABASE_URL=postgres://thirdeye:thirdeye@localhost:5432/thirdeye bun run migrate`
+Run: `bun run migrate`
 Expected: prints `migrations applied`, exits 0.
 
 - [ ] **Step 4: Verify tables exist**
@@ -578,7 +590,7 @@ git commit -m "feat: db — generate and apply initial schema migration"
 
 ---
 
-## Task 6: `apps/api` Hono skeleton
+## Task 6: `apps/api` Hono skeleton — idiomatic Bun, CORS allowHeaders, error handlers
 
 **Files:**
 - Create: `apps/api/package.json`
@@ -595,7 +607,7 @@ git commit -m "feat: db — generate and apply initial schema migration"
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
-    "dev": "bun --watch run src/index.ts",
+    "dev": "bun --hot run src/index.ts",
     "start": "bun run src/index.ts",
     "test": "bun test"
   },
@@ -603,7 +615,7 @@ git commit -m "feat: db — generate and apply initial schema migration"
     "@thirdeye/db": "workspace:*",
     "@thirdeye/shared": "workspace:*",
     "hono": "^4.6.0",
-    "drizzle-orm": "^0.36.0",
+    "drizzle-orm": "^0.39.0",
     "postgres": "^3.4.0"
   }
 }
@@ -613,17 +625,8 @@ git commit -m "feat: db — generate and apply initial schema migration"
 
 ```json
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "composite": true,
-    "rootDir": ".",
-    "outDir": "dist"
-  },
-  "include": ["src/**/*", "tests/**/*"],
-  "references": [
-    { "path": "../../packages/db" },
-    { "path": "../../packages/shared" }
-  ]
+  "extends": "../../tsconfig.json",
+  "include": ["src/**/*", "tests/**/*"]
 }
 ```
 
@@ -650,43 +653,51 @@ export const env = {
 } as const;
 ```
 
-- [ ] **Step 4: Write `apps/api/src/index.ts`**
+- [ ] **Step 4: Write `apps/api/src/index.ts`** — idiomatic `export default { port, fetch }`, CORS allows custom headers, `onError` + `notFound` for JSON consistency
 
 ```typescript
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { createDb } from "@thirdeye/db";
+import { createDb, type DbClient } from "@thirdeye/db";
 import { env } from "./env";
 
-const { db, sql } = createDb(env.DATABASE_URL);
+const { db } = createDb(env.DATABASE_URL);
 
-const app = new Hono<{ Variables: { db: typeof db } }>();
+type Variables = { db: DbClient };
+
+const app = new Hono<{ Variables: Variables }>();
 
 app.use("*", logger());
-app.use("*", cors({ origin: env.CORS_ORIGIN, credentials: true }));
+
+app.use(
+  "*",
+  cors({
+    origin: env.CORS_ORIGIN,
+    credentials: true,
+    allowHeaders: ["Content-Type", "X-Auth-Token", "X-User-Helius-Key"],
+    allowMethods: ["GET", "POST", "OPTIONS"],
+  }),
+);
 
 app.use("*", async (c, next) => {
   c.set("db", db);
   await next();
 });
 
+app.onError((err, c) => {
+  console.error("[unhandled]", err);
+  return c.json({ error: "internal_error" }, 500);
+});
+
+app.notFound((c) => c.json({ error: "not_found" }, 404));
+
 app.get("/", (c) => c.text("ThirdEye API"));
 app.get("/health", (c) => c.json({ ok: true }));
 
-const server = Bun.serve({
-  port: env.PORT,
-  fetch: app.fetch,
-});
+console.log(`thirdeye api ready on :${env.PORT}`);
 
-console.log(`thirdeye api listening on :${server.port}`);
-
-// Graceful shutdown
-process.on("SIGTERM", async () => {
-  await sql.end();
-  process.exit(0);
-});
-
+export default { port: env.PORT, fetch: app.fetch };
 export { app, db };
 ```
 
@@ -697,8 +708,8 @@ Expected: `hono` resolves into `node_modules`.
 
 - [ ] **Step 6: Boot the server**
 
-Run: `DATABASE_URL=postgres://thirdeye:thirdeye@localhost:5432/thirdeye bun run apps/api/src/index.ts`
-Expected: prints `thirdeye api listening on :3001`. Process stays running.
+Run: `bun run dev`
+Expected: prints `thirdeye api ready on :3001`. Process stays running.
 
 - [ ] **Step 7: Probe in another terminal**
 
@@ -708,13 +719,16 @@ Expected: `{"ok":true}`
 Run: `curl -s http://localhost:3001/`
 Expected: `ThirdEye API`
 
+Run: `curl -s -i -X OPTIONS http://localhost:3001/api/db/auth -H "Origin: http://localhost:3000" -H "Access-Control-Request-Method: POST" -H "Access-Control-Request-Headers: x-auth-token,content-type"`
+Expected: HTTP 204 with `access-control-allow-headers: Content-Type, X-Auth-Token, X-User-Helius-Key` in response.
+
 Stop the server (Ctrl-C in its terminal).
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add apps/api
-git commit -m "feat: api — hono skeleton with health endpoint and db wiring"
+git commit -m "feat: api — hono skeleton with cors, error handlers, and idiomatic bun export"
 ```
 
 ---
@@ -919,8 +933,8 @@ describe("POST /api/db/auth", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd apps/api && DATABASE_URL=postgres://thirdeye:thirdeye@localhost:5432/thirdeye bun test tests/auth.test.ts`
-Expected: failures with 404 (route doesn't exist yet).
+Run: `cd apps/api && bun test tests/auth.test.ts`
+Expected: failures with 404 (route doesn't exist yet — handled by `notFound` returning JSON 404).
 
 - [ ] **Step 3: Implement `apps/api/src/routes/auth.ts`**
 
@@ -943,19 +957,19 @@ authRoutes.post("/auth", async (c) => {
 
 - [ ] **Step 4: Mount the route in `apps/api/src/index.ts`**
 
-Add to imports:
+Add to imports (after the existing `import { env } from "./env";` line):
 ```typescript
 import { authRoutes } from "./routes/auth";
 ```
 
-Add after `app.get("/health", ...)` line:
+Add immediately after the `app.get("/health", ...)` line:
 ```typescript
 app.route("/api/db", authRoutes);
 ```
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `cd apps/api && DATABASE_URL=postgres://thirdeye:thirdeye@localhost:5432/thirdeye bun test tests/auth.test.ts`
+Run: `cd apps/api && bun test tests/auth.test.ts`
 Expected: `2 pass / 0 fail`.
 
 - [ ] **Step 6: Commit**
@@ -981,7 +995,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:tes
 import { app } from "../src/index";
 import { setupTestDb, type TestDb } from "./setup";
 import { authTokens } from "@thirdeye/db";
-import { eq, sql as dsql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 let testDb: TestDb;
 
@@ -1017,7 +1031,7 @@ describe("X-Auth-Token middleware", () => {
     const before = await testDb.db.select().from(authTokens).where(eq(authTokens.token, token));
     const beforeUsed = before[0]!.lastUsedAt.getTime();
 
-    await new Promise((r) => setTimeout(r, 50));
+    await new Promise((r) => setTimeout(r, 100));
 
     const r = await app.request("/api/db/protected-probe", {
       method: "GET",
@@ -1048,8 +1062,8 @@ describe("X-Auth-Token middleware", () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd apps/api && DATABASE_URL=postgres://thirdeye:thirdeye@localhost:5432/thirdeye bun test tests/middleware-auth.test.ts`
-Expected: 4 failures (route `/api/db/protected-probe` doesn't exist, middleware doesn't exist).
+Run: `cd apps/api && bun test tests/middleware-auth.test.ts`
+Expected: 4 failures (route `/api/db/protected-probe` doesn't exist; middleware doesn't exist).
 
 - [ ] **Step 3: Implement `apps/api/src/middleware/auth.ts`**
 
@@ -1086,11 +1100,11 @@ Add to imports:
 import { requireAuth } from "./middleware/auth";
 ```
 
-Replace the existing single `app.route("/api/db", authRoutes);` line with:
+Replace the existing `app.route("/api/db", authRoutes);` line with:
 ```typescript
 app.route("/api/db", authRoutes); // /auth is unauthenticated by design (it issues tokens)
 
-const protectedDb = new Hono<{ Variables: { db: typeof db } }>();
+const protectedDb = new Hono<{ Variables: Variables }>();
 protectedDb.use("*", requireAuth);
 protectedDb.get("/protected-probe", (c) => c.json({ ok: true }));
 
@@ -1101,12 +1115,12 @@ app.route("/api/db", protectedDb);
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `cd apps/api && DATABASE_URL=postgres://thirdeye:thirdeye@localhost:5432/thirdeye bun test tests/middleware-auth.test.ts`
+Run: `cd apps/api && bun test tests/middleware-auth.test.ts`
 Expected: `4 pass / 0 fail`.
 
 - [ ] **Step 6: Run all tests together**
 
-Run: `cd apps/api && DATABASE_URL=postgres://thirdeye:thirdeye@localhost:5432/thirdeye bun test`
+Run: `cd apps/api && bun test`
 Expected: `9 pass / 0 fail` (3 token + 2 auth + 4 middleware).
 
 - [ ] **Step 7: Commit**
@@ -1118,16 +1132,40 @@ git commit -m "feat: auth — X-Auth-Token middleware with expiry check and last
 
 ---
 
-## Task 11: Dockerfile + docker-compose `app` service
+## Task 11: Dockerfile + `.dockerignore` + docker-compose `app` service
 
 **Files:**
 - Create: `apps/api/Dockerfile`
+- Create: `.dockerignore`
 - Modify: `docker-compose.yml`
 
-- [ ] **Step 1: Write `apps/api/Dockerfile`** (multi-stage, Bun-native)
+- [ ] **Step 1: Write `.dockerignore`** — keep build context lean and don't leak local research dirs
+
+```
+**/node_modules
+**/dist
+**/.next
+**/.bun
+.git
+.github
+.firecrawl
+.superpowers
+.tmp
+.cache
+.env
+.env.*
+!.env.example
+*.log
+coverage
+.nyc_output
+.idea
+.vscode
+```
+
+- [ ] **Step 2: Write `apps/api/Dockerfile`** (multi-stage, Bun 1.2-slim base)
 
 ```dockerfile
-FROM oven/bun:1.1-slim AS base
+FROM oven/bun:1.2-slim AS base
 WORKDIR /app
 
 FROM base AS deps
@@ -1145,7 +1183,7 @@ EXPOSE 3001
 CMD ["bun", "run", "apps/api/src/index.ts"]
 ```
 
-- [ ] **Step 2: Modify `docker-compose.yml` — add `app` service**
+- [ ] **Step 3: Modify `docker-compose.yml` — add `app` service**
 
 Replace entire file with:
 
@@ -1190,18 +1228,18 @@ volumes:
   thirdeye-pg-data:
 ```
 
-- [ ] **Step 3: Bring up the full stack**
+- [ ] **Step 4: Bring up the full stack**
 
 Run: `docker compose up -d --build`
 Wait ~30s for the build, then check: `docker compose ps`
 Expected: `thirdeye-app` and `thirdeye-postgres` both `running`, postgres `(healthy)`.
 
-- [ ] **Step 4: Run migrations against compose Postgres**
+- [ ] **Step 5: Run migrations against compose Postgres**
 
-Run from host: `DATABASE_URL=postgres://thirdeye:thirdeye@localhost:5432/thirdeye bun run migrate`
+Run from host: `bun run migrate`
 Expected: `migrations applied`.
 
-- [ ] **Step 5: Probe the running container**
+- [ ] **Step 6: Probe the running container**
 
 Run: `curl -s http://localhost:3001/health`
 Expected: `{"ok":true}`
@@ -1212,15 +1250,15 @@ curl -s -X POST http://localhost:3001/api/db/auth -H "Content-Type: application/
 ```
 Expected: JSON with `token` (43 chars, base64url) and `expiresAt` (ISO string).
 
-- [ ] **Step 6: Stop the stack**
+- [ ] **Step 7: Stop the stack**
 
 Run: `docker compose down`
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add apps/api/Dockerfile docker-compose.yml
-git commit -m "feat: docker — multi-stage bun image, full app+postgres compose stack"
+git add apps/api/Dockerfile .dockerignore docker-compose.yml
+git commit -m "feat: docker — multi-stage bun image, dockerignore, full app+postgres compose stack"
 ```
 
 ---
@@ -1268,10 +1306,13 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.1
+          bun-version: latest
 
       - name: Install
         run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
 
       - name: Typecheck
         run: bun run typecheck
@@ -1287,7 +1328,7 @@ jobs:
 
 ```bash
 git add .github/workflows/ci.yml
-git commit -m "ci: github actions — typecheck, migrate, test on push and PR"
+git commit -m "ci: github actions — lint, typecheck, migrate, test on push and PR"
 ```
 
 - [ ] **Step 3: Push and verify CI runs**
@@ -1299,32 +1340,154 @@ If the workflow fails, read the logs, fix the issue, push again. Do not skip thi
 
 ---
 
-## Task 13: Update `CLAUDE.md` with concrete commands
+## Task 13: Biome formatter + linter
 
 **Files:**
+- Create: `biome.json`
+
+- [ ] **Step 1: Write `biome.json`**
+
+```json
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "ignore": ["**/dist/**", "**/.next/**", "**/drizzle/**", "**/node_modules/**"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "style": {
+        "noNonNullAssertion": "off",
+        "useImportType": "warn"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always"
+    }
+  }
+}
+```
+
+- [ ] **Step 2: Run formatter once across the repo**
+
+Run: `bun run format`
+Expected: any file outside the ignore list normalized to Biome's style. Diff should be small (we already write clean code).
+
+- [ ] **Step 3: Run linter**
+
+Run: `bun run lint`
+Expected: zero errors. If Biome surfaces warnings on the existing code, fix them inline (they will be small things like preferring `import type`).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add biome.json
+git add -u  # any reformatted files from step 2
+git commit -m "chore: biome — add lint+format config and run initial pass"
+```
+
+---
+
+## Task 14: `CONTRIBUTING.md` + update `CLAUDE.md` with commands and logging note
+
+**Files:**
+- Create: `CONTRIBUTING.md`
 - Modify: `CLAUDE.md`
 
-- [ ] **Step 1: Add a "Local development" section to `CLAUDE.md`**
+- [ ] **Step 1: Write `CONTRIBUTING.md`**
+
+```markdown
+# Contributing to ThirdEye
+
+ThirdEye is open source under the MIT license. PRs welcome.
+
+## Prerequisites
+
+- [Bun](https://bun.sh) ≥ 1.2
+- Docker + Docker Compose
+- A free [Helius](https://helius.dev) API key (only required from Phase 1 onward — Phase 0 has none of the proxy code yet)
+
+## Local development
+
+```bash
+git clone https://github.com/AIEngineerX/thirdeye
+cd thirdeye
+cp .env.example .env
+bun install
+docker compose up -d postgres
+bun run migrate
+bun run dev
+```
+
+The API is now at `http://localhost:3001`.
+
+## Before opening a PR
+
+```bash
+bun run lint        # biome check
+bun run typecheck   # tsc --noEmit
+bun test            # bun:test against real Postgres (must be running)
+```
+
+CI runs the same four commands; PRs that fail any will be blocked.
+
+## Architecture
+
+- Design spec: [`docs/superpowers/specs/2026-05-01-thirdeye-design.md`](docs/superpowers/specs/2026-05-01-thirdeye-design.md)
+- Phase plans: [`docs/superpowers/plans/`](docs/superpowers/plans/)
+- Stack: Bun + Hono + Drizzle + Postgres + graphile-worker (Phase 2+) + Next.js (Phase 5+)
+
+## Code style
+
+Biome handles formatting and most lint rules. Don't bikeshed — `bun run format` settles disputes.
+
+## Commit messages
+
+`<type>: <area> — <one-line summary>` where `<type>` ∈ `feat | fix | chore | docs | test | ci`. Example: `feat: scan — add LP/lock holder filter`.
+```
+
+- [ ] **Step 2: Add "Local development" + "Logging" sections to `CLAUDE.md`**
 
 Insert after the "Workflow" section, before "Commit style":
 
 ```markdown
 ## Local development
 
-Prerequisites: Bun ≥ 1.1, Docker, Docker Compose.
+Prerequisites: Bun ≥ 1.2, Docker, Docker Compose.
 
 ```bash
+# First time only
+cp .env.example .env
+
 # Start Postgres only (recommended for inner dev loop)
 docker compose up -d postgres
 
 # Apply migrations
-DATABASE_URL=postgres://thirdeye:thirdeye@localhost:5432/thirdeye bun run migrate
+bun run migrate
 
-# Run API in watch mode
+# Run API in hot-reload mode
 bun run dev
 
 # Run all tests (Postgres must be up)
-DATABASE_URL=postgres://thirdeye:thirdeye@localhost:5432/thirdeye bun test
+bun test
+
+# Lint + format
+bun run lint
+bun run format
 
 # Typecheck the whole monorepo
 bun run typecheck
@@ -1334,27 +1497,33 @@ docker compose up -d --build
 ```
 
 The API listens on `http://localhost:3001`. `POST /api/db/auth` issues an anonymous session token; subsequent `/api/db/*` calls require `X-Auth-Token` header.
+
+## Logging
+
+Phase 0 uses Hono's built-in `logger()` middleware for request logs and `console.log`/`console.error` for app-level events. Structured JSON logging via pino is a v2 enhancement — don't introduce a logger library before then.
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add CLAUDE.md
-git commit -m "docs: claude.md — document local dev commands and ports"
+git add CONTRIBUTING.md CLAUDE.md
+git commit -m "docs: contributing + claude.md — local dev workflow and logging policy"
 ```
 
 ---
 
 ## Phase 0 acceptance criteria
 
-After all 13 tasks are done, the following must all be true. Verify each one before declaring Phase 0 complete:
+After all 14 tasks are done, the following must all be true. Verify each one before declaring Phase 0 complete:
 
+- [ ] `bun run lint` exits 0
 - [ ] `bun run typecheck` exits 0
 - [ ] `docker compose up -d postgres && bun run migrate` applies all 6 tables (verify with `psql … "\dt"`)
 - [ ] `bun test` reports `9 pass / 0 fail` against a real Postgres
 - [ ] `docker compose up -d --build` brings up app + postgres; `curl localhost:3001/health` returns `{"ok":true}`
 - [ ] `curl -X POST localhost:3001/api/db/auth -H "Content-Type: application/json" -d "{}"` returns a token + expiresAt
-- [ ] GitHub Actions CI on `main` is green
+- [ ] CORS preflight (`curl -i -X OPTIONS …` with `Access-Control-Request-Headers: x-auth-token`) returns 204 with `X-Auth-Token` listed in `access-control-allow-headers`
+- [ ] GitHub Actions CI on `main` is green (lint + typecheck + migrate + test all pass)
 - [ ] All commits authored by `AIEngineerX <195990077+AIEngineerX@users.noreply.github.com>` (verify with `git log --pretty=format:"%h %an <%ae>"`)
 
 ---
@@ -1365,7 +1534,7 @@ Each gets its own plan file written when we're ready to execute it.
 
 | Phase | Plan filename (future) | Builds |
 |---|---|---|
-| **1** | `2026-05-XX-thirdeye-phase-1-helius-proxy.md` | `/api/helius/*` proxy with BYOK header support, server-side `HELIUS_API_KEY`, in-memory LRU cache, rate-limit middleware (per spec §16) |
+| **1** | `…-phase-1-helius-proxy.md` | `/api/helius/*` proxy with BYOK header support, server-side `HELIUS_API_KEY`, in-memory LRU cache, rate-limit middleware (per spec §16) |
 | **2** | `…-phase-2-check-wallet.md` | Check Wallet pipeline (spec §8.1): `funded-by` → balances → enhanced-tx → behavioral classifier → cluster lookup → score → save. `POST /api/db/wallet-check`, `GET /api/db/wallet/:addr/*` endpoints. graphile-worker introduced for async pipeline. |
 | **3** | `…-phase-3-scan-token.md` | Scan Token pipeline (spec §8.2): `getTokenHolders` → LP/lock filter (`packages/shared/programs.json`) → batched `funded-by` → cluster grouping → risk score → save. `POST /api/db/scan` + reads. |
 | **4** | `…-phase-4-intel-sse.md` | Intel Analytics endpoints (spec §8.3): aggregates table populated by `refresh-aggregates` cron, heatmap data, SSE feed at `/api/db/intel/feed` with 15s heartbeat and `?token=` query auth. |
@@ -1384,7 +1553,7 @@ Phases 1–4 are pure backend and can ship sequentially. Phase 5 has a hard depe
 
 | Spec section | Covered by | Status |
 |---|---|---|
-| §5 Stack — Bun, Hono, Drizzle, Postgres | Tasks 1, 3, 6 | ✅ |
+| §5 Stack — Bun, Hono, Drizzle, Postgres, Biome | Tasks 1, 3, 6, 13 | ✅ |
 | §7 Auth model — anonymous tokens, X-Auth-Token, 401 reauth | Tasks 7, 9, 10 | ✅ |
 | §9 Data model — all 6 tables + indexes | Task 3, Task 5 | ✅ |
 | §15 Deployment — `docker compose up`, single env var | Tasks 4, 11 | ✅ |
@@ -1396,4 +1565,4 @@ Phases 1–4 are pure backend and can ship sequentially. Phase 5 has a hard depe
 | §12 SSE | Phase 4 | Deferred |
 | §13 Background jobs | Phase 2 introduces graphile-worker | Deferred |
 
-All Phase 0 spec coverage accounted for. No placeholders, all code complete, types consistent (`DbClient`, `IssuedToken`, `authTokens` referenced identically across tasks).
+All Phase 0 spec coverage accounted for. No placeholders, all code complete, types consistent (`DbClient`, `IssuedToken`, `authTokens`, `Variables` referenced identically across tasks). All gap-analysis fixes applied — see plan header for the change list.
