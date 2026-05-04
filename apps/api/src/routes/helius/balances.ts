@@ -1,28 +1,20 @@
 import { ProxyError, TTL } from "@thirdeye/helius";
 import { Hono } from "hono";
 import { isValidSolanaAddress } from "../../lib/solana-address";
-import { executeProxy } from "./_lib";
+import { executeProxy, pickQuery, respondError } from "./_lib";
 
 const ALLOWED_QUERY_KEYS = ["limit", "showNative"] as const;
 
 export const balances = new Hono();
 
-balances.get("/v1/wallet/:addr/balances", async (c) => {
+balances.get("/v1/wallet/:addr/balances", (c) => {
   const addr = c.req.param("addr");
-  if (!isValidSolanaAddress(addr)) {
-    const err = ProxyError.invalidAddress();
-    return c.json({ error: err.error, message: err.message }, 400);
-  }
-  const query: Record<string, string> = {};
-  for (const k of ALLOWED_QUERY_KEYS) {
-    const v = c.req.query(k);
-    if (v !== undefined) query[k] = v;
-  }
+  if (!isValidSolanaAddress(addr)) return respondError(c, ProxyError.invalidAddress());
   return executeProxy(c, {
     target: {
       kind: "rest",
       path: `/v1/wallet/${addr}/balances`,
-      ...(Object.keys(query).length > 0 && { query }),
+      query: pickQuery(c, ALLOWED_QUERY_KEYS),
     },
     method: "GET",
     cacheTtlMs: TTL.DEFAULT,

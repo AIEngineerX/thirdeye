@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { authTokens } from "@thirdeye/db";
-import { _resetCacheForTests } from "@thirdeye/helius";
+import { getCache } from "@thirdeye/helius";
 import { app } from "../src/index";
 import { generateToken } from "../src/lib/tokens";
 import { FIXTURE_INVALID_ADDRESS, FIXTURE_WALLET } from "./fixtures/helius";
@@ -58,7 +58,7 @@ d("Helius routes (real Helius)", () => {
   }, 20_000);
 
   test("Cache observability: first call is MISS, second is HIT, identical body", async () => {
-    _resetCacheForTests();
+    getCache().clear();
     const url = `/api/helius/v1/wallet/${FIXTURE_WALLET}/identity`;
     const r1 = await app.request(url, { headers: { "X-Auth-Token": token } });
     expect(r1.status).toBe(200);
@@ -142,7 +142,7 @@ d("Helius routes (real Helius)", () => {
     // Cache is content-keyed (not key-keyed) per spec §5, so a prior server-key call
     // would short-circuit this BYOK call to a cached 200. Reset the cache so the call
     // actually exercises the BYOK path through the network.
-    _resetCacheForTests();
+    getCache().clear();
     const r = await app.request(`/api/helius/v1/wallet/${FIXTURE_WALLET}/identity`, {
       headers: {
         "X-Auth-Token": token,
@@ -154,12 +154,11 @@ d("Helius routes (real Helius)", () => {
   }, 20_000);
 });
 
-describe("Helius routes (no-key fallback)", () => {
+// Inverse of `d`: only runs when the key is NOT configured.
+const dNoKey = HAVE_KEY ? describe.skip : describe;
+
+dNoKey("Helius routes (no-key fallback)", () => {
   test("returns 503 when no key configured and no BYOK header", async () => {
-    if (HAVE_KEY) {
-      // Skip when the env IS configured: this case can't be tested.
-      return;
-    }
     const r = await app.request(`/api/helius/v1/wallet/${FIXTURE_WALLET}/identity`, {
       headers: { "X-Auth-Token": token },
     });
