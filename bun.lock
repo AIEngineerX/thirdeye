@@ -10,6 +10,17 @@
         "typescript": "^5.6.0",
       },
     },
+    "apps/api": {
+      "name": "@thirdeye/api",
+      "version": "0.0.0",
+      "dependencies": {
+        "@thirdeye/db": "workspace:*",
+        "@thirdeye/shared": "workspace:*",
+        "drizzle-orm": "^0.39.0",
+        "hono": "^4.6.0",
+        "postgres": "^3.4.0",
+      },
+    },
     "packages/db": {
       "name": "@thirdeye/db",
       "version": "0.0.0",
@@ -103,6 +114,8 @@
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.25.12", "", { "os": "win32", "cpu": "x64" }, "sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA=="],
 
+    "@thirdeye/api": ["@thirdeye/api@workspace:apps/api"],
+
     "@thirdeye/db": ["@thirdeye/db@workspace:packages/db"],
 
     "@thirdeye/shared": ["@thirdeye/shared@workspace:packages/shared"],
@@ -124,6 +137,8 @@
     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
 
     "get-tsconfig": ["get-tsconfig@4.14.0", "", { "dependencies": { "resolve-pkg-maps": "^1.0.0" } }, "sha512-yTb+8DXzDREzgvYmh6s9vHsSVCHeC0G3PI5bEXNBHtmshPnO+S5O7qgLEOn0I5QvMy6kpZN8K1NKGyilLb93wA=="],
+
+    "hono": ["hono@4.12.16", "", {}, "sha512-jN0ZewiNAWSe5khM3EyCmBb250+b40wWbwNILNfEvq84VREWwOIkuUsFONk/3i3nqkz7Oe1PcpM2mwQEK2L9Kg=="],
 
     "postgres": ["postgres@3.4.9", "", {}, "sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw=="],
 
