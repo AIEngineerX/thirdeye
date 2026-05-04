@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: thirdeye
+          POSTGRES_PASSWORD: thirdeye
+          POSTGRES_DB: thirdeye
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U thirdeye -d thirdeye"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://thirdeye:thirdeye@localhost:5432/thirdeye
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Migrate
+        run: bun run migrate
+
+      - name: Test
+        run: bun test
