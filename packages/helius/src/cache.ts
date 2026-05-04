@@ -9,7 +9,7 @@ export interface CachedResponse {
 export interface CacheKeyInput {
   method: "GET" | "POST";
   path: string;
-  query?: Record<string, string>;
+  query?: Record<string, string> | undefined;
   body?: unknown;
 }
 
@@ -44,9 +44,4 @@ export function getCache(): LRUCache<string, CachedResponse> {
     });
   }
   return cacheInstance;
-}
-
-export function _resetCacheForTests(): void {
-  cacheInstance?.clear();
-  cacheInstance = null;
 }

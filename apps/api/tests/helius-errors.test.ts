@@ -52,9 +52,26 @@ describe("ProxyError helpers", () => {
     expect(ProxyError.forbiddenRpcMethod("sendTransaction").message).toContain("sendTransaction");
   });
 
-  test("rateLimited carries retryAfterSec", () => {
-    const e = ProxyError.rateLimited(42);
+  test("rateLimited carries name + retryAfterSec + window context", () => {
+    const e = ProxyError.rateLimited("helius_proxy", 600, 3600, 42);
     expect(e.status).toBe(429);
+    expect(e.error).toBe("rate_limited");
     expect(e.retryAfterSec).toBe(42);
+    expect(e.name).toBe("helius_proxy");
+    expect(e.message).toContain("600/3600s");
+  });
+
+  test("invalidBody is 400 with passed message", () => {
+    const e = ProxyError.invalidBody("expected an array");
+    expect(e.status).toBe(400);
+    expect(e.error).toBe("invalid_body");
+    expect(e.message).toBe("expected an array");
+  });
+
+  test("upstreamMalformed is 502 with upstreamStatus", () => {
+    const e = ProxyError.upstreamMalformed(200);
+    expect(e.status).toBe(502);
+    expect(e.error).toBe("upstream_malformed");
+    expect(e.upstreamStatus).toBe(200);
   });
 });

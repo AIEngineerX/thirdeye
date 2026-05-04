@@ -1,7 +1,7 @@
 export interface RestUrlInput {
   path: string;
   apiKey: string;
-  query?: Record<string, string>;
+  query?: Record<string, string> | undefined;
 }
 
 export function composeRestUrl({ path, apiKey, query }: RestUrlInput): string {
@@ -9,8 +9,7 @@ export function composeRestUrl({ path, apiKey, query }: RestUrlInput): string {
   const params = new URLSearchParams();
   params.set("api-key", apiKey);
   if (query) {
-    const keys = Object.keys(query).sort();
-    for (const k of keys) {
+    for (const k of Object.keys(query).sort()) {
       const v = query[k];
       if (v !== undefined) params.set(k, v);
     }
@@ -19,6 +18,5 @@ export function composeRestUrl({ path, apiKey, query }: RestUrlInput): string {
 }
 
 export function composeRpcUrl(apiKey: string): string {
-  const params = new URLSearchParams({ "api-key": apiKey });
-  return `https://mainnet.helius-rpc.com/?${params.toString()}`;
+  return `https://mainnet.helius-rpc.com/?api-key=${encodeURIComponent(apiKey)}`;
 }

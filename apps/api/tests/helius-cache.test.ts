@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { _resetCacheForTests, composeCacheKey, getCache } from "@thirdeye/helius";
+import { composeCacheKey, getCache } from "@thirdeye/helius";
 
 describe("composeCacheKey", () => {
   test("deterministic for identical input", () => {
@@ -85,21 +85,21 @@ describe("composeCacheKey", () => {
 
 describe("LRU cache instance", () => {
   test("get returns set value within TTL", () => {
-    _resetCacheForTests();
     const cache = getCache();
+    cache.clear();
     cache.set("k", { status: 200, body: { ok: true } }, { ttl: 1000 });
     expect(cache.get("k")).toEqual({ status: 200, body: { ok: true } });
   });
 
   test("returns undefined for unknown key", () => {
-    _resetCacheForTests();
     const cache = getCache();
+    cache.clear();
     expect(cache.get("missing")).toBeUndefined();
   });
 
   test("respects per-entry TTL", async () => {
-    _resetCacheForTests();
     const cache = getCache();
+    cache.clear();
     cache.set("short", { status: 200, body: 1 }, { ttl: 50 });
     cache.set("long", { status: 200, body: 2 }, { ttl: 60_000 });
     await new Promise((r) => setTimeout(r, 100));

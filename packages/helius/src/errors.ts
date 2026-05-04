@@ -21,6 +21,11 @@ export const ProxyError = {
     error: "invalid_address",
     message: "Address is not valid base58 or wrong length",
   }),
+  invalidBody: (msg: string): ProxyErrorPayload => ({
+    status: 400,
+    error: "invalid_body",
+    message: msg,
+  }),
   invalidRpcBody: (msg: string): ProxyErrorPayload => ({
     status: 400,
     error: "invalid_rpc_body",
@@ -31,11 +36,23 @@ export const ProxyError = {
     error: "forbidden_rpc_method",
     message: `RPC method '${method}' is not allowed through this proxy`,
   }),
-  rateLimited: (retryAfterSec: number): ProxyErrorPayload & { retryAfterSec: number } => ({
+  rateLimited: (
+    name: string,
+    limit: number,
+    windowSec: number,
+    retryAfterSec: number,
+  ): ProxyErrorPayload & { retryAfterSec: number; name: string } => ({
     status: 429,
     error: "rate_limited",
-    message: "Rate limit exceeded for this session token",
+    message: `Limit ${limit}/${windowSec}s for ${name}`,
     retryAfterSec,
+    name,
+  }),
+  upstreamMalformed: (upstreamStatus: number): ProxyErrorPayload => ({
+    status: 502,
+    error: "upstream_malformed",
+    message: "Helius returned a non-JSON response",
+    upstreamStatus,
   }),
 };
 
