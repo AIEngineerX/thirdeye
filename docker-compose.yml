@@ -1,4 +1,21 @@
 services:
+  app:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: thirdeye-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://thirdeye:thirdeye@postgres:5432/thirdeye
+      PORT: 3001
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      PUBLIC_INSTANCE_MODE: ${PUBLIC_INSTANCE_MODE:-false}
+    ports:
+      - "3001:3001"
+
   postgres:
     image: postgres:16-alpine
     container_name: thirdeye-postgres
