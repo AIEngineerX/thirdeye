@@ -42,3 +42,6 @@ coverage/
 # Brainstorming session data + research scrapes (local only)
 .superpowers/
 .firecrawl/
+
+# Git worktrees
+.worktrees/
