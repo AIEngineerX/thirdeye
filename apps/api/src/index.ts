@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { createDb, type DbClient } from "@thirdeye/db";
 import { env } from "./env";
+import { authRoutes } from "./routes/auth";
 
 const { db } = createDb(env.DATABASE_URL);
 
@@ -36,6 +37,7 @@ app.notFound((c) => c.json({ error: "not_found" }, 404));
 
 app.get("/", (c) => c.text("ThirdEye API"));
 app.get("/health", (c) => c.json({ ok: true }));
+app.route("/api/db", authRoutes);
 
 console.log(`thirdeye api ready on :${env.PORT}`);
 
