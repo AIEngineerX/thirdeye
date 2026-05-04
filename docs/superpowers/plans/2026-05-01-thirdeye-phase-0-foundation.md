@@ -442,9 +442,11 @@ Expected: no errors.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add packages/db
+git add packages/db bun.lock
 git commit -m "chore: db — add drizzle schema for all six tables (spec §9)"
 ```
+
+(`bun.lock` changes whenever deps are added — always include it in the same commit so CI's `--frozen-lockfile` stays consistent.)
 
 ---
 
@@ -565,7 +567,7 @@ Expected: prints `migrations applied`, exits 0.
 - [ ] **Step 4: Verify tables exist**
 
 Run: `docker compose exec postgres psql -U thirdeye -d thirdeye -c "\dt"`
-Expected: 7 rows (6 ThirdEye tables + Drizzle's `__drizzle_migrations`):
+Expected: 6 rows (the 6 ThirdEye tables in the `public` schema):
 ```
 auth_tokens
 funders
@@ -573,8 +575,9 @@ intel_aggregates
 token_scans
 wallet_checks
 wallets
-__drizzle_migrations
 ```
+
+(Drizzle's `__drizzle_migrations` lives in a separate `drizzle` schema. To see it: `\dt drizzle.*` or `SELECT count(*) FROM drizzle.__drizzle_migrations`.)
 
 - [ ] **Step 5: Verify indexes**
 
@@ -727,9 +730,11 @@ Stop the server (Ctrl-C in its terminal).
 - [ ] **Step 8: Commit**
 
 ```bash
-git add apps/api
+git add apps/api bun.lock
 git commit -m "feat: api — hono skeleton with cors, error handlers, and idiomatic bun export"
 ```
+
+(`bun.lock` changed because Hono and friends were added — commit it together.)
 
 ---
 
@@ -1169,7 +1174,7 @@ FROM oven/bun:1.2-slim AS base
 WORKDIR /app
 
 FROM base AS deps
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/
 COPY packages/db/package.json packages/db/
 COPY packages/shared/package.json packages/shared/
