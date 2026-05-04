@@ -1,13 +1,5 @@
-import {
-  composeCacheKey,
-  getCache,
-  type CachedResponse,
-} from "./cache";
-import {
-  mapUpstreamStatus,
-  ProxyError,
-  type ProxyErrorPayload,
-} from "./errors";
+import { type CachedResponse, composeCacheKey, getCache } from "./cache";
+import { ProxyError, type ProxyErrorPayload, mapUpstreamStatus } from "./errors";
 import { composeRestUrl, composeRpcUrl } from "./urls";
 
 export type ProxyTarget =

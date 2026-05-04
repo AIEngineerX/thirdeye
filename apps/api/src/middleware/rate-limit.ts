@@ -1,6 +1,6 @@
-import type { MiddlewareHandler } from "hono";
 import type { DbClient } from "@thirdeye/db";
 import { sql } from "drizzle-orm";
+import type { MiddlewareHandler } from "hono";
 
 export interface RateLimitOptions {
   name: string;
@@ -70,10 +70,7 @@ export function rateLimit(
     const newCount = Number(row.new_count);
     const windowStart = new Date(row.window_start);
     const resetAt = new Date(windowStart.getTime() + windowSec * 1000);
-    const retryAfterSec = Math.max(
-      0,
-      Math.ceil((resetAt.getTime() - now.getTime()) / 1000),
-    );
+    const retryAfterSec = Math.max(0, Math.ceil((resetAt.getTime() - now.getTime()) / 1000));
 
     if (newCount > limit) {
       c.header("Retry-After", String(retryAfterSec));

@@ -1,21 +1,11 @@
-import type { Context } from "hono";
 import { createHash } from "node:crypto";
-import {
-  proxyToHelius,
-  type ProxyOptions,
-  type ProxyResult,
-} from "@thirdeye/helius";
+import { type ProxyOptions, type ProxyResult, proxyToHelius } from "@thirdeye/helius";
+import type { Context } from "hono";
 import { env } from "../../env";
 
-export function logProxyEvent(
-  c: Context,
-  pathLabel: string,
-  r: ProxyResult,
-): void {
+export function logProxyEvent(c: Context, pathLabel: string, r: ProxyResult): void {
   const token = c.req.header("X-Auth-Token") ?? "";
-  const tokenHash = token
-    ? createHash("sha256").update(token).digest("hex").slice(0, 8)
-    : "";
+  const tokenHash = token ? createHash("sha256").update(token).digest("hex").slice(0, 8) : "";
   console.log(
     JSON.stringify({
       ts: new Date().toISOString(),
@@ -44,10 +34,7 @@ export async function executeProxy(
     ...(userKey !== undefined && { userKey }),
   };
   const r = await proxyToHelius(proxyOpts);
-  const pathLabel =
-    opts.target.kind === "rest"
-      ? opts.target.path
-      : `/rpc/${opts.target.method}`;
+  const pathLabel = opts.target.kind === "rest" ? opts.target.path : `/rpc/${opts.target.method}`;
   logProxyEvent(c, pathLabel, r);
   return c.json(r.body as object, r.status as ContentfulStatus);
 }

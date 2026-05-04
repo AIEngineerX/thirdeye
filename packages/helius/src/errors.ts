@@ -14,8 +14,7 @@ export const ProxyError = {
   noKey: (): ProxyErrorPayload => ({
     status: 503,
     error: "no_helius_key",
-    message:
-      "No Helius API key configured (server env var or X-User-Helius-Key header)",
+    message: "No Helius API key configured (server env var or X-User-Helius-Key header)",
   }),
   invalidAddress: (): ProxyErrorPayload => ({
     status: 400,
@@ -32,9 +31,7 @@ export const ProxyError = {
     error: "forbidden_rpc_method",
     message: `RPC method '${method}' is not allowed through this proxy`,
   }),
-  rateLimited: (
-    retryAfterSec: number,
-  ): ProxyErrorPayload & { retryAfterSec: number } => ({
+  rateLimited: (retryAfterSec: number): ProxyErrorPayload & { retryAfterSec: number } => ({
     status: 429,
     error: "rate_limited",
     message: "Rate limit exceeded for this session token",

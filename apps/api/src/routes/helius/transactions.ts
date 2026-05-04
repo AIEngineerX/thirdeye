@@ -1,16 +1,9 @@
+import { ProxyError, TTL } from "@thirdeye/helius";
 import { Hono } from "hono";
-import { TTL, ProxyError } from "@thirdeye/helius";
 import { isValidSolanaAddress } from "../../lib/solana-address";
 import { executeProxy } from "./_lib";
 
-const ALLOWED_QUERY_KEYS = [
-  "limit",
-  "before",
-  "until",
-  "commitment",
-  "type",
-  "source",
-] as const;
+const ALLOWED_QUERY_KEYS = ["limit", "before", "until", "commitment", "type", "source"] as const;
 
 export const transactions = new Hono();
 

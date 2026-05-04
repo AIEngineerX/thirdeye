@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { validateRpcEnvelope, RPC_DENY_LIST } from "@thirdeye/helius";
+import { RPC_DENY_LIST, validateRpcEnvelope } from "@thirdeye/helius";
 
 describe("validateRpcEnvelope", () => {
   test("accepts well-formed envelope", () => {

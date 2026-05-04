@@ -7,11 +7,11 @@ import { requireAuth } from "./middleware/auth";
 import { rateLimit } from "./middleware/rate-limit";
 import { authRoutes } from "./routes/auth";
 import {
-  batchIdentity,
   balances,
+  batchIdentity,
   fundedBy,
-  identity,
   rpc as heliusRpc,
+  identity,
   transactions,
   transactionsBySig,
 } from "./routes/helius";

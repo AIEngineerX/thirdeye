@@ -1,5 +1,5 @@
-import { Hono } from "hono";
 import { rpcCacheTtlMs, validateRpcEnvelope } from "@thirdeye/helius";
+import { Hono } from "hono";
 import { executeProxy } from "./_lib";
 
 export const rpc = new Hono();
@@ -7,10 +7,7 @@ export const rpc = new Hono();
 rpc.post("/api/helius-rpc", async (c) => {
   const body: unknown = await c.req.json().catch(() => null);
   if (body === null) {
-    return c.json(
-      { error: "invalid_rpc_body", message: "body must be valid JSON" },
-      400,
-    );
+    return c.json({ error: "invalid_rpc_body", message: "body must be valid JSON" }, 400);
   }
   const r = validateRpcEnvelope(body);
   if (r.kind === "invalid") {

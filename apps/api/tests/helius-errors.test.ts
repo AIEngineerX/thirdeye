@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mapUpstreamStatus, ProxyError } from "@thirdeye/helius";
+import { ProxyError, mapUpstreamStatus } from "@thirdeye/helius";
 
 describe("mapUpstreamStatus", () => {
   test("2xx returns null (no error)", () => {
@@ -49,9 +49,7 @@ describe("ProxyError helpers", () => {
 
   test("forbiddenRpcMethod includes method name", () => {
     expect(ProxyError.forbiddenRpcMethod("sendTransaction").status).toBe(403);
-    expect(ProxyError.forbiddenRpcMethod("sendTransaction").message).toContain(
-      "sendTransaction",
-    );
+    expect(ProxyError.forbiddenRpcMethod("sendTransaction").message).toContain("sendTransaction");
   });
 
   test("rateLimited carries retryAfterSec", () => {

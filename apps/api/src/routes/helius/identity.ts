@@ -1,5 +1,5 @@
+import { ProxyError, TTL } from "@thirdeye/helius";
 import { Hono } from "hono";
-import { TTL, ProxyError } from "@thirdeye/helius";
 import { isValidSolanaAddress } from "../../lib/solana-address";
 import { executeProxy } from "./_lib";
 

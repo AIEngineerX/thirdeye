@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { Hono } from "hono";
-import { authTokens, type DbClient } from "@thirdeye/db";
+import { type DbClient, authTokens } from "@thirdeye/db";
 import { eq } from "drizzle-orm";
-import { setupTestDb, type TestDb } from "./setup";
-import { rateLimit } from "../src/middleware/rate-limit";
+import { Hono } from "hono";
 import { generateToken } from "../src/lib/tokens";
+import { rateLimit } from "../src/middleware/rate-limit";
+import { type TestDb, setupTestDb } from "./setup";
 
 let testDb: TestDb;
 
@@ -108,14 +108,8 @@ describe("rate-limit middleware", () => {
     });
     const token = await issueToken(testDb.db);
     await app.request("/probe", { headers: { "X-Auth-Token": token } });
-    const rows = await testDb.db
-      .select()
-      .from(authTokens)
-      .where(eq(authTokens.token, token));
-    const bucket = rows[0]!.rateBucket as Record<
-      string,
-      { windowStart: string; count: number }
-    >;
+    const rows = await testDb.db.select().from(authTokens).where(eq(authTokens.token, token));
+    const bucket = rows[0]!.rateBucket as Record<string, { windowStart: string; count: number }>;
     expect(bucket.specific_bucket?.count).toBe(1);
     expect(bucket.specific_bucket?.windowStart).toBeTruthy();
   });
@@ -136,15 +130,9 @@ describe("rate-limit middleware", () => {
       c.set("db", testDb.db);
       await next();
     });
-    app.use(
-      "/a",
-      rateLimit({ name: "limit_a", limit: 1, windowSec: 60, bypassOnByok: false }),
-    );
+    app.use("/a", rateLimit({ name: "limit_a", limit: 1, windowSec: 60, bypassOnByok: false }));
     app.get("/a", (c) => c.json({ ok: "a" }));
-    app.use(
-      "/b",
-      rateLimit({ name: "limit_b", limit: 1, windowSec: 60, bypassOnByok: false }),
-    );
+    app.use("/b", rateLimit({ name: "limit_b", limit: 1, windowSec: 60, bypassOnByok: false }));
     app.get("/b", (c) => c.json({ ok: "b" }));
 
     const token = await issueToken(testDb.db);

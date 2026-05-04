@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  composeCacheKey,
-  getCache,
-  _resetCacheForTests,
-} from "@thirdeye/helius";
+import { _resetCacheForTests, composeCacheKey, getCache } from "@thirdeye/helius";
 
 describe("composeCacheKey", () => {
   test("deterministic for identical input", () => {

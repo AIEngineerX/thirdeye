@@ -1,5 +1,5 @@
-import { LRUCache } from "lru-cache";
 import { createHash } from "node:crypto";
+import { LRUCache } from "lru-cache";
 
 export interface CachedResponse {
   status: number;
@@ -19,12 +19,7 @@ function canonical(value: unknown): string {
   if (typeof value === "object") {
     const keys = Object.keys(value as object).sort();
     return `{${keys
-      .map(
-        (k) =>
-          `${JSON.stringify(k)}:${canonical(
-            (value as Record<string, unknown>)[k],
-          )}`,
-      )
+      .map((k) => `${JSON.stringify(k)}:${canonical((value as Record<string, unknown>)[k])}`)
       .join(",")}}`;
   }
   return JSON.stringify(value);

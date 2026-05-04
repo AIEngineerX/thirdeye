@@ -1,5 +1,5 @@
-import { Hono } from "hono";
 import { TTL } from "@thirdeye/helius";
+import { Hono } from "hono";
 import { executeProxy } from "./_lib";
 
 const SIG_RE = /^[1-9A-HJ-NP-Za-km-z]{86,88}$/;
@@ -13,17 +13,11 @@ transactionsBySig.post("/v0/transactions", async (c) => {
     typeof body !== "object" ||
     !Array.isArray((body as { transactions?: unknown }).transactions)
   ) {
-    return c.json(
-      { error: "invalid_body", message: "expected { transactions: string[] }" },
-      400,
-    );
+    return c.json({ error: "invalid_body", message: "expected { transactions: string[] }" }, 400);
   }
   const txs = (body as { transactions: unknown[] }).transactions;
   if (txs.length === 0 || txs.length > 100) {
-    return c.json(
-      { error: "invalid_body", message: "1..100 signatures required" },
-      400,
-    );
+    return c.json({ error: "invalid_body", message: "1..100 signatures required" }, 400);
   }
   for (const t of txs) {
     if (typeof t !== "string" || !SIG_RE.test(t)) {
