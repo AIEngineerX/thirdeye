@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: thirdeye-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: thirdeye
+      POSTGRES_PASSWORD: thirdeye
+      POSTGRES_DB: thirdeye
+    ports:
+      - "5432:5432"
+    volumes:
+      - thirdeye-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U thirdeye -d thirdeye"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  thirdeye-pg-data:
