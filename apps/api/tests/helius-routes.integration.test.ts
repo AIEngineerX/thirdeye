@@ -57,22 +57,20 @@ d("Helius routes (real Helius)", () => {
     expect([200, 404]).toContain(r.status);
   }, 20_000);
 
-  test("Cache observability: two calls to identity yield identical body + faster second call", async () => {
+  test("Cache observability: first call is MISS, second is HIT, identical body", async () => {
+    _resetCacheForTests();
     const url = `/api/helius/v1/wallet/${FIXTURE_WALLET}/identity`;
-    const t1 = Date.now();
     const r1 = await app.request(url, { headers: { "X-Auth-Token": token } });
-    const d1 = Date.now() - t1;
     expect(r1.status).toBe(200);
+    expect(r1.headers.get("X-ThirdEye-Cache")).toBe("MISS");
     const body1 = await r1.json();
 
-    const t2 = Date.now();
     const r2 = await app.request(url, { headers: { "X-Auth-Token": token } });
-    const d2 = Date.now() - t2;
     expect(r2.status).toBe(200);
+    expect(r2.headers.get("X-ThirdEye-Cache")).toBe("HIT");
     const body2 = await r2.json();
 
     expect(body2).toEqual(body1);
-    expect(d2 + 5).toBeLessThan(d1);
   }, 20_000);
 
   test("GET /api/helius/v0/addresses/:addr/transactions returns 200", async () => {
