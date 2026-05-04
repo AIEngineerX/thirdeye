@@ -19,7 +19,7 @@
 ```
 thirdeye/
 ├── package.json                       # NEW — Bun workspaces root, scripts
-├── bun.lockb                          # NEW — generated
+├── bun.lock                           # NEW — generated (text format, Bun 1.2+)
 ├── tsconfig.json                      # NEW — single root tsconfig with path aliases
 ├── biome.json                         # NEW — lint + format config
 ├── docker-compose.yml                 # NEW — app + postgres
@@ -176,7 +176,7 @@ Expected: creates `bun.lockb`, no errors. `node_modules/typescript`, `node_modul
 - [ ] **Step 6: Commit**
 
 ```bash
-git add package.json tsconfig.json .editorconfig .gitattributes bun.lockb
+git add package.json tsconfig.json .editorconfig .gitattributes bun.lock
 git commit -m "chore: monorepo — initialize bun workspaces with strict typescript and biome"
 ```
 
