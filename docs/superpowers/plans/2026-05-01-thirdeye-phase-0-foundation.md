@@ -567,7 +567,7 @@ Expected: prints `migrations applied`, exits 0.
 - [ ] **Step 4: Verify tables exist**
 
 Run: `docker compose exec postgres psql -U thirdeye -d thirdeye -c "\dt"`
-Expected: 7 rows (6 ThirdEye tables + Drizzle's `__drizzle_migrations`):
+Expected: 6 rows (the 6 ThirdEye tables in the `public` schema):
 ```
 auth_tokens
 funders
@@ -575,8 +575,9 @@ intel_aggregates
 token_scans
 wallet_checks
 wallets
-__drizzle_migrations
 ```
+
+(Drizzle's `__drizzle_migrations` lives in a separate `drizzle` schema. To see it: `\dt drizzle.*` or `SELECT count(*) FROM drizzle.__drizzle_migrations`.)
 
 - [ ] **Step 5: Verify indexes**
 
