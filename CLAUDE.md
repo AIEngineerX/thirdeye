@@ -44,6 +44,43 @@ Re-read it before any architectural decision. If implementation diverges from sp
 - BYOK header `X-User-Helius-Key` overrides `HELIUS_API_KEY` env var. Code never branches on which is used.
 - `PUBLIC_INSTANCE_MODE` env var is the only difference between hosted and self-host modes.
 
+## Local development
+
+Prerequisites: Bun ≥ 1.2, Docker, Docker Compose.
+
+```bash
+# First time only
+cp .env.example .env
+
+# Start Postgres only (recommended for inner dev loop)
+docker compose up -d postgres
+
+# Apply migrations
+bun run migrate
+
+# Run API in hot-reload mode
+bun run dev
+
+# Run all tests (Postgres must be up)
+bun test
+
+# Lint + format
+bun run lint
+bun run format
+
+# Typecheck the whole monorepo
+bun run typecheck
+
+# Full self-host stack (app + postgres in containers)
+docker compose up -d --build
+```
+
+The API listens on `http://localhost:3001`. `POST /api/db/auth` issues an anonymous session token; subsequent `/api/db/*` calls require `X-Auth-Token` header.
+
+## Logging
+
+Phase 0 uses Hono's built-in `logger()` middleware for request logs and `console.log`/`console.error` for app-level events. Structured JSON logging via pino is a v2 enhancement — don't introduce a logger library before then.
+
 ## Commit style
 
 `feat:` `fix:` `chore:` `docs:` `test:` prefix with em dash separator:

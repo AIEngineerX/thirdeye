@@ -1,0 +1,18 @@
+{
+  "name": "@thirdeye/api",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "bun --hot run src/index.ts",
+    "start": "bun run src/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@thirdeye/db": "workspace:*",
+    "@thirdeye/shared": "workspace:*",
+    "hono": "^4.6.0",
+    "drizzle-orm": "^0.39.0",
+    "postgres": "^3.4.0"
+  }
+}
