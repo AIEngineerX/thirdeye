@@ -36,5 +36,7 @@ export async function executeProxy(
   const r = await proxyToHelius(proxyOpts);
   const pathLabel = opts.target.kind === "rest" ? opts.target.path : `/rpc/${opts.target.method}`;
   logProxyEvent(c, pathLabel, r);
+  c.header("X-ThirdEye-Cache", r.fromCache ? "HIT" : "MISS");
+  c.header("X-ThirdEye-Proxy-Duration-Ms", String(r.durationMs));
   return c.json(r.body as object, r.status as ContentfulStatus);
 }
