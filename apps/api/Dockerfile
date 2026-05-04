@@ -5,6 +5,7 @@ FROM base AS deps
 COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/
 COPY packages/db/package.json packages/db/
+COPY packages/helius/package.json packages/helius/
 COPY packages/shared/package.json packages/shared/
 RUN bun install --frozen-lockfile
 

@@ -4,7 +4,17 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { env } from "./env";
 import { requireAuth } from "./middleware/auth";
+import { rateLimit } from "./middleware/rate-limit";
 import { authRoutes } from "./routes/auth";
+import {
+  balances,
+  batchIdentity,
+  fundedBy,
+  rpc as heliusRpc,
+  identity,
+  transactions,
+  transactionsBySig,
+} from "./routes/helius";
 
 const { db } = createDb(env.DATABASE_URL);
 
@@ -45,6 +55,30 @@ protectedDb.use("*", requireAuth);
 protectedDb.get("/protected-probe", (c) => c.json({ ok: true }));
 
 app.route("/api/db", protectedDb);
+
+const heliusProxyLimit = rateLimit({
+  name: "helius_proxy",
+  limit: env.HELIUS_PROXY_LIMIT,
+  windowSec: env.HELIUS_PROXY_WINDOW_SEC,
+  bypassOnByok: true,
+});
+
+const heliusRouter = new Hono<{ Variables: Variables }>();
+heliusRouter.use("*", requireAuth);
+heliusRouter.use("*", heliusProxyLimit);
+heliusRouter.route("/", identity);
+heliusRouter.route("/", balances);
+heliusRouter.route("/", fundedBy);
+heliusRouter.route("/", transactions);
+heliusRouter.route("/", batchIdentity);
+heliusRouter.route("/", transactionsBySig);
+app.route("/api/helius", heliusRouter);
+
+const heliusRpcRouter = new Hono<{ Variables: Variables }>();
+heliusRpcRouter.use("*", requireAuth);
+heliusRpcRouter.use("*", heliusProxyLimit);
+heliusRpcRouter.route("/", heliusRpc);
+app.route("/", heliusRpcRouter);
 
 console.log(`thirdeye api ready on :${env.PORT}`);
 
