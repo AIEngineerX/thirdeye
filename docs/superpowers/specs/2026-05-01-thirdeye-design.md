@@ -433,17 +433,22 @@ Bun workspaces, single git repo.
 ## 16. Rate limits & caching
 
 **Anonymous session tokens (public instance only, when `PUBLIC_INSTANCE_MODE=true`)**:
-- 30 token scans per session token per hour
-- 30 wallet checks per session token per hour
-- 200 cache reads per session token per minute
-- BYOK header bypasses ThirdEye's limits (Helius's own rate limits on the user's key still apply naturally)
+- 30 token scans per session token per hour (Phase 3 — `bypassOnByok: false`)
+- 30 wallet checks per session token per hour (Phase 2 — `bypassOnByok: false`)
+- 200 cache reads per session token per minute (Phase 2/3 — `bypassOnByok: false`)
+- 600 Helius proxy calls per session token per hour (Phase 1 — `bypassOnByok: true`)
+- BYOK header bypasses limits whose `bypassOnByok` is `true` (those exist to protect server credits — BYOK has its own Helius bill). Limits with `bypassOnByok: false` exist to protect server compute and product UX, not credits, and are enforced regardless.
 - Optional IP-based throttle layered on top at the reverse-proxy / Cloudflare level (deployment concern, not code)
 
 **Cache TTLs**:
 - Wallet check: 24h (re-check forced via UI button)
 - Token scan: 1h
-- Helius proxy responses: 5min in-memory LRU
+- Helius proxy responses (Phase 1):
+  - Default: 5min in-memory LRU
+  - Immutable tier (24h): `funded-by`, `transactions-by-sig`, and the JSON-RPC methods `getTransaction`, `getBlock`, `getBlockTime`, `getSignatureStatuses`. Justified because the underlying on-chain data is permanent and Helius Wallet API endpoints cost 100 credits each.
 - Intel aggregates: 30s
+
+**Deployment hardening (public hosted instance)**: enable Helius dashboard IP allow-list on `HELIUS_API_KEY` so the key only works from the proxy's egress IPs; Cloudflare WAF + per-IP rate limit in front of `api.thirdeye.app`. Self-host: not required (`PUBLIC_INSTANCE_MODE=false` disables app-level limits). See `docs/superpowers/specs/2026-05-04-thirdeye-phase-1-helius-proxy.md` §13.
 
 ## 17. v2 deferrals (explicit list)
 
