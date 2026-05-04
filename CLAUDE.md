@@ -43,6 +43,7 @@ Re-read it before any architectural decision. If implementation diverges from sp
 - Helius credits cost real money — respect the concurrency caps from spec §8.2 (10 in-flight per scan, 50 per process).
 - BYOK header `X-User-Helius-Key` overrides `HELIUS_API_KEY` env var. Code never branches on which is used.
 - `PUBLIC_INSTANCE_MODE` env var is the only difference between hosted and self-host modes.
+- Helius integration tests skip cleanly when `HELIUS_API_KEY` is unset (so PRs from forks pass without the secret); when set, they hit real Helius — never mocked.
 
 ## Local development
 
