@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { generateToken, EXPIRES_IN_DAYS } from "../src/lib/tokens";
+import { EXPIRES_IN_DAYS, generateToken } from "../src/lib/tokens";
 
 describe("generateToken", () => {
   test("returns a base64url string of length 43", () => {

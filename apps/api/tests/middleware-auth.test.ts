@@ -1,20 +1,26 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { app } from "../src/index";
-import { setupTestDb, type TestDb } from "./setup";
 import { authTokens } from "@thirdeye/db";
 import { eq } from "drizzle-orm";
+import { app } from "../src/index";
+import { type TestDb, setupTestDb } from "./setup";
 
 let testDb: TestDb;
 
-beforeAll(async () => { testDb = await setupTestDb(); });
-afterAll(async () => { await testDb.cleanup(); });
+beforeAll(async () => {
+  testDb = await setupTestDb();
+});
+afterAll(async () => {
+  await testDb.cleanup();
+});
 beforeEach(async () => {
   await testDb.sql.unsafe("TRUNCATE auth_tokens RESTART IDENTITY CASCADE;");
 });
 
 async function issueToken(): Promise<string> {
   const r = await app.request("/api/db/auth", {
-    method: "POST", body: "{}", headers: { "Content-Type": "application/json" },
+    method: "POST",
+    body: "{}",
+    headers: { "Content-Type": "application/json" },
   });
   return ((await r.json()) as { token: string }).token;
 }

@@ -1,6 +1,6 @@
-import type { MiddlewareHandler } from "hono";
-import { authTokens, type DbClient } from "@thirdeye/db";
+import { type DbClient, authTokens } from "@thirdeye/db";
 import { eq, sql } from "drizzle-orm";
+import type { MiddlewareHandler } from "hono";
 
 export const requireAuth: MiddlewareHandler<{ Variables: { db: DbClient } }> = async (c, next) => {
   const token = c.req.header("X-Auth-Token");
@@ -17,10 +17,7 @@ export const requireAuth: MiddlewareHandler<{ Variables: { db: DbClient } }> = a
   // Use Postgres `now()` for consistency with `lastUsedAt`'s `defaultNow()` at INSERT.
   // Mixing JS `new Date()` with PG `now()` on the same column is fragile under any
   // host-vs-container clock skew.
-  await db
-    .update(authTokens)
-    .set({ lastUsedAt: sql`now()` })
-    .where(eq(authTokens.token, token));
+  await db.update(authTokens).set({ lastUsedAt: sql`now()` }).where(eq(authTokens.token, token));
 
   await next();
 };

@@ -1,15 +1,15 @@
+import { sql } from "drizzle-orm";
 import {
+  bigserial,
+  boolean,
+  index,
+  integer,
+  jsonb,
+  numeric,
   pgTable,
   text,
   timestamp,
-  jsonb,
-  integer,
-  numeric,
-  boolean,
-  bigserial,
-  index,
 } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
 
 // Anonymous session tokens — spec §7, §9
 export const authTokens = pgTable("auth_tokens", {

@@ -1,4 +1,4 @@
-import { createDb, type DbClient } from "@thirdeye/db";
+import { type DbClient, createDb } from "@thirdeye/db";
 import type { Sql } from "postgres";
 
 export interface TestDb {

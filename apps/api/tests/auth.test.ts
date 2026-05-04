@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { app } from "../src/index";
-import { setupTestDb, type TestDb } from "./setup";
 import { authTokens } from "@thirdeye/db";
 import { eq } from "drizzle-orm";
+import { app } from "../src/index";
+import { type TestDb, setupTestDb } from "./setup";
 
 let testDb: TestDb;
 
@@ -32,16 +32,21 @@ describe("POST /api/db/auth", () => {
     expect(body.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(new Date(body.expiresAt).getTime()).toBeGreaterThan(Date.now());
 
-    const rows = await testDb.db
-      .select()
-      .from(authTokens)
-      .where(eq(authTokens.token, body.token));
+    const rows = await testDb.db.select().from(authTokens).where(eq(authTokens.token, body.token));
     expect(rows).toHaveLength(1);
   });
 
   test("two requests issue distinct tokens, both persisted", async () => {
-    const r1 = await app.request("/api/db/auth", { method: "POST", body: "{}", headers: { "Content-Type": "application/json" } });
-    const r2 = await app.request("/api/db/auth", { method: "POST", body: "{}", headers: { "Content-Type": "application/json" } });
+    const r1 = await app.request("/api/db/auth", {
+      method: "POST",
+      body: "{}",
+      headers: { "Content-Type": "application/json" },
+    });
+    const r2 = await app.request("/api/db/auth", {
+      method: "POST",
+      body: "{}",
+      headers: { "Content-Type": "application/json" },
+    });
     const t1 = ((await r1.json()) as { token: string }).token;
     const t2 = ((await r2.json()) as { token: string }).token;
     expect(t1).not.toBe(t2);

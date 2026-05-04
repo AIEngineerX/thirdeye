@@ -1,10 +1,10 @@
+import { type DbClient, createDb } from "@thirdeye/db";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { createDb, type DbClient } from "@thirdeye/db";
 import { env } from "./env";
-import { authRoutes } from "./routes/auth";
 import { requireAuth } from "./middleware/auth";
+import { authRoutes } from "./routes/auth";
 
 const { db } = createDb(env.DATABASE_URL);
 
