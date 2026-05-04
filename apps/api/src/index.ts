@@ -4,6 +4,7 @@ import { logger } from "hono/logger";
 import { createDb, type DbClient } from "@thirdeye/db";
 import { env } from "./env";
 import { authRoutes } from "./routes/auth";
+import { requireAuth } from "./middleware/auth";
 
 const { db } = createDb(env.DATABASE_URL);
 
@@ -37,7 +38,13 @@ app.notFound((c) => c.json({ error: "not_found" }, 404));
 
 app.get("/", (c) => c.text("ThirdEye API"));
 app.get("/health", (c) => c.json({ ok: true }));
-app.route("/api/db", authRoutes);
+app.route("/api/db", authRoutes); // /auth is unauthenticated by design (it issues tokens)
+
+const protectedDb = new Hono<{ Variables: Variables }>();
+protectedDb.use("*", requireAuth);
+protectedDb.get("/protected-probe", (c) => c.json({ ok: true }));
+
+app.route("/api/db", protectedDb);
 
 console.log(`thirdeye api ready on :${env.PORT}`);
 
