@@ -32,6 +32,13 @@
         "drizzle-kit": "^0.31.0",
       },
     },
+    "packages/helius": {
+      "name": "@thirdeye/helius",
+      "version": "0.0.0",
+      "dependencies": {
+        "lru-cache": "^11.0.0",
+      },
+    },
     "packages/shared": {
       "name": "@thirdeye/shared",
       "version": "0.0.0",
@@ -118,6 +125,8 @@
 
     "@thirdeye/db": ["@thirdeye/db@workspace:packages/db"],
 
+    "@thirdeye/helius": ["@thirdeye/helius@workspace:packages/helius"],
+
     "@thirdeye/shared": ["@thirdeye/shared@workspace:packages/shared"],
 
     "@types/bun": ["@types/bun@1.3.13", "", { "dependencies": { "bun-types": "1.3.13" } }, "sha512-9fqXWk5YIHGGnUau9TEi+qdlTYDAnOj+xLCmSTwXfAIqXr2x4tytJb43E9uCvt09zJURKXwAtkoH4nLQfzeTXw=="],
@@ -139,6 +148,8 @@
     "get-tsconfig": ["get-tsconfig@4.14.0", "", { "dependencies": { "resolve-pkg-maps": "^1.0.0" } }, "sha512-yTb+8DXzDREzgvYmh6s9vHsSVCHeC0G3PI5bEXNBHtmshPnO+S5O7qgLEOn0I5QvMy6kpZN8K1NKGyilLb93wA=="],
 
     "hono": ["hono@4.12.16", "", {}, "sha512-jN0ZewiNAWSe5khM3EyCmBb250+b40wWbwNILNfEvq84VREWwOIkuUsFONk/3i3nqkz7Oe1PcpM2mwQEK2L9Kg=="],
+
+    "lru-cache": ["lru-cache@11.3.6", "", {}, "sha512-Gf/KoL3C/MlI7Bt0PGI9I+TeTC/I6r/csU58N4BSNc4lppLBeKsOdFYkK+dX0ABDUMJNfCHTyPpzwwO21Awd3A=="],
 
     "postgres": ["postgres@3.4.9", "", {}, "sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw=="],
 
