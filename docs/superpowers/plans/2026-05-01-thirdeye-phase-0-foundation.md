@@ -442,9 +442,11 @@ Expected: no errors.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add packages/db
+git add packages/db bun.lock
 git commit -m "chore: db — add drizzle schema for all six tables (spec §9)"
 ```
+
+(`bun.lock` changes whenever deps are added — always include it in the same commit so CI's `--frozen-lockfile` stays consistent.)
 
 ---
 
@@ -727,9 +729,11 @@ Stop the server (Ctrl-C in its terminal).
 - [ ] **Step 8: Commit**
 
 ```bash
-git add apps/api
+git add apps/api bun.lock
 git commit -m "feat: api — hono skeleton with cors, error handlers, and idiomatic bun export"
 ```
+
+(`bun.lock` changed because Hono and friends were added — commit it together.)
 
 ---
 
