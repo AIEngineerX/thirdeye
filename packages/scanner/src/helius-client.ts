@@ -1,4 +1,4 @@
-import { type ProxyResult, TTL, proxyToHelius } from "@thirdeye/helius";
+import { ProxyError, type ProxyResult, TTL, proxyToHelius } from "@thirdeye/helius";
 import type { ParsedTx } from "./tx-patterns";
 import type { Balances, Identity, TokenBalance } from "./types";
 
@@ -42,7 +42,8 @@ export class HeliusClient {
       ...(this.opts.userKey !== undefined && { userKey: this.opts.userKey }),
     });
     if (result.error) throw new HeliusError(result);
-    const arr = Array.isArray(result.body) ? (result.body as Array<Record<string, unknown>>) : [];
+    if (!Array.isArray(result.body)) throw malformedArray(result);
+    const arr = result.body as Array<Record<string, unknown>>;
     const map = new Map<string, Identity>();
     for (const row of arr) {
       const address = typeof row.address === "string" ? row.address : null;
@@ -109,11 +110,20 @@ export class HeliusClient {
   }
 
   async transactions(addr: string, limit = 100): Promise<ParsedTx[]> {
-    const r = await this.rest<unknown>(`/v0/addresses/${addr}/transactions`, TTL.DEFAULT, {
-      limit: String(limit),
+    const result = await proxyToHelius({
+      target: {
+        kind: "rest",
+        path: `/v0/addresses/${addr}/transactions`,
+        query: { limit: String(limit) },
+      },
+      method: "GET",
+      cacheTtlMs: TTL.DEFAULT,
+      serverKey: this.opts.serverKey,
+      ...(this.opts.userKey !== undefined && { userKey: this.opts.userKey }),
     });
-    if (!Array.isArray(r)) return [];
-    return r.map(parseHeliusTx).filter((t): t is ParsedTx => t !== null);
+    if (result.error) throw new HeliusError(result);
+    if (!Array.isArray(result.body)) throw malformedArray(result);
+    return result.body.map(parseHeliusTx).filter((t): t is ParsedTx => t !== null);
   }
 
   private async rest<T>(
@@ -181,4 +191,8 @@ export class HeliusError extends Error {
     this.status = result.status;
     this.upstreamStatus = err?.upstreamStatus;
   }
+}
+
+function malformedArray(result: ProxyResult): HeliusError {
+  return new HeliusError({ ...result, error: ProxyError.upstreamMalformed(result.status) });
 }
