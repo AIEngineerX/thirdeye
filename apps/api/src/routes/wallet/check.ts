@@ -57,10 +57,17 @@ walletCheck.get("/:addr/check", async (c) => {
         e instanceof HeliusError
           ? { error: "helius_error", message: e.message }
           : { error: "scanner_error", message: e instanceof Error ? e.message : String(e) };
+      console.error(`[scan ${addr}] ${err.error}: ${err.message}`, e);
       await sendEvent(stream, { event: "error", data: err });
       return;
     }
-    if (final) await persistCheck(db, final);
+    if (final) {
+      try {
+        await persistCheck(db, final);
+      } catch (e) {
+        console.error(`[persist ${addr}]`, e);
+      }
+    }
   });
 });
 
