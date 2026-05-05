@@ -1,4 +1,5 @@
 import { type DbClient, createDb } from "@thirdeye/db";
+import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -48,7 +49,15 @@ app.onError((err, c) => {
 app.notFound((c) => c.json({ error: "not_found" }, 404));
 
 app.get("/", (c) => c.text("ThirdEye API"));
-app.get("/health", (c) => c.json({ ok: true }));
+app.get("/health", async (c) => {
+  try {
+    await db.execute(sql`SELECT 1`);
+    return c.json({ ok: true, db: "ok" });
+  } catch (e) {
+    console.error("[health] db ping failed", e);
+    return c.json({ ok: false, db: "unreachable" }, 503);
+  }
+});
 app.route("/api/db", authRoutes); // /auth is unauthenticated by design (it issues tokens)
 
 const protectedDb = new Hono<{ Variables: Variables }>();

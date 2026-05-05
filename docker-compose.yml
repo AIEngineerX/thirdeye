@@ -9,7 +9,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://thirdeye:thirdeye@postgres:5432/thirdeye
+      DATABASE_URL: postgres://${POSTGRES_USER:-thirdeye}:${POSTGRES_PASSWORD:-thirdeye}@postgres:5432/${POSTGRES_DB:-thirdeye}
       PORT: 3001
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       PUBLIC_INSTANCE_MODE: ${PUBLIC_INSTANCE_MODE:-false}
@@ -24,15 +24,15 @@ services:
     container_name: thirdeye-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: thirdeye
-      POSTGRES_PASSWORD: thirdeye
-      POSTGRES_DB: thirdeye
+      POSTGRES_USER: ${POSTGRES_USER:-thirdeye}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-thirdeye}
+      POSTGRES_DB: ${POSTGRES_DB:-thirdeye}
     ports:
       - "5432:5432"
     volumes:
       - thirdeye-pg-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U thirdeye -d thirdeye"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-thirdeye} -d ${POSTGRES_DB:-thirdeye}"]
       interval: 5s
       timeout: 5s
       retries: 5
