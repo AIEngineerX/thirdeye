@@ -6,7 +6,7 @@ import {
   checkWallet,
 } from "@thirdeye/scanner";
 import { Hono } from "hono";
-import { streamSSE } from "hono/streaming";
+import { type SSEStreamingApi, streamSSE } from "hono/streaming";
 import { env } from "../../env";
 import { isValidSolanaAddress } from "../../lib/solana-address";
 import { lookupRecentCheck, persistCheck, resolveSiblings } from "./persist";
@@ -74,9 +74,6 @@ walletCheck.get("/:addr/last-check", async (c) => {
   return c.json(cached);
 });
 
-async function sendEvent(
-  stream: { writeSSE: (msg: { event: string; data: string }) => Promise<void> },
-  evt: CheckEvent,
-): Promise<void> {
+async function sendEvent(stream: SSEStreamingApi, evt: CheckEvent): Promise<void> {
   await stream.writeSSE({ event: evt.event, data: JSON.stringify(evt.data) });
 }

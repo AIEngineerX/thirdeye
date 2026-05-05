@@ -43,11 +43,3 @@ export async function traceFundingChain(inputs: TraceInputs): Promise<FundingHop
 
   return chain;
 }
-
-export function firstFunder(chain: FundingHop[]): string | null {
-  return chain.length > 0 ? chain[0]!.funder : null;
-}
-
-export function fundedAt(chain: FundingHop[]): string | null {
-  return chain.length > 0 ? chain[0]!.fundedAt : null;
-}

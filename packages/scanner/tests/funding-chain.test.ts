@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { firstFunder, fundedAt, traceFundingChain } from "../src/funding-chain";
+import { traceFundingChain } from "../src/funding-chain";
 
 const BINANCE = "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9";
 
@@ -63,16 +63,5 @@ describe("traceFundingChain", () => {
       resolveFundedBy: fakeResolver(graph),
     });
     expect(chain).toHaveLength(2);
-  });
-
-  test("firstFunder/fundedAt extract from chain head", async () => {
-    const graph: Record<string, string> = { A: "B" };
-    const chain = await traceFundingChain({
-      startAddress: "A",
-      maxHops: 1,
-      resolveFundedBy: fakeResolver(graph),
-    });
-    expect(firstFunder(chain)).toBe("B");
-    expect(fundedAt(chain)).toBe("2026-05-04T12:00:00Z");
   });
 });

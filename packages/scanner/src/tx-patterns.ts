@@ -35,7 +35,7 @@ export function analyzeTxPattern(target: string, txs: ParsedTx[]): TxPattern {
   const rapidFire = avgGapSec !== null && avgGapSec < RAPID_FIRE_GAP_SEC;
 
   const types = new Set(txs.map((t) => t.type).filter((t): t is string => t !== null));
-  const swapOnly = types.size > 0 && types.size === 1 && types.has("SWAP");
+  const swapOnly = types.size === 1 && types.has("SWAP");
 
   const recipients = new Set<string>();
   for (const tx of txs) {

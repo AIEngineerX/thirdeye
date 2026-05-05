@@ -9,7 +9,6 @@ export interface TagInputs {
   tokenCount: number;
   cluster: Cluster;
   txPattern: TxPattern;
-  firstFunder: string | null;
 }
 
 const FRESH_AGE_DAYS = 30;
@@ -24,8 +23,10 @@ const WHALE_MAX_TOKENS = 5;
 
 export function computeTags(inputs: TagInputs): Tag[] {
   const tags: Tag[] = [];
+  const funder = inputs.cluster.firstFunder;
+  const funderIsExchange = isExchangeAddress(funder);
 
-  if (inputs.identity.type === "exchange" || isExchangeAddress(inputs.firstFunder)) {
+  if (inputs.identity.type === "exchange" || funderIsExchange) {
     tags.push("EXCHANGE");
   }
 
@@ -37,8 +38,7 @@ export function computeTags(inputs: TagInputs): Tag[] {
     tags.push("FUND_DISTRIBUTOR");
   }
 
-  const funderIsExchange = isExchangeAddress(inputs.firstFunder);
-  const isBundler = inputs.cluster.size >= BUNDLER_MIN_SIZE && !funderIsExchange;
+  const isBundler = inputs.cluster.size >= BUNDLER_MIN_SIZE && !funderIsExchange && funder !== null;
   if (isBundler) tags.push("BUNDLER");
 
   if (isBundler && inputs.cluster.timeWindowSiblings.length >= TIME_WINDOW_MIN_TIGHT) {

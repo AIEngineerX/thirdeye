@@ -1,10 +1,10 @@
 import { buildCluster } from "./cluster";
-import { firstFunder, fundedAt, traceFundingChain } from "./funding-chain";
+import { traceFundingChain } from "./funding-chain";
 import { HeliusClient } from "./helius-client";
 import { computeScore, scoreBucket } from "./score";
 import { computeTags } from "./tags";
 import { analyzeTxPattern } from "./tx-patterns";
-import type { CheckEvent, ScanMode, WalletCheckResult } from "./types";
+import type { CheckEvent, Cluster, ScanMode, WalletCheckResult } from "./types";
 import { computeVerdict } from "./verdict";
 
 const SHARED_MAX_HOPS = 3;
@@ -48,16 +48,16 @@ export async function* checkWallet(opts: CheckWalletOptions): AsyncGenerator<Che
   });
   yield { event: "funding", data: { chain } };
 
-  const targetFunder = firstFunder(chain);
-  const targetFundedAt = fundedAt(chain);
+  const targetFunder = chain[0]?.funder ?? null;
+  const targetFundedAt = chain[0]?.fundedAt ?? null;
 
-  let cluster = {
+  let cluster: Cluster = {
     firstFunder: targetFunder,
     size: 1,
     siblings: [],
     timeWindowSiblings: [],
     cov: null,
-  } as Awaited<ReturnType<typeof buildCluster>>;
+  };
 
   if (targetFunder !== null) {
     const rawSiblings = await opts.resolveSiblings(targetFunder, clusterLimit);
@@ -68,7 +68,6 @@ export async function* checkWallet(opts: CheckWalletOptions): AsyncGenerator<Che
       firstFunder: targetFunder,
       rawSiblings,
       identitiesByAddress,
-      clusterTxAmounts: new Map(), // CoV computation upgraded in v1.1 (requires per-sibling tx fetch — out of Phase 2 scope)
     });
   }
   yield { event: "cluster", data: cluster };
@@ -85,7 +84,6 @@ export async function* checkWallet(opts: CheckWalletOptions): AsyncGenerator<Che
     tokenCount: balances.tokenCount,
     cluster,
     txPattern,
-    firstFunder: targetFunder,
   });
   yield { event: "tags", data: { tags } };
 

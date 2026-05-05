@@ -8,7 +8,9 @@ export interface ClusterInputs {
   firstFunder: string | null;
   rawSiblings: { address: string; fundedAt: string | null }[];
   identitiesByAddress: Map<string, Identity>;
-  clusterTxAmounts: Map<string, number[]>; // address -> recent tx amounts (lamports)
+  // CoV of cluster tx amounts. v1 always passes null — populating requires
+  // per-sibling tx fetch (~50× the credit cost). v1.1 enhancement.
+  cov?: number | null;
 }
 
 export function buildCluster(inputs: ClusterInputs): Cluster {
@@ -21,25 +23,23 @@ export function buildCluster(inputs: ClusterInputs): Cluster {
     }));
 
   const targetTime = inputs.targetFundedAt ? Date.parse(inputs.targetFundedAt) : null;
-  const timeWindowSiblings: string[] =
+  const timeWindowSiblings =
     targetTime === null
       ? []
       : siblings
-          .filter((s) => {
-            if (s.fundedAt === null) return false;
-            const t = Date.parse(s.fundedAt);
-            return Math.abs(t - targetTime) <= TIME_WINDOW_MS;
-          })
+          .filter(
+            (s) =>
+              s.fundedAt !== null &&
+              Math.abs(Date.parse(s.fundedAt) - targetTime) <= TIME_WINDOW_MS,
+          )
           .map((s) => s.address);
-
-  const cov = computeCov(inputs.clusterTxAmounts);
 
   return {
     firstFunder: inputs.firstFunder,
     size: siblings.length + 1,
     siblings,
     timeWindowSiblings,
-    cov,
+    cov: inputs.cov ?? null,
   };
 }
 
