@@ -48,48 +48,28 @@ function errorResult(
   };
 }
 
-function buildCacheKey(opts: ProxyOptions): string {
-  if (opts.target.kind === "rpc") {
-    return composeCacheKey({
-      method: "POST",
-      path: `/rpc/${opts.target.method}`,
-      body: { params: opts.target.params },
-    });
-  }
-  return composeCacheKey({
-    method: opts.method,
-    path: opts.target.path,
-    query: opts.target.query,
-    body: opts.body,
-  });
-}
-
-function buildUrl(target: ProxyTarget, apiKey: string): string {
-  if (target.kind === "rpc") return composeRpcUrl(apiKey);
-  return composeRestUrl({ path: target.path, apiKey, query: target.query });
-}
-
-function buildFetchBody(opts: ProxyOptions): string | null {
-  if (opts.target.kind === "rpc") {
-    return JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: opts.target.method,
-      params: opts.target.params,
-    });
-  }
-  return opts.body !== undefined ? JSON.stringify(opts.body) : null;
-}
-
 export async function proxyToHelius(opts: ProxyOptions): Promise<ProxyResult> {
   const start = Date.now();
   const isByok = Boolean(opts.userKey);
   const apiKey = opts.userKey ?? opts.serverKey;
   if (!apiKey) return errorResult(ProxyError.noKey(), isByok, start);
 
-  const cache = getCache();
-  const cacheKey = buildCacheKey(opts);
+  const { target } = opts;
+  const cacheKey =
+    target.kind === "rpc"
+      ? composeCacheKey({
+          method: "POST",
+          path: `/rpc/${target.method}`,
+          body: { params: target.params },
+        })
+      : composeCacheKey({
+          method: opts.method,
+          path: target.path,
+          query: target.query,
+          body: opts.body,
+        });
 
+  const cache = getCache();
   if (opts.cacheTtlMs > 0) {
     const cached = cache.get(cacheKey);
     if (cached) {
@@ -103,8 +83,17 @@ export async function proxyToHelius(opts: ProxyOptions): Promise<ProxyResult> {
     }
   }
 
-  const url = buildUrl(opts.target, apiKey);
-  const fetchBody = buildFetchBody(opts);
+  const url =
+    target.kind === "rpc"
+      ? composeRpcUrl(apiKey)
+      : composeRestUrl({ path: target.path, apiKey, query: target.query });
+
+  const fetchBody =
+    target.kind === "rpc"
+      ? JSON.stringify({ jsonrpc: "2.0", id: 1, method: target.method, params: target.params })
+      : opts.body !== undefined
+        ? JSON.stringify(opts.body)
+        : null;
 
   const headers: Record<string, string> = { "X-ThirdEye-Proxy": "1" };
   if (fetchBody !== null) headers["Content-Type"] = "application/json";
@@ -115,7 +104,7 @@ export async function proxyToHelius(opts: ProxyOptions): Promise<ProxyResult> {
   let res: Response;
   try {
     const init: RequestInit = {
-      method: opts.target.kind === "rpc" ? "POST" : opts.method,
+      method: target.kind === "rpc" ? "POST" : opts.method,
       headers,
       signal: controller.signal,
     };
@@ -135,8 +124,6 @@ export async function proxyToHelius(opts: ProxyOptions): Promise<ProxyResult> {
     try {
       body = JSON.parse(text);
     } catch {
-      // Non-JSON response (HTML error page, raw text) — surface as upstream error,
-      // don't propagate the parse exception out to the request handler.
       return errorResult(ProxyError.upstreamMalformed(res.status), isByok, start, text);
     }
   }
