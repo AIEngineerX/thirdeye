@@ -2,16 +2,19 @@ import { describe, expect, test } from "bun:test";
 import { computeScore, scoreBucket } from "../src/score";
 
 describe("computeScore", () => {
-  test("clean wallet (no tags) is 0", () => {
+  test("clean wallet, no cluster, scores 0", () => {
+    expect(computeScore({ tags: [], clusterSize: 0 })).toBe(0);
+  });
+  test("clean wallet, clusterSize 1 (alone), contributes 0.5 → 1", () => {
     expect(computeScore({ tags: [], clusterSize: 1 })).toBe(1);
   });
-  test("FRESH_WALLET alone is ~10", () => {
+  test("FRESH_WALLET (10) + clusterSize 1 (0.5) → 11", () => {
     expect(computeScore({ tags: ["FRESH_WALLET"], clusterSize: 1 })).toBe(11);
   });
-  test("FUND_DISTRIBUTOR alone is ~20", () => {
+  test("FUND_DISTRIBUTOR (20) + clusterSize 1 (0.5) → 21", () => {
     expect(computeScore({ tags: ["FUND_DISTRIBUTOR"], clusterSize: 1 })).toBe(21);
   });
-  test("BUNDLER alone with cluster size 5", () => {
+  test("BUNDLER (30) + clusterSize 5 (2.5) → 33", () => {
     expect(computeScore({ tags: ["BUNDLER"], clusterSize: 5 })).toBe(33);
   });
   test("BUNDLER + BUNDLER_TIGHT + SYBIL is HIGH", () => {
@@ -22,13 +25,14 @@ describe("computeScore", () => {
     expect(s).toBeGreaterThanOrEqual(60);
     expect(s).toBeLessThanOrEqual(100);
   });
-  test("SNIPER alone is ~15", () => {
+  test("SNIPER (15) + clusterSize 1 (0.5) → 16", () => {
     expect(computeScore({ tags: ["SNIPER"], clusterSize: 1 })).toBe(16);
   });
-  test("EXCHANGE collapses to 0 even with other tags", () => {
+  test("EXCHANGE (-50) + BUNDLER (30) + FUND_DISTRIBUTOR (20) + clusterCap (25) → 25", () => {
+    // clusterSize 100 → min(100, 50) * 0.5 = 25
     expect(
       computeScore({ tags: ["EXCHANGE", "BUNDLER", "FUND_DISTRIBUTOR"], clusterSize: 100 }),
-    ).toBe(25); // 50 (cluster cap) - 50 (exchange) + 20 + 30 = 50; floor 0; actually -50+30+20+25=25
+    ).toBe(25);
   });
   test("KOL subtracts 10", () => {
     expect(computeScore({ tags: ["KOL", "FRESH_WALLET"], clusterSize: 1 })).toBe(1);

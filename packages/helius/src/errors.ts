@@ -54,6 +54,11 @@ export const ProxyError = {
     message: "Helius returned a non-JSON response",
     upstreamStatus,
   }),
+  upstreamUnreachable: (detail: string): ProxyErrorPayload => ({
+    status: 502,
+    error: "upstream_unreachable",
+    message: `Could not reach Helius: ${detail}`,
+  }),
 };
 
 export function mapUpstreamStatus(status: number): ProxyErrorPayload | null {

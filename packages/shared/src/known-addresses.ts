@@ -42,9 +42,6 @@ export const LAUNCHPAD_FUNDERS: ReadonlySet<string> = new Set([
   "BonKa1xTskbMfsa8QJSAR5EdrqW8TkPg1pTpyhYnQQDb",
 ]);
 
-// Reserved for Phase 3 (Scan Token).
-export const CEX_PROGRAM_IDS: ReadonlySet<string> = new Set([]);
-
 export function isExchangeAddress(addr: string | null | undefined): boolean {
   return addr ? EXCHANGE_HOT_WALLETS.has(addr) : false;
 }

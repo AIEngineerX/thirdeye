@@ -110,9 +110,13 @@ export async function proxyToHelius(opts: ProxyOptions): Promise<ProxyResult> {
     };
     if (fetchBody !== null) init.body = fetchBody;
     res = await fetch(url, init);
-  } catch {
+  } catch (err) {
     clearTimeout(timer);
-    return errorResult(ProxyError.timeout(), isByok, start);
+    if (controller.signal.aborted) {
+      return errorResult(ProxyError.timeout(), isByok, start);
+    }
+    const detail = err instanceof Error ? err.message : String(err);
+    return errorResult(ProxyError.upstreamUnreachable(detail), isByok, start);
   }
   clearTimeout(timer);
 
