@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@thirdeye/db": "workspace:*",
+    "@thirdeye/helius": "workspace:*",
+    "@thirdeye/scanner": "workspace:*",
     "@thirdeye/shared": "workspace:*",
     "hono": "^4.6.0",
     "drizzle-orm": "^0.39.0",

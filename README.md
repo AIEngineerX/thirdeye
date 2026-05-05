@@ -22,8 +22,8 @@ Every wallet has a *first funder* — the wallet that first sent it SOL. Group t
 |---|---|---|
 | **0** | Bun monorepo, Postgres, Drizzle, anonymous-token auth, Docker compose, GitHub Actions CI | ✅ shipped |
 | **1** | Helius proxy (`/api/helius/*` + `/api/helius-rpc`), 2-tier LRU cache, sliding-window rate limit on `auth_tokens.rate_bucket`, BYOK via `X-User-Helius-Key` | ✅ shipped |
-| **2** | Check Wallet pipeline (funded-by → balances → tx history → behavioral classifier → cluster lookup → score → save). Introduces `graphile-worker` for async pipelines. | next |
-| **3** | Scan Token pipeline (top holders → LP/lock filter → batched funded-by → cluster grouping → risk score → save) | planned |
+| **2** | Check Wallet — SSE-streamed pipeline (identity → balances → multi-hop funding chain → cluster + time-window + CoV → tx pattern → tags → score + verdict). `@thirdeye/scanner` package, exchange seed list, decoupled score & verdict. | ✅ shipped |
+| **3** | Scan Token pipeline (top holders → LP/lock filter → batched funded-by → cluster grouping → risk score → save) | next |
 | **4** | Intel Analytics + SSE feed at `/api/db/intel/feed` | planned |
 | **5–8** | Next.js 16 frontend (shell, wallet, token, intel pages) | planned |
 
@@ -72,8 +72,12 @@ Two services, one Postgres. No Redis, no message broker, no separate cache serve
 | `POST` | `/api/helius/v1/wallet/batch-identity` | body `{ addresses: [≤100] }` |
 | `POST` | `/api/helius/v0/transactions` | body `{ transactions: [sigs ≤100] }`, **24h** cache |
 | `POST` | `/api/helius-rpc` | JSON-RPC pass-through; mutating methods denied (`sendTransaction` etc.) |
+| `GET` | `/api/wallet/:addr/check` | **SSE** stream — full forensic pipeline. `?force=true` skips 24h cache. |
+| `GET` | `/api/wallet/:addr/last-check` | latest cached `WalletCheckResult` (JSON), 404 if none |
 
 Every `/api/helius/*` and `/api/helius-rpc` response carries `X-ThirdEye-Cache: HIT|MISS` and `X-ThirdEye-Proxy-Duration-Ms: <n>` for client-side observability.
+
+`/api/wallet/:addr/check` event sequence: `started → identity → balances → funding → cluster → txPattern → tags → result`. The `result` payload includes `score` (0–100), `scoreBucket` (CLEAN/LOW/MEDIUM/HIGH), `verdict` (EXCHANGE/SYBIL/BUNDLER/SNIPER BOT/WHALE/FRESH/TRADER/CLEAN), tags, full funding chain, sibling cluster, and balances.
 
 ## Contributing
 

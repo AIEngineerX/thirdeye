@@ -23,6 +23,7 @@
     "apps/**/src/**/*",
     "apps/**/tests/**/*",
     "packages/**/src/**/*",
+    "packages/**/tests/**/*",
     "packages/**/scripts/**/*",
     "packages/**/drizzle.config.ts"
   ]

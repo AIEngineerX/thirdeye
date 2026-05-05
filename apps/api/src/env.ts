@@ -24,4 +24,7 @@ export const env = {
   HELIUS_API_KEY: optionalUndef("HELIUS_API_KEY"),
   HELIUS_PROXY_LIMIT: Number(optional("HELIUS_PROXY_LIMIT", "600")),
   HELIUS_PROXY_WINDOW_SEC: Number(optional("HELIUS_PROXY_WINDOW_SEC", "3600")),
+  WALLET_CHECK_LIMIT: Number(optional("WALLET_CHECK_LIMIT", "30")),
+  WALLET_CHECK_WINDOW_SEC: Number(optional("WALLET_CHECK_WINDOW_SEC", "3600")),
+  WALLET_CHECK_CACHE_HOURS: Number(optional("WALLET_CHECK_CACHE_HOURS", "24")),
 } as const;
