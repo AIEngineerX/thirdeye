@@ -57,7 +57,6 @@ describe("buildCluster", () => {
         { address: "sib1", fundedAt: null },
       ],
       identitiesByAddress: new Map([["sib1", { ...identity, address: "sib1" }]]),
-      clusterTxAmounts: new Map(),
     });
     expect(c.siblings).toHaveLength(1);
     expect(c.siblings[0]!.address).toBe("sib1");
@@ -76,7 +75,6 @@ describe("buildCluster", () => {
         { address: "edge", fundedAt: "2026-05-04T12:05:00Z" }, // exactly 5 min — included
       ],
       identitiesByAddress: new Map(),
-      clusterTxAmounts: new Map(),
     });
     expect(c.timeWindowSiblings.sort()).toEqual(["edge", "tight"]);
   });
@@ -88,8 +86,30 @@ describe("buildCluster", () => {
       firstFunder: "F",
       rawSiblings: [{ address: "sib", fundedAt: "2026-05-04T12:00:00Z" }],
       identitiesByAddress: new Map(),
-      clusterTxAmounts: new Map(),
     });
     expect(c.timeWindowSiblings).toEqual([]);
+  });
+
+  test("cov defaults to null when not passed", () => {
+    const c = buildCluster({
+      targetAddress: "T",
+      targetFundedAt: null,
+      firstFunder: "F",
+      rawSiblings: [],
+      identitiesByAddress: new Map(),
+    });
+    expect(c.cov).toBe(null);
+  });
+
+  test("cov passes through when caller provides it", () => {
+    const c = buildCluster({
+      targetAddress: "T",
+      targetFundedAt: null,
+      firstFunder: "F",
+      rawSiblings: [],
+      identitiesByAddress: new Map(),
+      cov: 0.07,
+    });
+    expect(c.cov).toBe(0.07);
   });
 });

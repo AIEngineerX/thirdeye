@@ -10,13 +10,18 @@ const exchangeIdentity: Identity = {
   category: "cex",
 };
 
-const noCluster: Cluster = {
-  firstFunder: null,
-  size: 1,
-  siblings: [],
-  timeWindowSiblings: [],
-  cov: null,
-};
+const BINANCE = "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9";
+
+function cluster(overrides: Partial<Cluster> = {}): Cluster {
+  return {
+    firstFunder: null,
+    size: 1,
+    siblings: [],
+    timeWindowSiblings: [],
+    cov: null,
+    ...overrides,
+  };
+}
 
 const baseTxPattern: TxPattern = {
   txCount: 10,
@@ -35,9 +40,21 @@ describe("computeTags", () => {
       txCount: 100,
       usdValue: 0,
       tokenCount: 0,
-      cluster: noCluster,
+      cluster: cluster(),
       txPattern: baseTxPattern,
-      firstFunder: null,
+    });
+    expect(tags).toContain("EXCHANGE");
+  });
+
+  test("EXCHANGE from cluster.firstFunder being a CEX address", () => {
+    const tags = computeTags({
+      identity: cleanIdentity,
+      ageDays: 100,
+      txCount: 100,
+      usdValue: 0,
+      tokenCount: 0,
+      cluster: cluster({ firstFunder: BINANCE }),
+      txPattern: baseTxPattern,
     });
     expect(tags).toContain("EXCHANGE");
   });
@@ -49,9 +66,8 @@ describe("computeTags", () => {
       txCount: 10,
       usdValue: 0,
       tokenCount: 0,
-      cluster: noCluster,
+      cluster: cluster(),
       txPattern: baseTxPattern,
-      firstFunder: null,
     });
     expect(tags).toContain("FRESH_WALLET");
   });
@@ -63,9 +79,8 @@ describe("computeTags", () => {
       txCount: 100,
       usdValue: 0,
       tokenCount: 0,
-      cluster: { ...noCluster, size: 5, firstFunder: "non-cex-funder" },
+      cluster: cluster({ size: 5, firstFunder: "non-cex-funder" }),
       txPattern: baseTxPattern,
-      firstFunder: "non-cex-funder",
     });
     expect(tags).toContain("BUNDLER");
   });
@@ -77,13 +92,21 @@ describe("computeTags", () => {
       txCount: 100,
       usdValue: 0,
       tokenCount: 0,
-      cluster: {
-        ...noCluster,
-        size: 10,
-        firstFunder: "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9",
-      },
+      cluster: cluster({ size: 10, firstFunder: BINANCE }),
       txPattern: baseTxPattern,
-      firstFunder: "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9",
+    });
+    expect(tags).not.toContain("BUNDLER");
+  });
+
+  test("no BUNDLER when funder is null", () => {
+    const tags = computeTags({
+      identity: cleanIdentity,
+      ageDays: 100,
+      txCount: 100,
+      usdValue: 0,
+      tokenCount: 0,
+      cluster: cluster({ size: 10, firstFunder: null }),
+      txPattern: baseTxPattern,
     });
     expect(tags).not.toContain("BUNDLER");
   });
@@ -95,14 +118,12 @@ describe("computeTags", () => {
       txCount: 100,
       usdValue: 0,
       tokenCount: 0,
-      cluster: {
-        ...noCluster,
+      cluster: cluster({
         size: 5,
         firstFunder: "f",
         timeWindowSiblings: ["a", "b", "c"],
-      },
+      }),
       txPattern: baseTxPattern,
-      firstFunder: "f",
     });
     expect(tags).toContain("BUNDLER");
     expect(tags).toContain("BUNDLER_TIGHT");
@@ -115,9 +136,8 @@ describe("computeTags", () => {
       txCount: 100,
       usdValue: 0,
       tokenCount: 0,
-      cluster: { ...noCluster, size: 5, firstFunder: "f", cov: 0.05 },
+      cluster: cluster({ size: 5, firstFunder: "f", cov: 0.05 }),
       txPattern: baseTxPattern,
-      firstFunder: "f",
     });
     expect(tags).toContain("SYBIL");
   });
@@ -129,9 +149,8 @@ describe("computeTags", () => {
       txCount: 100,
       usdValue: 0,
       tokenCount: 0,
-      cluster: noCluster,
+      cluster: cluster(),
       txPattern: { ...baseTxPattern, rapidFire: true, swapOnly: true, avgGapSec: 30 },
-      firstFunder: null,
     });
     expect(tags).toContain("SNIPER");
   });
@@ -143,9 +162,8 @@ describe("computeTags", () => {
       txCount: 100,
       usdValue: 50_000,
       tokenCount: 3,
-      cluster: noCluster,
+      cluster: cluster(),
       txPattern: baseTxPattern,
-      firstFunder: null,
     });
     expect(tags).toContain("WHALE");
   });
@@ -157,9 +175,8 @@ describe("computeTags", () => {
       txCount: 100,
       usdValue: 0,
       tokenCount: 0,
-      cluster: noCluster,
+      cluster: cluster(),
       txPattern: { ...baseTxPattern, uniqueOutboundRecipients: 25 },
-      firstFunder: null,
     });
     expect(tags).toContain("FUND_DISTRIBUTOR");
   });

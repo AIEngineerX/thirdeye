@@ -122,7 +122,7 @@ export class HeliusClient {
     query?: Record<string, string>,
   ): Promise<T> {
     const result = await proxyToHelius({
-      target: query ? { kind: "rest", path, query } : { kind: "rest", path },
+      target: { kind: "rest", path, query },
       method: "GET",
       cacheTtlMs,
       serverKey: this.opts.serverKey,
