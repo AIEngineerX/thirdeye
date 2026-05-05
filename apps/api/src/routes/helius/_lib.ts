@@ -9,12 +9,9 @@ import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { env } from "../../env";
 
-function tokenHash(token: string | undefined): string {
-  if (!token) return "";
-  return createHash("sha256").update(token).digest("hex").slice(0, 8);
-}
-
 export function logProxyEvent(c: Context, pathLabel: string, r: ProxyResult): void {
+  const auth = c.req.header("X-Auth-Token");
+  const tokenHash = auth ? createHash("sha256").update(auth).digest("hex").slice(0, 8) : "";
   console.log(
     JSON.stringify({
       ts: new Date().toISOString(),
@@ -25,25 +22,16 @@ export function logProxyEvent(c: Context, pathLabel: string, r: ProxyResult): vo
       durationMs: r.durationMs,
       fromCache: r.fromCache,
       isByok: r.isByok,
-      tokenHash: tokenHash(c.req.header("X-Auth-Token")),
+      tokenHash,
     }),
   );
 }
 
-/**
- * Serialize a ProxyErrorPayload as an HTTP response. Strips `status` from the
- * body (HTTP already carries it) but preserves any additional fields the
- * specific error helper attached (e.g., retryAfterSec, name, upstreamStatus).
- */
 export function respondError(c: Context, err: ProxyErrorPayload): Response {
   const { status, ...body } = err;
   return c.json(body, status as ContentfulStatusCode);
 }
 
-/**
- * Extract whitelisted query params from the request. Returns undefined when
- * none are present so the proxy URL doesn't grow an empty `&` suffix.
- */
 export function pickQuery(c: Context, keys: readonly string[]): Record<string, string> | undefined {
   const out: Record<string, string> = {};
   for (const k of keys) {

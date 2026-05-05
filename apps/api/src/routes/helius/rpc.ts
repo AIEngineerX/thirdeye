@@ -13,8 +13,8 @@ rpc.post("/api/helius-rpc", async (c) => {
   if (r.kind === "forbidden") return respondError(c, ProxyError.forbiddenRpcMethod(r.method));
 
   return executeProxy(c, {
-    target: { kind: "rpc", method: r.envelope.method, params: r.envelope.params },
+    target: { kind: "rpc", method: r.method, params: r.params },
     method: "POST",
-    cacheTtlMs: rpcCacheTtlMs(r.envelope.method),
+    cacheTtlMs: rpcCacheTtlMs(r.method),
   });
 });

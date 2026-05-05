@@ -4,15 +4,8 @@ export const RPC_DENY_LIST: ReadonlySet<string> = new Set([
   "requestAirdrop",
 ]);
 
-export type RpcEnvelope = {
-  jsonrpc: string;
-  id: unknown;
-  method: string;
-  params: unknown[];
-};
-
 export type RpcEnvelopeResult =
-  | { kind: "ok"; method: string; envelope: RpcEnvelope }
+  | { kind: "ok"; method: string; params: unknown[] }
   | { kind: "invalid"; reason: string }
   | { kind: "forbidden"; method: string };
 
@@ -33,14 +26,5 @@ export function validateRpcEnvelope(input: unknown): RpcEnvelopeResult {
   if (RPC_DENY_LIST.has(e.method)) {
     return { kind: "forbidden", method: e.method };
   }
-  return {
-    kind: "ok",
-    method: e.method,
-    envelope: {
-      jsonrpc: e.jsonrpc,
-      id: e.id,
-      method: e.method,
-      params: e.params,
-    },
-  };
+  return { kind: "ok", method: e.method, params: e.params };
 }
