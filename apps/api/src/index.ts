@@ -15,6 +15,7 @@ import {
   transactions,
   transactionsBySig,
 } from "./routes/helius";
+import { walletCheck } from "./routes/wallet";
 
 const { db } = createDb(env.DATABASE_URL);
 
@@ -79,6 +80,19 @@ heliusRpcRouter.use("*", requireAuth);
 heliusRpcRouter.use("*", heliusProxyLimit);
 heliusRpcRouter.route("/", heliusRpc);
 app.route("/", heliusRpcRouter);
+
+const walletCheckLimit = rateLimit({
+  name: "wallet_check",
+  limit: env.WALLET_CHECK_LIMIT,
+  windowSec: env.WALLET_CHECK_WINDOW_SEC,
+  bypassOnByok: false,
+});
+
+const walletRouter = new Hono<{ Variables: Variables }>();
+walletRouter.use("*", requireAuth);
+walletRouter.use("*", walletCheckLimit);
+walletRouter.route("/", walletCheck);
+app.route("/api/wallet", walletRouter);
 
 console.log(`thirdeye api ready on :${env.PORT}`);
 
