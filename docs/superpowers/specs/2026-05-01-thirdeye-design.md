@@ -450,12 +450,22 @@ Bun workspaces, single git repo.
 
 **Deployment hardening (public hosted instance)**: enable Helius dashboard IP allow-list on `HELIUS_API_KEY` so the key only works from the proxy's egress IPs; Cloudflare WAF + per-IP rate limit in front of `api.thirdeye.app`. Self-host: not required (`PUBLIC_INSTANCE_MODE=false` disables app-level limits). See `docs/superpowers/specs/2026-05-04-thirdeye-phase-1-helius-proxy.md` §13.
 
-## 17. v2 deferrals (explicit list)
+## 17. Phase roadmap (post-v1)
+
+v1 backend (Phases 0–4) is shipped: foundation, Helius proxy, Check Wallet, Scan Token, Intel Analytics.
+
+| Phase | Module | Status | Source of truth |
+|---|---|---|---|
+| 5 | Alpha Extraction — sharper tag rules, cluster-CoV / SYBIL, cross-token bundler view, SMART_MONEY PnL tag, Helius webhook subscription | in progress | `docs/superpowers/specs/2026-05-06-thirdeye-phase-5-alpha-design.md` |
+| 6 | Frontend — Next.js 16 web app consuming the v1 + Phase 5 endpoints | not started | TBD (visual spec deferred — see below) |
+
+### v2 deferrals (explicit list)
 
 - AI Assistant — adds `/api/db/intel/ai`, model TBD (xAI Grok or Anthropic)
 - Bad Actors curated DB — adds `/bad-actors` page + `bad_actors` table + admin endpoints
 - KOLs Spotted feed — needs Twitter handle → wallet identity source
 - Federation / opt-in cross-instance sync — pull/push protocol, dedup, abuse handling
+- Outbound notifications (Discord/Telegram) wired to Phase 5 webhook events
 
 ## 18. Risks / open questions
 

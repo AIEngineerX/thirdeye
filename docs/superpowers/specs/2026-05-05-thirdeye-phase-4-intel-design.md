@@ -168,7 +168,7 @@ No new Helius integration coverage — Intel is zero-Helius by spec.
 - **Multi-process intel-bus** — switch from in-process EventEmitter to Postgres LISTEN/NOTIFY when public-instance horizontal scale lands (v1.1+).
 - **`tag:applied` event emitter** — no v1 path applies tags one-at-a-time; the wallet-check pipeline writes tags in a single batch. When v2 adds incremental tag sources (admin override, Bad Actors DB ingest), wire the emitter then.
 - **Connection-limit observability** — log when a connection is preempted but no metrics export at v1.
-- **Frontend** — Phase 5; this phase is backend + worker only.
+- **Frontend** — Phase 6; this phase is backend + worker only.
 - **Rate limit on `/intel/feed`** — SSE is server-push and connection-bounded; per-token connection cap (1) is the limit.
 
 ## What we're not copying from godmode

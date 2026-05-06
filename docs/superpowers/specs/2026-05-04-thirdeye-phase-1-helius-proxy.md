@@ -19,7 +19,7 @@ Implement the seven `/api/helius/*` proxy endpoints listed in the parent spec §
 
 - Helius WebSocket / LaserStream proxying — not in spec §10's enumerated endpoints
 - Wallet-check or token-scan business logic — Phase 2 and Phase 3
-- Frontend — Phase 5+
+- Frontend — Phase 6+ (originally written as Phase 5; renumbered when Phase 5 became Alpha Extraction)
 - Worker process — Phase 2 introduces graphile-worker, but this phase's primitive is designed to be importable from a worker without HTTP round-trip
 
 ## 3. Endpoint shape (decision Q1: hybrid)
