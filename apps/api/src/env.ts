@@ -33,4 +33,8 @@ export const env = {
   SCAN_TOKEN_LIMIT: Number(optional("SCAN_TOKEN_LIMIT", "60")),
   SCAN_TOKEN_WINDOW_SEC: Number(optional("SCAN_TOKEN_WINDOW_SEC", "3600")),
   SCAN_TOKEN_CACHE_SEC: Number(optional("SCAN_TOKEN_CACHE_SEC", "300")),
+  // Phase 5d: realized SOL PnL threshold for SMART_MONEY tag. Tune to
+  // your market — 50 SOL realized over 30d is a defensible default but
+  // varies wildly by wallet population (memecoin vs blue-chip swappers).
+  SMART_MONEY_MIN_SOL: Number(optional("SMART_MONEY_MIN_SOL", "50")),
 } as const;

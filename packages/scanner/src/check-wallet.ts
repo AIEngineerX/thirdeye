@@ -2,6 +2,7 @@ import { buildCluster } from "./cluster";
 import { computeClusterCov } from "./cluster-cov";
 import { traceFundingChain } from "./funding-chain";
 import { HeliusClient } from "./helius-client";
+import { computeRealizedSolPnl } from "./pnl";
 import { computeScore, scoreBucket } from "./score";
 import { computeTags } from "./tags";
 import { analyzeTxPattern } from "./tx-patterns";
@@ -24,6 +25,9 @@ export interface CheckWalletOptions {
     firstFunder: string,
     limit: number,
   ) => Promise<{ address: string; fundedAt: string | null }[]>;
+  // Phase 5d: SOL threshold above which SMART_MONEY tag fires. Passed in
+  // from the route handler so the scanner package stays env-agnostic.
+  smartMoneyMinSol: number;
 }
 
 export async function* checkWallet(opts: CheckWalletOptions): AsyncGenerator<CheckEvent> {
@@ -86,6 +90,10 @@ export async function* checkWallet(opts: CheckWalletOptions): AsyncGenerator<Che
   const txPattern = analyzeTxPattern(opts.address, txs);
   yield { event: "txPattern", data: txPattern };
 
+  // Phase 5d: realized SOL PnL across SWAPs in the 30d window. Reuses
+  // the txs array we already fetched — zero extra Helius cost.
+  const realizedPnlSol = txs.length > 0 ? computeRealizedSolPnl(opts.address, txs) : null;
+
   const tags = computeTags({
     identity,
     ageDays: txPattern.ageDays,
@@ -94,6 +102,8 @@ export async function* checkWallet(opts: CheckWalletOptions): AsyncGenerator<Che
     tokenCount: balances.tokenCount,
     cluster,
     txPattern,
+    realizedPnlSol,
+    smartMoneyMinSol: opts.smartMoneyMinSol,
   });
   yield { event: "tags", data: { tags } };
 
@@ -109,6 +119,7 @@ export async function* checkWallet(opts: CheckWalletOptions): AsyncGenerator<Che
     cluster,
     txPattern,
     tags,
+    realizedPnlSol,
     score,
     scoreBucket: scoreBucket(score),
     verdict,

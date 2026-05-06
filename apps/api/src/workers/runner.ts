@@ -7,6 +7,7 @@ export interface RunnerOptions {
   connectionString: string;
   db: DbClient;
   serverHeliusKey: string | undefined;
+  smartMoneyMinSol: number;
 }
 
 // graphile-worker uses standard 5-field minute-precision cron — no seconds
@@ -30,7 +31,10 @@ export async function startWorker(opts: RunnerOptions): Promise<Runner> {
         await refreshAggregates(opts.db);
       },
       "enrich-wallet": async () => {
-        await enrichWallet(opts.db, { serverKey: opts.serverHeliusKey });
+        await enrichWallet(opts.db, {
+          serverKey: opts.serverHeliusKey,
+          smartMoneyMinSol: opts.smartMoneyMinSol,
+        });
       },
     },
     crontab: CRONTAB,

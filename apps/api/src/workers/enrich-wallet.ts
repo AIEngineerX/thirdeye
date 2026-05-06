@@ -7,6 +7,7 @@ const BATCH_SIZE = 100;
 
 export interface EnrichOptions {
   serverKey: string | undefined;
+  smartMoneyMinSol: number;
 }
 
 // Hourly cron — re-check the 100 oldest tagged wallets where last_checked
@@ -38,6 +39,7 @@ export async function enrichWallet(
         address,
         serverKey: opts.serverKey,
         resolveSiblings: (funder, limit) => resolveSiblings(db, funder, limit),
+        smartMoneyMinSol: opts.smartMoneyMinSol,
       });
       let final: WalletCheckResult | null = null;
       for await (const evt of generator) {

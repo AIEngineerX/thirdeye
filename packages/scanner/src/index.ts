@@ -4,6 +4,7 @@ export * from "./verdict";
 export * from "./tags";
 export * from "./cluster";
 export * from "./cluster-cov";
+export * from "./pnl";
 export * from "./tx-patterns";
 export * from "./funding-chain";
 export * from "./helius-client";

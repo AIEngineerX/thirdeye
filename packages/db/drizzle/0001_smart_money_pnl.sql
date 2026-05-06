@@ -1,0 +1,1 @@
+ALTER TABLE "wallets" ADD COLUMN "realized_pnl_sol" numeric;

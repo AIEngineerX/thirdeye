@@ -34,6 +34,10 @@ export const wallets = pgTable(
     txCount: integer("tx_count"),
     ageDays: integer("age_days"),
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    // Phase 5d: realized SOL PnL across last 100 swaps over the 30d window
+    // preceding the most recent check. Nullable — older rows pre-migration
+    // and wallets with zero swap history both legitimately have null.
+    realizedPnlSol: numeric("realized_pnl_sol"),
     lastChecked: timestamp("last_checked", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
