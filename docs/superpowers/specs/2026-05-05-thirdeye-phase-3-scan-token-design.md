@@ -155,9 +155,9 @@ Spec §8.2 promises "top N holders by balance"; we ship "first N from indexer-or
 
 - **Queued worker** (`scan-token` graphile-worker job per spec §13). v1.0 ships inline-SSE for parity with check-wallet; queueing comes when we add the second consumer (Intel auto-rescan, Phase 4+).
 - **Full PDA inspection for LP detection** — v1 uses authority-address allowlist with known false negatives; full `getAccountInfo` ownership walk is v1.1.
-- **Cross-token serial-bundler view** — querying "this funder shows up across N tokens" needs an index on `funders.cluster_count` + a join view. Phase 4 (Intel).
-- **WebSocket scan-progress fanout to other browsers** — Phase 5 (Intel module's live activity panel).
-- **Token tags decoupled from clusters** (e.g. `RUG_PULL_HISTORY`, `MUTABLE_AUTHORITY`) — Phase 4+.
+- **Cross-token serial-bundler view** — querying "this funder shows up across N tokens". Now scoped under Phase 5c (`2026-05-06-thirdeye-phase-5-alpha-design.md`).
+- **WebSocket scan-progress fanout to other browsers** — Phase 6 (frontend will subscribe to the Phase 4 SSE feed).
+- **Token tags decoupled from clusters** (e.g. `RUG_PULL_HISTORY`, `MUTABLE_AUTHORITY`) — v1.1+.
 
 ## What we're not copying from godmode
 

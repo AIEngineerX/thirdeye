@@ -167,12 +167,12 @@ Integration (`apps/api/tests/wallet-check.integration.test.ts`):
 
 - KOL identity (needs external label source — v2 along with `BadActorsDB`)
 - Real-time funder push (would require subscribing to funded-by events — v3 with Helius webhooks)
-- Frontend UI (Phase 5)
-- Cross-token serial bundler view (Phase 3+ once `scan_holders` exists)
+- Frontend UI (Phase 6 — earlier docs called this Phase 5; Phase 5 is now Alpha Extraction)
+- Cross-token serial bundler view (now scoped under Phase 5c — see `2026-05-06-thirdeye-phase-5-alpha-design.md`)
 
 ## What we're not copying from godmode
 
-- Pixel-art aesthetic / Press Start 2P. Our UI is sober, dense, Bloomberg-terminal-meets-Linear (Phase 5).
+- Pixel-art aesthetic / Press Start 2P. Our UI is sober, dense, Bloomberg-terminal-meets-Linear (Phase 6).
 - Storing rendered HTML in the DB (`wallet_checks.result_html` in their schema). We store structured JSON only.
 - Client-side heuristic engine. Ours is server-side for SSE, persistence, self-host parity.
 - 1-or-2-hop funding chain with no exchange detection. We do 3–5 hops with stop-on-exchange.
