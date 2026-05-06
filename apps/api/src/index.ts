@@ -16,8 +16,10 @@ import {
   transactions,
   transactionsBySig,
 } from "./routes/helius";
+import { intelAggregatesRoutes, intelFeed } from "./routes/intel";
 import { tokenScan } from "./routes/token";
 import { walletCheck } from "./routes/wallet";
+import { startWorker } from "./workers/runner";
 
 const { db } = createDb(env.DATABASE_URL);
 
@@ -116,6 +118,29 @@ tokenRouter.use("*", requireAuth);
 tokenRouter.use("*", scanTokenLimit);
 tokenRouter.route("/", tokenScan);
 app.route("/api/token", tokenRouter);
+
+// Intel module — read aggregates require auth; SSE feed handles its own
+// query-param token check (EventSource can't send headers).
+const intelReadRouter = new Hono<{ Variables: Variables }>();
+intelReadRouter.use("*", requireAuth);
+intelReadRouter.route("/", intelAggregatesRoutes);
+app.route("/api/db/intel", intelReadRouter);
+
+const intelFeedRouter = new Hono<{ Variables: Variables }>();
+intelFeedRouter.route("/", intelFeed);
+app.route("/api/db/intel", intelFeedRouter);
+
+// Background worker — only when this file is the entrypoint, never under tests
+// (tests import `{ app }` and would otherwise spin up cron + DB schema install).
+if (import.meta.main) {
+  startWorker({
+    connectionString: env.DATABASE_URL,
+    db,
+    serverHeliusKey: env.HELIUS_API_KEY,
+  })
+    .then(() => console.log("[worker] graphile-worker started"))
+    .catch((e) => console.error("[worker] start failed", e));
+}
 
 console.log(`thirdeye api ready on :${env.PORT}`);
 
