@@ -2,9 +2,11 @@ import { type CachedResponse, composeCacheKey, getCache } from "./cache";
 import { ProxyError, type ProxyErrorPayload, mapUpstreamStatus } from "./errors";
 import { composeRestUrl, composeRpcUrl } from "./urls";
 
+export type RpcParams = unknown[] | Record<string, unknown>;
+
 export type ProxyTarget =
   | { kind: "rest"; path: string; query?: Record<string, string> | undefined }
-  | { kind: "rpc"; method: string; params: unknown[] };
+  | { kind: "rpc"; method: string; params: RpcParams };
 
 export interface ProxyOptions {
   target: ProxyTarget;

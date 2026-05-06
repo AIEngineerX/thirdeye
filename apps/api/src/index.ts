@@ -16,6 +16,7 @@ import {
   transactions,
   transactionsBySig,
 } from "./routes/helius";
+import { tokenScan } from "./routes/token";
 import { walletCheck } from "./routes/wallet";
 
 const { db } = createDb(env.DATABASE_URL);
@@ -102,6 +103,19 @@ walletRouter.use("*", requireAuth);
 walletRouter.use("*", walletCheckLimit);
 walletRouter.route("/", walletCheck);
 app.route("/api/wallet", walletRouter);
+
+const scanTokenLimit = rateLimit({
+  name: "scan_token",
+  limit: env.SCAN_TOKEN_LIMIT,
+  windowSec: env.SCAN_TOKEN_WINDOW_SEC,
+  bypassOnByok: true,
+});
+
+const tokenRouter = new Hono<{ Variables: Variables }>();
+tokenRouter.use("*", requireAuth);
+tokenRouter.use("*", scanTokenLimit);
+tokenRouter.route("/", tokenScan);
+app.route("/api/token", tokenRouter);
 
 console.log(`thirdeye api ready on :${env.PORT}`);
 
