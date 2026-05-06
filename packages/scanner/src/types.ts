@@ -6,6 +6,7 @@ export type Tag =
   | "SYBIL"
   | "SNIPER"
   | "WHALE"
+  | "SMART_MONEY"
   | "EXCHANGE"
   | "KOL";
 
@@ -14,6 +15,7 @@ export type Verdict =
   | "SYBIL"
   | "BUNDLER"
   | "SNIPER BOT"
+  | "SMART_MONEY"
   | "WHALE"
   | "FRESH"
   | "TRADER"
@@ -87,6 +89,10 @@ export interface WalletCheckResult {
   cluster: Cluster;
   txPattern: TxPattern;
   tags: Tag[];
+  // Phase 5d: net SOL realized across the last 30d of SWAPs.
+  // Positive ⇒ wallet has been net-extracting SOL from swaps.
+  // Null ⇒ no swap activity in window or fetch failed.
+  realizedPnlSol: number | null;
   score: number;
   scoreBucket: ScoreBucket;
   verdict: Verdict;

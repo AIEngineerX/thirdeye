@@ -138,6 +138,7 @@ if (import.meta.main) {
     connectionString: env.DATABASE_URL,
     db,
     serverHeliusKey: env.HELIUS_API_KEY,
+    smartMoneyMinSol: env.SMART_MONEY_MIN_SOL,
   })
     .then(() => console.log("[worker] graphile-worker started"))
     .catch((e) => console.error("[worker] start failed", e));

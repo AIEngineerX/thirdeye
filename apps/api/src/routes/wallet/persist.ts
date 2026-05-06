@@ -17,6 +17,7 @@ export async function persistCheck(db: DbClient, r: WalletCheckResult): Promise<
       txCount: r.txPattern.txCount,
       ageDays: r.txPattern.ageDays,
       tags: r.tags,
+      realizedPnlSol: r.realizedPnlSol === null ? null : String(r.realizedPnlSol),
       lastChecked: new Date(),
     })
     .onConflictDoUpdate({
@@ -29,6 +30,7 @@ export async function persistCheck(db: DbClient, r: WalletCheckResult): Promise<
         txCount: sql`EXCLUDED.tx_count`,
         ageDays: sql`EXCLUDED.age_days`,
         tags: sql`EXCLUDED.tags`,
+        realizedPnlSol: sql`EXCLUDED.realized_pnl_sol`,
         lastChecked: sql`EXCLUDED.last_checked`,
       },
     });

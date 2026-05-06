@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { computeTags } from "../src/tags";
+import { type TagInputs, computeTags } from "../src/tags";
 import type { Cluster, Identity, TxPattern } from "../src/types";
 
 const cleanIdentity: Identity = { address: "x", name: null, type: null, category: null };
@@ -32,6 +32,24 @@ const baseTxPattern: TxPattern = {
   uniqueOutboundRecipients: 0,
 };
 
+// Phase 5d added realizedPnlSol + smartMoneyMinSol to TagInputs. Tests that
+// don't care about SMART_MONEY pass null PnL (no tag fires regardless of
+// threshold) and a sentinel high threshold.
+function makeInputs(overrides: Partial<TagInputs>): TagInputs {
+  return {
+    identity: cleanIdentity,
+    ageDays: 100,
+    txCount: 100,
+    usdValue: 0,
+    tokenCount: 0,
+    cluster: cluster(),
+    txPattern: baseTxPattern,
+    realizedPnlSol: null,
+    smartMoneyMinSol: 50,
+    ...overrides,
+  };
+}
+
 describe("computeTags", () => {
   test("EXCHANGE from identity.type", () => {
     const tags = computeTags({
@@ -42,6 +60,8 @@ describe("computeTags", () => {
       tokenCount: 0,
       cluster: cluster(),
       txPattern: baseTxPattern,
+      realizedPnlSol: null,
+      smartMoneyMinSol: 50,
     });
     expect(tags).toContain("EXCHANGE");
   });
@@ -55,6 +75,8 @@ describe("computeTags", () => {
       tokenCount: 0,
       cluster: cluster({ firstFunder: BINANCE }),
       txPattern: baseTxPattern,
+      realizedPnlSol: null,
+      smartMoneyMinSol: 50,
     });
     expect(tags).toContain("EXCHANGE");
   });
@@ -68,6 +90,8 @@ describe("computeTags", () => {
       tokenCount: 0,
       cluster: cluster(),
       txPattern: baseTxPattern,
+      realizedPnlSol: null,
+      smartMoneyMinSol: 50,
     });
     expect(tags).toContain("FRESH_WALLET");
   });
@@ -81,6 +105,8 @@ describe("computeTags", () => {
       tokenCount: 0,
       cluster: cluster({ size: 5, firstFunder: "non-cex-funder" }),
       txPattern: baseTxPattern,
+      realizedPnlSol: null,
+      smartMoneyMinSol: 50,
     });
     expect(tags).toContain("BUNDLER");
   });
@@ -94,6 +120,8 @@ describe("computeTags", () => {
       tokenCount: 0,
       cluster: cluster({ size: 10, firstFunder: BINANCE }),
       txPattern: baseTxPattern,
+      realizedPnlSol: null,
+      smartMoneyMinSol: 50,
     });
     expect(tags).not.toContain("BUNDLER");
   });
@@ -107,6 +135,8 @@ describe("computeTags", () => {
       tokenCount: 0,
       cluster: cluster({ size: 10, firstFunder: null }),
       txPattern: baseTxPattern,
+      realizedPnlSol: null,
+      smartMoneyMinSol: 50,
     });
     expect(tags).not.toContain("BUNDLER");
   });
@@ -124,6 +154,8 @@ describe("computeTags", () => {
         timeWindowSiblings: ["a", "b", "c"],
       }),
       txPattern: baseTxPattern,
+      realizedPnlSol: null,
+      smartMoneyMinSol: 50,
     });
     expect(tags).toContain("BUNDLER");
     expect(tags).toContain("BUNDLER_TIGHT");
@@ -138,6 +170,8 @@ describe("computeTags", () => {
       tokenCount: 0,
       cluster: cluster({ size: 5, firstFunder: "f", cov: 0.05 }),
       txPattern: baseTxPattern,
+      realizedPnlSol: null,
+      smartMoneyMinSol: 50,
     });
     expect(tags).toContain("SYBIL");
   });
@@ -151,6 +185,8 @@ describe("computeTags", () => {
       tokenCount: 0,
       cluster: cluster(),
       txPattern: { ...baseTxPattern, rapidFire: true, swapOnly: true, avgGapSec: 15 },
+      realizedPnlSol: null,
+      smartMoneyMinSol: 50,
     });
     expect(tags).toContain("SNIPER");
   });
@@ -164,6 +200,8 @@ describe("computeTags", () => {
       tokenCount: 3,
       cluster: cluster(),
       txPattern: baseTxPattern,
+      realizedPnlSol: null,
+      smartMoneyMinSol: 50,
     });
     expect(tags).toContain("WHALE");
   });
@@ -177,7 +215,52 @@ describe("computeTags", () => {
       tokenCount: 0,
       cluster: cluster(),
       txPattern: { ...baseTxPattern, uniqueOutboundRecipients: 25 },
+      realizedPnlSol: null,
+      smartMoneyMinSol: 50,
     });
     expect(tags).toContain("FUND_DISTRIBUTOR");
+  });
+
+  test("SMART_MONEY when realizedPnlSol >= threshold", () => {
+    const tags = computeTags(makeInputs({ realizedPnlSol: 75, smartMoneyMinSol: 50 }));
+    expect(tags).toContain("SMART_MONEY");
+  });
+
+  test("no SMART_MONEY when below threshold", () => {
+    const tags = computeTags(makeInputs({ realizedPnlSol: 25, smartMoneyMinSol: 50 }));
+    expect(tags).not.toContain("SMART_MONEY");
+  });
+
+  test("no SMART_MONEY when realizedPnlSol is null", () => {
+    const tags = computeTags(makeInputs({ realizedPnlSol: null, smartMoneyMinSol: 50 }));
+    expect(tags).not.toContain("SMART_MONEY");
+  });
+
+  test("SMART_MONEY suppressed when wallet identity is exchange", () => {
+    const tags = computeTags(
+      makeInputs({
+        identity: exchangeIdentity,
+        realizedPnlSol: 1000,
+        smartMoneyMinSol: 50,
+      }),
+    );
+    expect(tags).not.toContain("SMART_MONEY");
+    expect(tags).toContain("EXCHANGE");
+  });
+
+  test("SMART_MONEY suppressed when funder is a known exchange", () => {
+    const tags = computeTags(
+      makeInputs({
+        cluster: cluster({ firstFunder: BINANCE }),
+        realizedPnlSol: 1000,
+        smartMoneyMinSol: 50,
+      }),
+    );
+    expect(tags).not.toContain("SMART_MONEY");
+  });
+
+  test("SMART_MONEY does not fire on negative PnL", () => {
+    const tags = computeTags(makeInputs({ realizedPnlSol: -100, smartMoneyMinSol: 50 }));
+    expect(tags).not.toContain("SMART_MONEY");
   });
 });

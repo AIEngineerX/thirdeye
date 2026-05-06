@@ -47,6 +47,7 @@ walletCheck.get("/:addr/check", async (c) => {
       serverKey: env.HELIUS_API_KEY,
       ...(userKey !== undefined && { userKey }),
       resolveSiblings: (funder, limit) => resolveSiblings(db, funder, limit),
+      smartMoneyMinSol: env.SMART_MONEY_MIN_SOL,
     });
 
     let final: WalletCheckResult | null = null;

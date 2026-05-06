@@ -37,6 +37,14 @@ describe("computeScore", () => {
   test("KOL subtracts 10", () => {
     expect(computeScore({ tags: ["KOL", "FRESH_WALLET"], clusterSize: 1 })).toBe(1);
   });
+  test("SMART_MONEY subtracts 15 (positive signal)", () => {
+    // BUNDLER (30) + clusterSize 1 (0.5) − SMART_MONEY (15) = 15 (rounded)
+    expect(computeScore({ tags: ["BUNDLER", "SMART_MONEY"], clusterSize: 1 })).toBe(16);
+  });
+  test("SMART_MONEY alone on a clean wallet pulls score below baseline (clamps at 0)", () => {
+    // No risk tags, clusterSize 1 (0.5) − SMART_MONEY (15) = clamp at 0
+    expect(computeScore({ tags: ["SMART_MONEY"], clusterSize: 1 })).toBe(0);
+  });
   test("score is clamped to 100", () => {
     expect(
       computeScore({

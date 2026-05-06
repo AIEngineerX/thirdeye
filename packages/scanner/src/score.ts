@@ -16,6 +16,7 @@ export function computeScore(inputs: ScoreInputs): number {
   if (has("SNIPER")) score += 15;
   if (has("EXCHANGE")) score -= 50;
   if (has("KOL")) score -= 10;
+  if (has("SMART_MONEY")) score -= 15; // Phase 5d: positive signal
   score += Math.min(inputs.clusterSize, 50) * 0.5;
   return Math.max(0, Math.min(100, Math.round(score)));
 }
