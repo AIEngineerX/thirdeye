@@ -7,10 +7,12 @@ import { analyzeTxPattern } from "./tx-patterns";
 import type { CheckEvent, Cluster, ScanMode, WalletCheckResult } from "./types";
 import { computeVerdict } from "./verdict";
 
+// Phase 5a: BYOK cluster limit 200 → 300 to capture larger bundler ops.
+// Shared mode unchanged (50) to bound credit cost for free / low-tier users.
 const SHARED_MAX_HOPS = 3;
 const BYOK_MAX_HOPS = 5;
 const SHARED_CLUSTER_LIMIT = 50;
-const BYOK_CLUSTER_LIMIT = 200;
+const BYOK_CLUSTER_LIMIT = 300;
 
 export interface CheckWalletOptions {
   address: string;

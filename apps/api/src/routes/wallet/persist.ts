@@ -54,9 +54,9 @@ export async function persistCheck(db: DbClient, r: WalletCheckResult): Promise<
 export async function lookupRecentCheck(
   db: DbClient,
   address: string,
-  cacheHours: number,
+  cacheSec: number,
 ): Promise<WalletCheckResult | null> {
-  const cutoffIso = new Date(Date.now() - cacheHours * 3600 * 1000).toISOString();
+  const cutoffIso = new Date(Date.now() - cacheSec * 1000).toISOString();
   const rows = await db
     .select()
     .from(walletChecks)

@@ -29,7 +29,7 @@ tokenScan.get("/:mint/scan", async (c) => {
     const mode = userKey ? "byok" : "shared";
 
     if (!force) {
-      const cached = await lookupRecentScan(db, mint, env.SCAN_TOKEN_CACHE_HOURS);
+      const cached = await lookupRecentScan(db, mint, env.SCAN_TOKEN_CACHE_SEC);
       if (cached) {
         await sendEvent(stream, {
           event: "started",
@@ -89,7 +89,7 @@ tokenScan.get("/:mint/scans/latest", async (c) => {
   if (!isValidSolanaAddress(mint)) {
     return c.json({ error: "invalid_mint", message: "Mint is not a valid base58 address" }, 400);
   }
-  const cached = await lookupRecentScan(c.get("db"), mint, env.SCAN_TOKEN_CACHE_HOURS);
+  const cached = await lookupRecentScan(c.get("db"), mint, env.SCAN_TOKEN_CACHE_SEC);
   if (!cached) return c.json({ error: "not_found", message: "No recent scan" }, 404);
   return c.json(cached);
 });

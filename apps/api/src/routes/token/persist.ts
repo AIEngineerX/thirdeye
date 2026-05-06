@@ -35,9 +35,9 @@ export async function persistScan(db: DbClient, r: TokenScanResult): Promise<voi
 export async function lookupRecentScan(
   db: DbClient,
   mint: string,
-  cacheHours: number,
+  cacheSec: number,
 ): Promise<TokenScanResult | null> {
-  const cutoffIso = new Date(Date.now() - cacheHours * 3600 * 1000).toISOString();
+  const cutoffIso = new Date(Date.now() - cacheSec * 1000).toISOString();
   const rows = await db
     .select()
     .from(tokenScans)

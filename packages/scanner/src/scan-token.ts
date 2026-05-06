@@ -18,7 +18,11 @@ import type {
 // cap the sample size; cluster detection operates on the sampled top.
 // True global top-N is a v1.1 enhancement (would require pagination + sort
 // or getTokenLargestAccounts + SPL token-account owner deserialization).
-const SHARED_HOLDER_LIMIT = 100;
+//
+// Phase 5a: bumped SHARED 100 → 200. Lower cap from earlier was a
+// concession to the free-tier 429 risk; with paid Helius + the 429
+// retry shipped in 9c735d5, 200 is back on the menu.
+const SHARED_HOLDER_LIMIT = 200;
 const BYOK_HOLDER_LIMIT = 500;
 const PER_SCAN_CONCURRENCY = 10;
 
