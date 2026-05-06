@@ -1,4 +1,5 @@
 import { buildCluster } from "./cluster";
+import { computeClusterCov } from "./cluster-cov";
 import { traceFundingChain } from "./funding-chain";
 import { HeliusClient } from "./helius-client";
 import { computeScore, scoreBucket } from "./score";
@@ -71,6 +72,13 @@ export async function* checkWallet(opts: CheckWalletOptions): AsyncGenerator<Che
       rawSiblings,
       identitiesByAddress,
     });
+
+    // Phase 5b: compute CoV across cluster siblings' SOL outflows. Lights
+    // up the SYBIL tag (was hardcoded null in v1). Sample-bounded; per-
+    // member errors swallowed so one bad sibling can't kill the signal.
+    const memberAddrs = cluster.siblings.map((s) => s.address);
+    const cov = await computeClusterCov(client, memberAddrs, opts.address);
+    cluster = { ...cluster, cov };
   }
   yield { event: "cluster", data: cluster };
 
