@@ -7,4 +7,7 @@ export * from "./tx-patterns";
 export * from "./funding-chain";
 export * from "./helius-client";
 export * from "./check-wallet";
+export * from "./semaphore";
+export * from "./risk";
+export * from "./scan-token";
 export const PACKAGE_NAME = "@thirdeye/scanner" as const;

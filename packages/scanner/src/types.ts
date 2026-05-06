@@ -104,3 +104,86 @@ export type CheckEvent =
   | { event: "tags"; data: { tags: Tag[] } }
   | { event: "result"; data: WalletCheckResult }
   | { event: "error"; data: { error: string; message: string } };
+
+// ── Phase 3: Scan Token ─────────────────────────────────────────────────────
+
+export type TokenVerdict = "CLEAN" | "LOW_RISK" | "HIGH_RISK";
+
+export interface TokenMetadata {
+  mint: string;
+  name: string | null;
+  symbol: string | null;
+  supply: string; // raw u64 string (apply decimals client-side)
+  decimals: number;
+  updateAuthority: string | null;
+  firstCreator: string | null;
+}
+
+export interface TokenHolderAccount {
+  address: string; // token account
+  owner: string; // wallet that owns the token account
+  amount: string; // raw u64 string
+}
+
+export interface TopHolder {
+  owner: string;
+  amount: string;
+  pct: number; // 0-100, of supply
+}
+
+export interface LpHolder {
+  owner: string;
+  pct: number;
+  category: "lp" | "locked";
+}
+
+export interface TokenCluster {
+  root: string; // first funder address
+  members: string[]; // owner addresses (subset of TopHolder.owner)
+  totalPct: number; // sum of supply pct across members
+  isFreshFunder: boolean;
+  priorTags: Record<string, string[]>; // member → known tags from `wallets` table
+}
+
+export interface TokenScanResult {
+  mint: string;
+  mode: ScanMode;
+  metadata: TokenMetadata;
+  totalHolders: number;
+  scannedHolders: number;
+  topHolders: TopHolder[];
+  lp: { totalPct: number; holders: LpHolder[] };
+  locked: { totalPct: number; holders: LpHolder[] };
+  clusters: TokenCluster[];
+  totalClusteredPct: number;
+  maxClusterPct: number;
+  freshFunderCount: number;
+  risk: number; // 0-100
+  sybilFlag: boolean;
+  verdict: TokenVerdict;
+  scannedAt: string; // ISO8601
+}
+
+export type ScanTokenEvent =
+  | { event: "started"; data: { mint: string; mode: ScanMode; cached: boolean } }
+  | { event: "metadata"; data: TokenMetadata & { launchpad: string | null } }
+  | {
+      event: "holders";
+      data: { totalHolders: number; scannedHolders: number; top: TopHolder[] };
+    }
+  | {
+      event: "lpFilter";
+      data: {
+        lpPct: number;
+        lockedPct: number;
+        lpHolders: LpHolder[];
+        lockedHolders: LpHolder[];
+      };
+    }
+  | {
+      event: "fundingProgress";
+      data: { scanned: number; total: number; errored: number };
+    }
+  | { event: "clusters"; data: { clusters: TokenCluster[] } }
+  | { event: "result"; data: TokenScanResult }
+  | { event: "error"; data: { error: string; message: string } };

@@ -27,4 +27,7 @@ export const env = {
   WALLET_CHECK_LIMIT: Number(optional("WALLET_CHECK_LIMIT", "30")),
   WALLET_CHECK_WINDOW_SEC: Number(optional("WALLET_CHECK_WINDOW_SEC", "3600")),
   WALLET_CHECK_CACHE_HOURS: Number(optional("WALLET_CHECK_CACHE_HOURS", "24")),
+  SCAN_TOKEN_LIMIT: Number(optional("SCAN_TOKEN_LIMIT", "3")),
+  SCAN_TOKEN_WINDOW_SEC: Number(optional("SCAN_TOKEN_WINDOW_SEC", "3600")),
+  SCAN_TOKEN_CACHE_HOURS: Number(optional("SCAN_TOKEN_CACHE_HOURS", "1")),
 } as const;

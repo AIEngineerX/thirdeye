@@ -1,6 +1,6 @@
 import { ProxyError, type ProxyResult, TTL, proxyToHelius } from "@thirdeye/helius";
 import type { ParsedTx } from "./tx-patterns";
-import type { Balances, Identity, TokenBalance } from "./types";
+import type { Balances, Identity, TokenBalance, TokenHolderAccount, TokenMetadata } from "./types";
 
 export interface ClientOptions {
   serverKey: string | undefined;
@@ -124,6 +124,86 @@ export class HeliusClient {
     if (result.error) throw new HeliusError(result);
     if (!Array.isArray(result.body)) throw malformedArray(result);
     return result.body.map(parseHeliusTx).filter((t): t is ParsedTx => t !== null);
+  }
+
+  async getAsset(mint: string): Promise<TokenMetadata> {
+    const result = await this.rpc<{
+      content?: { metadata?: { name?: string; symbol?: string } };
+      token_info?: { supply?: string | number; decimals?: number };
+      authorities?: Array<{ address?: string; scopes?: string[] }>;
+      creators?: Array<{ address?: string; verified?: boolean; share?: number }>;
+    }>("getAsset", { id: mint }, TTL.DEFAULT);
+
+    const supplyRaw = result.token_info?.supply;
+    const supply =
+      typeof supplyRaw === "string"
+        ? supplyRaw
+        : typeof supplyRaw === "number"
+          ? String(supplyRaw)
+          : "0";
+
+    return {
+      mint,
+      name: result.content?.metadata?.name ?? null,
+      symbol: result.content?.metadata?.symbol ?? null,
+      supply,
+      decimals: result.token_info?.decimals ?? 0,
+      updateAuthority: result.authorities?.[0]?.address ?? null,
+      firstCreator: result.creators?.[0]?.address ?? null,
+    };
+  }
+
+  async getTokenAccounts(mint: string, limit: number): Promise<TokenHolderAccount[]> {
+    const result = await this.rpc<{
+      token_accounts?: Array<{
+        address?: string;
+        owner?: string;
+        amount?: string | number;
+      }>;
+    }>("getTokenAccounts", { mint, limit }, TTL.DEFAULT);
+
+    const accounts = result.token_accounts;
+    if (!Array.isArray(accounts)) {
+      throw new HeliusError({
+        status: 502,
+        body: result,
+        fromCache: false,
+        durationMs: 0,
+        isByok: false,
+        error: ProxyError.upstreamMalformed(200),
+      });
+    }
+    return accounts
+      .filter(
+        (a): a is { address: string; owner: string; amount: string | number } =>
+          typeof a.address === "string" &&
+          typeof a.owner === "string" &&
+          (typeof a.amount === "string" || typeof a.amount === "number"),
+      )
+      .map((a) => ({
+        address: a.address,
+        owner: a.owner,
+        amount: typeof a.amount === "string" ? a.amount : String(a.amount),
+      }));
+  }
+
+  private async rpc<T>(
+    method: string,
+    params: Record<string, unknown>,
+    cacheTtlMs: number,
+  ): Promise<T> {
+    const result = await proxyToHelius({
+      target: { kind: "rpc", method, params },
+      method: "POST",
+      cacheTtlMs,
+      serverKey: this.opts.serverKey,
+      ...(this.opts.userKey !== undefined && { userKey: this.opts.userKey }),
+    });
+    if (result.error) throw new HeliusError(result);
+    const body = result.body;
+    if (typeof body !== "object" || body === null) throw malformedArray(result);
+    if ("result" in body) return (body as { result: T }).result;
+    return body as T;
   }
 
   private async rest<T>(
