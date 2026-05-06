@@ -16,7 +16,7 @@ import {
   transactions,
   transactionsBySig,
 } from "./routes/helius";
-import { intelAggregatesRoutes, intelFeed } from "./routes/intel";
+import { intelAggregatesRoutes, intelFeed, intelFundersRoutes } from "./routes/intel";
 import { tokenScan } from "./routes/token";
 import { walletCheck } from "./routes/wallet";
 import { startWorker } from "./workers/runner";
@@ -119,11 +119,12 @@ tokenRouter.use("*", scanTokenLimit);
 tokenRouter.route("/", tokenScan);
 app.route("/api/token", tokenRouter);
 
-// Intel module — read aggregates require auth; SSE feed handles its own
-// query-param token check (EventSource can't send headers).
+// Intel module — read aggregates + funders require auth; SSE feed handles
+// its own query-param token check (EventSource can't send headers).
 const intelReadRouter = new Hono<{ Variables: Variables }>();
 intelReadRouter.use("*", requireAuth);
 intelReadRouter.route("/", intelAggregatesRoutes);
+intelReadRouter.route("/", intelFundersRoutes);
 app.route("/api/db/intel", intelReadRouter);
 
 const intelFeedRouter = new Hono<{ Variables: Variables }>();
