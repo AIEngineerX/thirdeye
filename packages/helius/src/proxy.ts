@@ -28,6 +28,22 @@ export interface ProxyResult {
 }
 
 const DEFAULT_TIMEOUT_MS = 10_000;
+const RETRY_429_DEFAULT_MS = 1000;
+const RETRY_429_MAX_MS = 5000;
+
+function parseRetryAfterMs(headerVal: string | null): number {
+  if (headerVal === null) return RETRY_429_DEFAULT_MS;
+  // Retry-After can be either delta-seconds (RFC 7231) or HTTP-date.
+  const asInt = Number.parseInt(headerVal, 10);
+  if (!Number.isNaN(asInt) && asInt > 0) {
+    return Math.min(asInt * 1000, RETRY_429_MAX_MS);
+  }
+  const asDate = Date.parse(headerVal);
+  if (!Number.isNaN(asDate)) {
+    return Math.min(Math.max(0, asDate - Date.now()), RETRY_429_MAX_MS);
+  }
+  return RETRY_429_DEFAULT_MS;
+}
 
 function errorResult(
   err: ProxyErrorPayload,
@@ -100,28 +116,27 @@ export async function proxyToHelius(opts: ProxyOptions): Promise<ProxyResult> {
   const headers: Record<string, string> = { "X-ThirdEye-Proxy": "1" };
   if (fetchBody !== null) headers["Content-Type"] = "application/json";
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const init: RequestInit = {
+    method: target.kind === "rpc" ? "POST" : opts.method,
+    headers,
+  };
+  if (fetchBody !== null) init.body = fetchBody;
 
-  let res: Response;
-  try {
-    const init: RequestInit = {
-      method: target.kind === "rpc" ? "POST" : opts.method,
-      headers,
-      signal: controller.signal,
-    };
-    if (fetchBody !== null) init.body = fetchBody;
-    res = await fetch(url, init);
-  } catch (err) {
-    clearTimeout(timer);
-    if (controller.signal.aborted) {
-      return errorResult(ProxyError.timeout(), isByok, start);
-    }
-    const detail = err instanceof Error ? err.message : String(err);
-    return errorResult(ProxyError.upstreamUnreachable(detail), isByok, start);
+  // First attempt; on 429 honor Retry-After once before giving up. Helius
+  // returns 429 in bursts (rolling window) more easily than a per-second
+  // cap suggests; one retry catches the common case without compounding.
+  let attempt = await attemptFetch(url, init, opts.timeoutMs);
+  if (attempt.kind === "result" && attempt.res.status === 429) {
+    const waitMs = parseRetryAfterMs(attempt.res.headers.get("retry-after"));
+    await new Promise((r) => setTimeout(r, waitMs));
+    attempt = await attemptFetch(url, init, opts.timeoutMs);
   }
-  clearTimeout(timer);
 
+  if (attempt.kind === "timeout") return errorResult(ProxyError.timeout(), isByok, start);
+  if (attempt.kind === "unreachable")
+    return errorResult(ProxyError.upstreamUnreachable(attempt.detail), isByok, start);
+
+  const { res } = attempt;
   const text = await res.text();
   let body: unknown = null;
   let parseFailed = false;
@@ -155,4 +170,27 @@ export async function proxyToHelius(opts: ProxyOptions): Promise<ProxyResult> {
     durationMs: Date.now() - start,
     isByok,
   };
+}
+
+type FetchAttempt =
+  | { kind: "result"; res: Response }
+  | { kind: "timeout" }
+  | { kind: "unreachable"; detail: string };
+
+async function attemptFetch(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number | undefined,
+): Promise<FetchAttempt> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    return { kind: "result", res };
+  } catch (err) {
+    if (controller.signal.aborted) return { kind: "timeout" };
+    return { kind: "unreachable", detail: err instanceof Error ? err.message : String(err) };
+  } finally {
+    clearTimeout(timer);
+  }
 }
