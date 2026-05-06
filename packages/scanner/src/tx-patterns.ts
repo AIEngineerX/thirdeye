@@ -9,7 +9,9 @@ export interface ParsedTx {
   nativeTransfers?: Array<{ fromUserAccount: string; toUserAccount: string; amount: number }>;
 }
 
-const RAPID_FIRE_GAP_SEC = 60;
+// Mirrors SNIPER_MAX_GAP_SEC in tags.ts — kept in sync so rapidFire and
+// SNIPER fire on the same threshold.
+const RAPID_FIRE_GAP_SEC = 30;
 
 export function analyzeTxPattern(target: string, txs: ParsedTx[]): TxPattern {
   if (txs.length === 0) {

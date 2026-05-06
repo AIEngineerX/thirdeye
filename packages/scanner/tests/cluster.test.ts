@@ -15,7 +15,7 @@ describe("computeCov", () => {
     ).toBe(null);
   });
 
-  test("low CoV indicates coordinated sizing (< 0.15 threshold)", () => {
+  test("low CoV indicates coordinated sizing", () => {
     const amounts = new Map([
       ["a", [100, 100, 100, 100, 100]],
       ["b", [100, 102, 99, 101, 100]],

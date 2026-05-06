@@ -11,15 +11,18 @@ export interface TagInputs {
   txPattern: TxPattern;
 }
 
-const FRESH_AGE_DAYS = 30;
-const FRESH_TX_COUNT = 50;
-const DISTRIBUTOR_RECIPIENTS = 20;
-const BUNDLER_MIN_SIZE = 3;
-const TIME_WINDOW_MIN_TIGHT = 3;
-const SYBIL_MAX_COV = 0.15;
-const SNIPER_MAX_GAP_SEC = 60;
-const WHALE_USD = 10_000;
-const WHALE_MAX_TOKENS = 5;
+// Phase 5a tuning — values chosen for current Solana memecoin tempo
+// (mid-2025 baseline). See docs/superpowers/specs/2026-05-06-thirdeye-phase-5-alpha-design.md §5a
+// for rationale per constant. Revisit when launch dynamics shift.
+const FRESH_AGE_DAYS = 14;
+const FRESH_TX_COUNT = 20;
+const DISTRIBUTOR_RECIPIENTS = 10;
+const BUNDLER_MIN_SIZE = 2;
+const TIME_WINDOW_MIN_TIGHT = 2;
+const SYBIL_MAX_COV = 0.2;
+const SNIPER_MAX_GAP_SEC = 30;
+const WHALE_USD = 50_000;
+const WHALE_MAX_TOKENS = 10;
 
 export function computeTags(inputs: TagInputs): Tag[] {
   const tags: Tag[] = [];

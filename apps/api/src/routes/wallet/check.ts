@@ -29,7 +29,7 @@ walletCheck.get("/:addr/check", async (c) => {
     const mode = userKey ? "byok" : "shared";
 
     if (!force) {
-      const cached = await lookupRecentCheck(db, addr, env.WALLET_CHECK_CACHE_HOURS);
+      const cached = await lookupRecentCheck(db, addr, env.WALLET_CHECK_CACHE_SEC);
       if (cached) {
         await sendEvent(stream, {
           event: "started",
@@ -83,7 +83,7 @@ walletCheck.get("/:addr/last-check", async (c) => {
   if (!isValidSolanaAddress(addr)) {
     return c.json({ error: "invalid_address", message: "Address is not valid base58" }, 400);
   }
-  const cached = await lookupRecentCheck(c.get("db"), addr, env.WALLET_CHECK_CACHE_HOURS);
+  const cached = await lookupRecentCheck(c.get("db"), addr, env.WALLET_CHECK_CACHE_SEC);
   if (!cached) return c.json({ error: "not_found", message: "No recent check" }, 404);
   return c.json(cached);
 });

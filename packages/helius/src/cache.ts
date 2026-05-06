@@ -36,8 +36,15 @@ let cacheInstance: LRUCache<string, CachedResponse> | null = null;
 
 export function getCache(): LRUCache<string, CachedResponse> {
   if (!cacheInstance) {
+    // Phase 5a: max 5_000 → 50_000. Funded-by entries are immutable
+    // (block times never change) and high-value to retain — we'd rather
+    // keep them around than re-query Helius for the same wallet's funder.
+    // 50k entries × ~1KB each = ~50MB worst case; acceptable for the API
+    // process. Per-entry TTLs still apply (overridden via cache.set's
+    // options arg in proxy.ts), so the 5min default below only governs
+    // entries inserted without an explicit TTL.
     cacheInstance = new LRUCache<string, CachedResponse>({
-      max: 5000,
+      max: 50_000,
       ttl: 5 * 60 * 1000,
       ttlAutopurge: true,
       updateAgeOnGet: false,

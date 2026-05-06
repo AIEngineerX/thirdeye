@@ -59,7 +59,7 @@ describe("computeTags", () => {
     expect(tags).toContain("EXCHANGE");
   });
 
-  test("FRESH_WALLET when ageDays<30 AND txCount<50", () => {
+  test("FRESH_WALLET when ageDays<14 AND txCount<20", () => {
     const tags = computeTags({
       identity: cleanIdentity,
       ageDays: 5,
@@ -72,7 +72,7 @@ describe("computeTags", () => {
     expect(tags).toContain("FRESH_WALLET");
   });
 
-  test("BUNDLER when cluster.size >= 3 and funder is non-exchange", () => {
+  test("BUNDLER when cluster.size >= 2 and funder is non-exchange", () => {
     const tags = computeTags({
       identity: cleanIdentity,
       ageDays: 100,
@@ -129,7 +129,7 @@ describe("computeTags", () => {
     expect(tags).toContain("BUNDLER_TIGHT");
   });
 
-  test("SYBIL requires BUNDLER and CoV < 0.15", () => {
+  test("SYBIL requires BUNDLER and CoV < 0.20", () => {
     const tags = computeTags({
       identity: cleanIdentity,
       ageDays: 100,
@@ -142,7 +142,7 @@ describe("computeTags", () => {
     expect(tags).toContain("SYBIL");
   });
 
-  test("SNIPER requires rapidFire AND swapOnly AND avgGapSec<60", () => {
+  test("SNIPER requires rapidFire AND swapOnly AND avgGapSec<30", () => {
     const tags = computeTags({
       identity: cleanIdentity,
       ageDays: 100,
@@ -150,17 +150,17 @@ describe("computeTags", () => {
       usdValue: 0,
       tokenCount: 0,
       cluster: cluster(),
-      txPattern: { ...baseTxPattern, rapidFire: true, swapOnly: true, avgGapSec: 30 },
+      txPattern: { ...baseTxPattern, rapidFire: true, swapOnly: true, avgGapSec: 15 },
     });
     expect(tags).toContain("SNIPER");
   });
 
-  test("WHALE requires usdValue>10k AND tokenCount<=5", () => {
+  test("WHALE requires usdValue>50k AND tokenCount<=10", () => {
     const tags = computeTags({
       identity: cleanIdentity,
       ageDays: 100,
       txCount: 100,
-      usdValue: 50_000,
+      usdValue: 75_000,
       tokenCount: 3,
       cluster: cluster(),
       txPattern: baseTxPattern,
@@ -168,7 +168,7 @@ describe("computeTags", () => {
     expect(tags).toContain("WHALE");
   });
 
-  test("FUND_DISTRIBUTOR when uniqueOutboundRecipients >= 20", () => {
+  test("FUND_DISTRIBUTOR when uniqueOutboundRecipients >= 10", () => {
     const tags = computeTags({
       identity: cleanIdentity,
       ageDays: 100,

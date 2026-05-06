@@ -31,17 +31,12 @@ describe("analyzeTxPattern", () => {
     expect(p.rapidFire).toBe(false);
   });
 
-  test("rapid-fire detection (avg gap < 60s)", () => {
+  test("rapid-fire detection (avg gap < 30s)", () => {
     const now = Math.floor(Date.now() / 1000);
-    const txs = [
-      tx(now - 100, "SWAP"),
-      tx(now - 70, "SWAP"),
-      tx(now - 40, "SWAP"),
-      tx(now - 10, "SWAP"),
-    ];
+    const txs = [tx(now - 60, "SWAP"), tx(now - 40, "SWAP"), tx(now - 20, "SWAP"), tx(now, "SWAP")];
     const p = analyzeTxPattern(T, txs);
     expect(p.rapidFire).toBe(true);
-    expect(p.avgGapSec).toBe(30);
+    expect(p.avgGapSec).toBe(20);
   });
 
   test("not rapid-fire when avg gap is large", () => {
