@@ -8,6 +8,7 @@ import {
 import { Hono } from "hono";
 import { type SSEStreamingApi, streamSSE } from "hono/streaming";
 import { env } from "../../env";
+import { publish } from "../../lib/intel-bus";
 import { isValidSolanaAddress } from "../../lib/solana-address";
 import { lookupRecentScan, persistScan, resolvePriorTags } from "./persist";
 
@@ -39,6 +40,8 @@ tokenScan.get("/:mint/scan", async (c) => {
       }
     }
 
+    publish({ event: "scan:start", data: { mint, symbol: null } });
+
     const generator = scanToken({
       mint,
       serverKey: env.HELIUS_API_KEY,
@@ -64,6 +67,16 @@ tokenScan.get("/:mint/scan", async (c) => {
     if (final) {
       try {
         await persistScan(db, final);
+        publish({
+          event: "scan:complete",
+          data: {
+            id: null,
+            mint: final.mint,
+            symbol: final.metadata.symbol,
+            risk: final.risk,
+            sybilFlag: final.sybilFlag,
+          },
+        });
       } catch (e) {
         console.error(`[persist-scan ${mint}]`, e);
       }

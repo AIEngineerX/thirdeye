@@ -8,6 +8,7 @@ import {
 import { Hono } from "hono";
 import { type SSEStreamingApi, streamSSE } from "hono/streaming";
 import { env } from "../../env";
+import { publish } from "../../lib/intel-bus";
 import { isValidSolanaAddress } from "../../lib/solana-address";
 import { lookupRecentCheck, persistCheck, resolveSiblings } from "./persist";
 
@@ -39,6 +40,8 @@ walletCheck.get("/:addr/check", async (c) => {
       }
     }
 
+    publish({ event: "check:start", data: { address: addr } });
+
     const generator = checkWallet({
       address: addr,
       serverKey: env.HELIUS_API_KEY,
@@ -64,6 +67,10 @@ walletCheck.get("/:addr/check", async (c) => {
     if (final) {
       try {
         await persistCheck(db, final);
+        publish({
+          event: "check:complete",
+          data: { address: final.address, score: final.score, verdict: final.verdict },
+        });
       } catch (e) {
         console.error(`[persist ${addr}]`, e);
       }
