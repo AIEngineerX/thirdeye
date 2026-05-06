@@ -143,6 +143,14 @@ Integration (`apps/api/tests/scan-token.integration.test.ts`):
 - Missing auth returns 401.
 - BYOK path: `X-User-Helius-Key` switches mode to "byok" and respects deeper holder count.
 
+## Known v1 limitation: sampled top-N, not global top-N
+
+Helius DAS `getTokenAccounts` returns indexer-order, not balance-sorted. We sort the returned page by amount desc client-side, but for a popular mint with millions of holders, a single 100-row page is *not* the global top-100 by balance — it's the first 100 indexer-order entries, then ranked among themselves.
+
+This is enough to surface bundler-style coordinated supply concentration (which tends to cluster in the indexer-order sample anyway, since cluster wallets are funded close together in time), but it is **not** a faithful global supply-concentration view for a deeply-distributed token like USDC. The risk score and verdict reflect the sampled picture.
+
+Spec §8.2 promises "top N holders by balance"; we ship "first N from indexer-order, ranked among the sample" with this caveat documented. True global top-N is a v1.1 enhancement, achievable via either (a) cursor-paginating `getTokenAccounts` to the full holder list and sorting all (expensive for popular tokens), or (b) `getTokenLargestAccounts` (Solana RPC, top 20 globally by balance) + `getMultipleAccounts` to deserialize SPL Token account owners. Option (b) is the cheaper path; deferred for v1.
+
 ## Out of scope (deferred)
 
 - **Queued worker** (`scan-token` graphile-worker job per spec §13). v1.0 ships inline-SSE for parity with check-wallet; queueing comes when we add the second consumer (Intel auto-rescan, Phase 4+).

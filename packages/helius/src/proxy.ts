@@ -123,19 +123,25 @@ export async function proxyToHelius(opts: ProxyOptions): Promise<ProxyResult> {
   clearTimeout(timer);
 
   const text = await res.text();
-  let body: unknown;
-  if (text.length === 0) {
-    body = null;
-  } else {
+  let body: unknown = null;
+  let parseFailed = false;
+  if (text.length > 0) {
     try {
       body = JSON.parse(text);
     } catch {
-      return errorResult(ProxyError.upstreamMalformed(res.status), isByok, start, text);
+      parseFailed = true;
     }
   }
 
+  // Status check first: a non-2xx with an HTML body (e.g. Cloudflare 429 page)
+  // should report the actual upstream status, not get masked as upstream_malformed.
   const upstreamErr = mapUpstreamStatus(res.status);
-  if (upstreamErr) return errorResult(upstreamErr, isByok, start, body);
+  if (upstreamErr) {
+    return errorResult(upstreamErr, isByok, start, parseFailed ? text : body);
+  }
+  if (parseFailed) {
+    return errorResult(ProxyError.upstreamMalformed(res.status), isByok, start, text);
+  }
 
   if (opts.cacheTtlMs > 0) {
     const entry: CachedResponse = { status: res.status, body };

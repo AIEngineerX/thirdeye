@@ -9,6 +9,8 @@ export interface ClientOptions {
 
 export interface FundedByResponse {
   funder: string | null;
+  funderName: string | null;
+  funderType: string | null; // "exchange" | other Helius classifications | null
   signature: string | null;
   fundedAt: string | null;
 }
@@ -59,53 +61,77 @@ export class HeliusClient {
   }
 
   async balances(addr: string): Promise<Balances> {
+    // Real shape: { balances: [{mint, symbol, name, balance, decimals,
+    //   usdValue, pricePerToken, tokenProgram}], totalUsdValue, pagination }
+    // Native SOL appears as one row with mint = NATIVE_SOL_SENTINEL and
+    // `balance` already decimal-adjusted (NOT raw u64 lamports).
     const r = await this.rest<{
-      nativeBalance?: { lamports?: number; uiAmount?: number; usdValue?: number };
-      tokens?: Array<{
+      balances?: Array<{
         mint?: string;
-        amount?: string | number;
+        symbol?: string | null;
+        name?: string | null;
+        balance?: number | string;
         decimals?: number;
-        symbol?: string;
-        name?: string;
-        usdValue?: number;
+        usdValue?: number | null;
+        pricePerToken?: number | null;
       }>;
+      totalUsdValue?: number;
     }>(`/v1/wallet/${addr}/balances`, TTL.DEFAULT, { showNative: "true", limit: "100" });
 
-    const solLamports = r.nativeBalance?.lamports ?? 0;
-    const solBalance = solLamports / 1_000_000_000;
-    const solUsd = r.nativeBalance?.usdValue ?? 0;
-    const tokens: TokenBalance[] = (r.tokens ?? []).map((t) => ({
-      mint: t.mint ?? "",
-      amount: String(t.amount ?? "0"),
-      decimals: t.decimals ?? 0,
-      symbol: t.symbol ?? null,
-      name: t.name ?? null,
-      usdValue: typeof t.usdValue === "number" ? t.usdValue : null,
-    }));
-    const tokenUsd = tokens.reduce((acc, t) => acc + (t.usdValue ?? 0), 0);
+    const rows = r.balances ?? [];
+    const native = rows.find((b) => b.mint === NATIVE_SOL_SENTINEL);
+    const solBalance = typeof native?.balance === "number" ? native.balance : 0;
+
+    const tokens: TokenBalance[] = rows
+      .filter((b) => b.mint !== NATIVE_SOL_SENTINEL)
+      .map((t) => ({
+        mint: t.mint ?? "",
+        // Helius returns decimal-adjusted; round-trip to raw u64 string for
+        // our schema (clients can recompute via decimals).
+        amount: rawAmountFromDecimal(t.balance, t.decimals ?? 0),
+        decimals: t.decimals ?? 0,
+        symbol: t.symbol ?? null,
+        name: t.name ?? null,
+        usdValue: typeof t.usdValue === "number" ? t.usdValue : null,
+      }));
+
     return {
       solBalance,
-      usdValue: solUsd + tokenUsd,
+      usdValue: typeof r.totalUsdValue === "number" ? r.totalUsdValue : 0,
       tokenCount: tokens.length,
       tokens,
     };
   }
 
   async fundedBy(addr: string): Promise<FundedByResponse> {
-    const r = await this.rest<{
+    // Helius returns 404 when there's no funding data on file (e.g. genesis
+    // wallets, exchange hot wallets). Treat that as "no funder known", not
+    // an error — the funding-chain trace just terminates cleanly.
+    const result = await proxyToHelius({
+      target: { kind: "rest", path: `/v1/wallet/${addr}/funded-by` },
+      method: "GET",
+      cacheTtlMs: TTL.IMMUTABLE,
+      serverKey: this.opts.serverKey,
+      ...(this.opts.userKey !== undefined && { userKey: this.opts.userKey }),
+    });
+    if (result.status === 404) {
+      return { funder: null, funderName: null, funderType: null, signature: null, fundedAt: null };
+    }
+    if (result.error) throw new HeliusError(result);
+    const r = (result.body ?? {}) as {
       funder?: string | null;
-      firstFunder?: string | null;
+      funderName?: string | null;
+      funderType?: string | null;
       signature?: string | null;
-      blockTime?: number | null;
       timestamp?: number | null;
-    }>(`/v1/wallet/${addr}/funded-by`, TTL.IMMUTABLE);
-    const funder = r.funder ?? r.firstFunder ?? null;
-    const signature = r.signature ?? null;
-    const blockTime = r.blockTime ?? r.timestamp ?? null;
+    };
+    const ts = typeof r.timestamp === "number" ? r.timestamp : null;
     return {
-      funder,
-      signature,
-      fundedAt: blockTime !== null ? new Date(blockTime * 1000).toISOString() : null,
+      funder: r.funder ?? null,
+      funderName: r.funderName ?? null,
+      funderType: r.funderType ?? null,
+      signature: r.signature ?? null,
+      fundedAt: ts !== null ? new Date(ts * 1000).toISOString() : null,
     };
   }
 
@@ -127,12 +153,19 @@ export class HeliusClient {
   }
 
   async getAsset(mint: string): Promise<TokenMetadata> {
+    // showFungible: true is REQUIRED to get token_info (supply, decimals,
+    // symbol) on fungible mints. Without it the response omits token_info
+    // entirely and supply silently falls to 0 — meaningless scans.
     const result = await this.rpc<{
       content?: { metadata?: { name?: string; symbol?: string } };
-      token_info?: { supply?: string | number; decimals?: number };
+      token_info?: {
+        supply?: string | number;
+        decimals?: number;
+        symbol?: string;
+      };
       authorities?: Array<{ address?: string; scopes?: string[] }>;
       creators?: Array<{ address?: string; verified?: boolean; share?: number }>;
-    }>("getAsset", { id: mint }, TTL.DEFAULT);
+    }>("getAsset", { id: mint, options: { showFungible: true } }, TTL.DEFAULT);
 
     const supplyRaw = result.token_info?.supply;
     const supply =
@@ -145,7 +178,9 @@ export class HeliusClient {
     return {
       mint,
       name: result.content?.metadata?.name ?? null,
-      symbol: result.content?.metadata?.symbol ?? null,
+      // token_info.symbol is the canonical SPL symbol; metadata.symbol is the
+      // display variant. Prefer token_info.symbol, fall back to metadata.
+      symbol: result.token_info?.symbol ?? result.content?.metadata?.symbol ?? null,
       supply,
       decimals: result.token_info?.decimals ?? 0,
       updateAuthority: result.authorities?.[0]?.address ?? null,
@@ -275,4 +310,19 @@ export class HeliusError extends Error {
 
 function malformedArray(result: ProxyResult): HeliusError {
   return new HeliusError({ ...result, error: ProxyError.upstreamMalformed(result.status) });
+}
+
+// Helius wallet-api uses 41-char "So111...1" (note: ALL 1s) as the sentinel
+// for native SOL in the balances flat array — distinct from the 42-char
+// wrapped-SOL mint "So111...112". Matched by string equality below.
+const NATIVE_SOL_SENTINEL = "So11111111111111111111111111111111111111111";
+
+function rawAmountFromDecimal(balance: number | string | undefined, decimals: number): string {
+  if (balance === undefined || balance === null) return "0";
+  if (typeof balance === "string") return balance;
+  // Reverse decimal scaling. Use BigInt math to avoid float precision loss
+  // for high-decimal tokens. Floors fractional remainder.
+  const scale = 10 ** decimals;
+  const raw = Math.floor(balance * scale);
+  return Number.isFinite(raw) ? String(raw) : "0";
 }
