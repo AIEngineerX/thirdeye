@@ -45,3 +45,6 @@ coverage/
 
 # Git worktrees
 .worktrees/
+
+# Helius diagnostic scripts (one-shot, not for commit)
+scripts/diagnose-*.ts

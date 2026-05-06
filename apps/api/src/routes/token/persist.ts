@@ -1,6 +1,6 @@
 import { type DbClient, tokenScans, wallets } from "@thirdeye/db";
 import type { TokenScanResult } from "@thirdeye/scanner";
-import { sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 
 export async function persistScan(db: DbClient, r: TokenScanResult): Promise<void> {
   await db.insert(tokenScans).values({
@@ -59,7 +59,7 @@ export async function resolvePriorTags(
   const rows = await db
     .select({ address: wallets.address, tags: wallets.tags })
     .from(wallets)
-    .where(sql`${wallets.address} = ANY(${addresses})`);
+    .where(inArray(wallets.address, addresses));
   const map = new Map<string, string[]>();
   for (const r of rows) {
     map.set(r.address, (r.tags as string[]) ?? []);

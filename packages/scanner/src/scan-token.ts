@@ -12,7 +12,13 @@ import type {
   TopHolder,
 } from "./types";
 
-const SHARED_HOLDER_LIMIT = 200;
+// Helius DAS getTokenAccounts returns indexer-order, NOT balance-sorted.
+// We sort the returned sample by amount desc client-side, but a popular
+// mint's TRUE top-N globally is not knowable in a single page. Limits below
+// cap the sample size; cluster detection operates on the sampled top.
+// True global top-N is a v1.1 enhancement (would require pagination + sort
+// or getTokenLargestAccounts + SPL token-account owner deserialization).
+const SHARED_HOLDER_LIMIT = 100;
 const BYOK_HOLDER_LIMIT = 500;
 const PER_SCAN_CONCURRENCY = 10;
 
