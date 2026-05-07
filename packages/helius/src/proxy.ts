@@ -1,4 +1,4 @@
-import { type CachedResponse, composeCacheKey, getCache } from "./cache";
+import { type CachedResponse, cache, composeCacheKey } from "./cache";
 import { ProxyError, type ProxyErrorPayload, mapUpstreamStatus } from "./errors";
 import { composeRestUrl, composeRpcUrl } from "./urls";
 
@@ -87,7 +87,6 @@ export async function proxyToHelius(opts: ProxyOptions): Promise<ProxyResult> {
           body: opts.body,
         });
 
-  const cache = getCache();
   if (opts.cacheTtlMs > 0) {
     const cached = cache.get(cacheKey);
     if (cached) {

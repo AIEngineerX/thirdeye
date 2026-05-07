@@ -32,16 +32,9 @@ export function composeCacheKey(input: CacheKeyInput): string {
   return createHash("sha256").update(raw).digest("hex");
 }
 
-let cacheInstance: LRUCache<string, CachedResponse> | null = null;
-
-export function getCache(): LRUCache<string, CachedResponse> {
-  if (!cacheInstance) {
-    cacheInstance = new LRUCache<string, CachedResponse>({
-      max: 50_000,
-      ttl: 5 * 60 * 1000,
-      ttlAutopurge: true,
-      updateAgeOnGet: false,
-    });
-  }
-  return cacheInstance;
-}
+export const cache = new LRUCache<string, CachedResponse>({
+  max: 50_000,
+  ttl: 5 * 60 * 1000,
+  ttlAutopurge: true,
+  updateAgeOnGet: false,
+});
