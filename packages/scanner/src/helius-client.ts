@@ -1,4 +1,10 @@
-import { ProxyError, type ProxyResult, TTL, proxyToHelius } from "@thirdeye/helius";
+import {
+  ProxyError,
+  type ProxyOptions,
+  type ProxyResult,
+  TTL,
+  proxyToHelius,
+} from "@thirdeye/helius";
 import type { ParsedTx } from "./tx-patterns";
 import type { Balances, Identity, TokenBalance, TokenHolderAccount, TokenMetadata } from "./types";
 
@@ -6,6 +12,8 @@ export interface ClientOptions {
   serverKey: string | undefined;
   userKey?: string | undefined;
 }
+
+type ProxyKeyOpts = Omit<ProxyOptions, "serverKey" | "userKey">;
 
 export interface FundedByResponse {
   funder: string | null;
@@ -35,13 +43,11 @@ export class HeliusClient {
 
   async batchIdentity(addresses: string[]): Promise<Map<string, Identity>> {
     if (addresses.length === 0) return new Map();
-    const result = await proxyToHelius({
+    const result = await this.proxy({
       target: { kind: "rest", path: "/v1/wallet/batch-identity" },
       method: "POST",
       body: { addresses },
       cacheTtlMs: TTL.DEFAULT,
-      serverKey: this.opts.serverKey,
-      ...(this.opts.userKey !== undefined && { userKey: this.opts.userKey }),
     });
     if (result.error) throw new HeliusError(result);
     if (!Array.isArray(result.body)) throw malformedArray(result);
@@ -107,12 +113,10 @@ export class HeliusClient {
     // Helius returns 404 when there's no funding data on file (e.g. genesis
     // wallets, exchange hot wallets). Treat that as "no funder known", not
     // an error — the funding-chain trace just terminates cleanly.
-    const result = await proxyToHelius({
+    const result = await this.proxy({
       target: { kind: "rest", path: `/v1/wallet/${addr}/funded-by` },
       method: "GET",
       cacheTtlMs: TTL.IMMUTABLE,
-      serverKey: this.opts.serverKey,
-      ...(this.opts.userKey !== undefined && { userKey: this.opts.userKey }),
     });
     if (result.status === 404) {
       return { funder: null, funderName: null, funderType: null, signature: null, fundedAt: null };
@@ -136,7 +140,7 @@ export class HeliusClient {
   }
 
   async transactions(addr: string, limit = 100): Promise<ParsedTx[]> {
-    const result = await proxyToHelius({
+    const result = await this.proxy({
       target: {
         kind: "rest",
         path: `/v0/addresses/${addr}/transactions`,
@@ -144,8 +148,6 @@ export class HeliusClient {
       },
       method: "GET",
       cacheTtlMs: TTL.DEFAULT,
-      serverKey: this.opts.serverKey,
-      ...(this.opts.userKey !== undefined && { userKey: this.opts.userKey }),
     });
     if (result.error) throw new HeliusError(result);
     if (!Array.isArray(result.body)) throw malformedArray(result);
@@ -227,12 +229,10 @@ export class HeliusClient {
     params: Record<string, unknown>,
     cacheTtlMs: number,
   ): Promise<T> {
-    const result = await proxyToHelius({
+    const result = await this.proxy({
       target: { kind: "rpc", method, params },
       method: "POST",
       cacheTtlMs,
-      serverKey: this.opts.serverKey,
-      ...(this.opts.userKey !== undefined && { userKey: this.opts.userKey }),
     });
     if (result.error) throw new HeliusError(result);
     const body = result.body;
@@ -246,15 +246,21 @@ export class HeliusClient {
     cacheTtlMs: number,
     query?: Record<string, string>,
   ): Promise<T> {
-    const result = await proxyToHelius({
+    const result = await this.proxy({
       target: { kind: "rest", path, query },
       method: "GET",
       cacheTtlMs,
-      serverKey: this.opts.serverKey,
-      ...(this.opts.userKey !== undefined && { userKey: this.opts.userKey }),
     });
     if (result.error) throw new HeliusError(result);
     return result.body as T;
+  }
+
+  private proxy(opts: ProxyKeyOpts): Promise<ProxyResult> {
+    return proxyToHelius({
+      ...opts,
+      serverKey: this.opts.serverKey,
+      ...(this.opts.userKey !== undefined && { userKey: this.opts.userKey }),
+    });
   }
 }
 

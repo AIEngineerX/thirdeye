@@ -1,7 +1,8 @@
 import { type DbClient, authTokens } from "@thirdeye/db";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { type SSEStreamingApi, streamSSE } from "hono/streaming";
+import { streamSSE } from "hono/streaming";
+import { sendSseEvent } from "../../lib/http";
 import { type IntelEvent, subscribe } from "../../lib/intel-bus";
 
 type Variables = { db: DbClient };
@@ -41,7 +42,7 @@ intelFeed.get("/feed", async (c) => {
     try {
       unsubscribe = subscribe(async (evt: IntelEvent) => {
         if (ctrl.signal.aborted) return;
-        await sendEvent(stream, evt);
+        await sendSseEvent(stream, evt);
       });
 
       heartbeat = setInterval(() => {
@@ -70,10 +71,6 @@ intelFeed.get("/feed", async (c) => {
     }
   });
 });
-
-async function sendEvent(stream: SSEStreamingApi, evt: IntelEvent): Promise<void> {
-  await stream.writeSSE({ event: evt.event, data: JSON.stringify(evt.data) });
-}
 
 // Test-only helper to reset open connection map between tests.
 export function _resetIntelFeed(): void {

@@ -1,13 +1,9 @@
 import type { DbClient } from "@thirdeye/db";
-import {
-  type CheckEvent,
-  HeliusError,
-  type WalletCheckResult,
-  checkWallet,
-} from "@thirdeye/scanner";
+import { HeliusError, type WalletCheckResult, checkWallet } from "@thirdeye/scanner";
 import { Hono } from "hono";
-import { type SSEStreamingApi, streamSSE } from "hono/streaming";
+import { streamSSE } from "hono/streaming";
 import { env } from "../../env";
+import { sendSseEvent } from "../../lib/http";
 import { publish } from "../../lib/intel-bus";
 import { isValidSolanaAddress } from "../../lib/solana-address";
 import { lookupRecentCheck, persistCheck, resolveSiblings } from "./persist";
@@ -31,11 +27,11 @@ walletCheck.get("/:addr/check", async (c) => {
     if (!force) {
       const cached = await lookupRecentCheck(db, addr, env.WALLET_CHECK_CACHE_SEC);
       if (cached) {
-        await sendEvent(stream, {
+        await sendSseEvent(stream, {
           event: "started",
           data: { addr, mode, cached: true },
         });
-        await sendEvent(stream, { event: "result", data: cached });
+        await sendSseEvent(stream, { event: "result", data: cached });
         return;
       }
     }
@@ -53,7 +49,7 @@ walletCheck.get("/:addr/check", async (c) => {
     let final: WalletCheckResult | null = null;
     try {
       for await (const evt of generator) {
-        await sendEvent(stream, evt);
+        await sendSseEvent(stream, evt);
         if (evt.event === "result") final = evt.data;
       }
     } catch (e) {
@@ -62,7 +58,7 @@ walletCheck.get("/:addr/check", async (c) => {
           ? { error: "helius_error", message: e.message }
           : { error: "scanner_error", message: e instanceof Error ? e.message : String(e) };
       console.error(`[scan ${addr}] ${err.error}: ${err.message}`, e);
-      await sendEvent(stream, { event: "error", data: err });
+      await sendSseEvent(stream, { event: "error", data: err });
       return;
     }
     if (final) {
@@ -88,7 +84,3 @@ walletCheck.get("/:addr/last-check", async (c) => {
   if (!cached) return c.json({ error: "not_found", message: "No recent check" }, 404);
   return c.json(cached);
 });
-
-async function sendEvent(stream: SSEStreamingApi, evt: CheckEvent): Promise<void> {
-  await stream.writeSSE({ event: evt.event, data: JSON.stringify(evt.data) });
-}

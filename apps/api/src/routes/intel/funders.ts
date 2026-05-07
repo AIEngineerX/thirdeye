@@ -1,6 +1,7 @@
 import { type DbClient, funders, tokenScans } from "@thirdeye/db";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { clampInt, toIso } from "../../lib/http";
 import { requireAuth } from "../../middleware/auth";
 
 type Variables = { db: DbClient };
@@ -25,10 +26,6 @@ type FunderClusterRow = {
   sybil_flag: boolean;
   member_count: number;
 };
-
-function toIso(t: Date | string): string {
-  return t instanceof Date ? t.toISOString() : new Date(t).toISOString();
-}
 
 // Phase 5c: cross-token bundler intelligence. funders.cluster_count is
 // already incremented in Phase 3 persistScan whenever a funder roots a
@@ -107,10 +104,3 @@ intelFundersRoutes.get("/funders/:addr/clusters", requireAuth, async (c) => {
     })),
   });
 });
-
-function clampInt(raw: string | undefined, fallback: number, min: number, max: number): number {
-  if (raw === undefined) return fallback;
-  const n = Number.parseInt(raw, 10);
-  if (Number.isNaN(n)) return fallback;
-  return Math.max(min, Math.min(max, n));
-}
