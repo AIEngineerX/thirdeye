@@ -21,6 +21,7 @@ let sqlListener: Sql;
 
 beforeAll(async () => {
   if (!url) return;
+  await _resetIntelBus();         // guard against dirty state from prior test files
   sqlPublisher = postgres(url, { max: 2 });
   sqlListener = postgres(url, { max: 2 });
 });
@@ -46,7 +47,6 @@ describe.skipIf(!url)("intel-bus cross-connection delivery", () => {
     // The bus module uses one shared sqlRef, so we initialize it with the
     // listener side. To simulate a separate process publishing, we directly
     // call sql.notify on the publisher connection (bypassing the bus module).
-    await _resetIntelBus();
     await initIntelBus(sqlListener);
 
     const seen: IntelEvent[] = [];
