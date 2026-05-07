@@ -15,6 +15,12 @@ let token: string;
 
 beforeAll(async () => {
   testDb = await setupTestDb();
+  // Helius LRU cache is shared across tests in this file by design — clearing
+  // it per-test forces every test to re-run the full ~20-call pipeline, which
+  // burns free-tier rate limits in CI. Each test still gets a fresh DB state
+  // via the beforeEach TRUNCATE; the wallet_check cache (which the tests
+  // actually exercise) lives in `wallet_checks` rows, not the LRU.
+  cache.clear();
   if (!HAVE_KEY) {
     console.log("[skip] HELIUS_API_KEY not set — wallet check integration tests skipped");
   }
@@ -28,7 +34,6 @@ beforeEach(async () => {
   await testDb.sql.unsafe(
     "TRUNCATE auth_tokens, wallet_checks, wallets, funders RESTART IDENTITY CASCADE;",
   );
-  cache.clear();
   const t = generateToken();
   await testDb.db.insert(authTokens).values({ token: t.token, expiresAt: t.expiresAt });
   token = t.token;
