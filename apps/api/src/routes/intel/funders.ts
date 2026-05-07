@@ -1,9 +1,11 @@
 import { type DbClient, funders, tokenScans } from "@thirdeye/db";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { requireAuth } from "../../middleware/auth";
 
 type Variables = { db: DbClient };
 
+// Per-route auth: see comment in aggregates.ts.
 export const intelFundersRoutes = new Hono<{ Variables: Variables }>();
 
 type TopClusteredRow = {
@@ -34,7 +36,7 @@ function toIso(t: Date | string): string {
 // across N tokens" — the highest-signal alpha view we can build on data
 // already collected.
 
-intelFundersRoutes.get("/funders/top-clustered", async (c) => {
+intelFundersRoutes.get("/funders/top-clustered", requireAuth, async (c) => {
   const limit = clampInt(c.req.query("limit"), 20, 1, 100);
   const db = c.get("db");
   const r = await db.execute<TopClusteredRow>(sql`
@@ -57,7 +59,7 @@ intelFundersRoutes.get("/funders/top-clustered", async (c) => {
   });
 });
 
-intelFundersRoutes.get("/funders/:addr/clusters", async (c) => {
+intelFundersRoutes.get("/funders/:addr/clusters", requireAuth, async (c) => {
   const addr = c.req.param("addr");
   const limit = clampInt(c.req.query("limit"), 50, 1, 200);
   const db = c.get("db");

@@ -31,7 +31,7 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 const RETRY_429_DEFAULT_MS = 1000;
 const RETRY_429_MAX_MS = 5000;
 
-function parseRetryAfterMs(headerVal: string | null): number {
+export function parseRetryAfterMs(headerVal: string | null): number {
   if (headerVal === null) return RETRY_429_DEFAULT_MS;
   // Retry-After can be either delta-seconds (RFC 7231) or HTTP-date.
   const asInt = Number.parseInt(headerVal, 10);
