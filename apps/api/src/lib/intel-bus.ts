@@ -57,12 +57,45 @@ let sqlRef: postgres.Sql | null = null;
 let listenInitialized = false;
 const handlers = new Set<Handler>();
 
-export async function initIntelBus(_sql: postgres.Sql): Promise<void> {
-  throw new Error("initIntelBus not implemented yet");
+export async function initIntelBus(sql: postgres.Sql): Promise<void> {
+  sqlRef = sql;
+  if (listenInitialized) return;
+  await sql.listen(CHANNEL, async (raw: string) => {
+    let wire: WireEvent;
+    try {
+      wire = JSON.parse(raw) as WireEvent;
+    } catch (e) {
+      console.error("[intel-bus] malformed payload, dropping", e);
+      return;
+    }
+    let evt: IntelEvent;
+    if ("ref" in wire) {
+      // Overflow path implemented in Task 6.
+      console.error("[intel-bus] overflow ref received before overflow path implemented");
+      return;
+    } else {
+      evt = wire as IntelEvent;
+    }
+    for (const h of handlers) {
+      try {
+        h(evt);
+      } catch (e) {
+        console.error("[intel-bus] handler threw", e);
+      }
+    }
+  });
+  listenInitialized = true;
 }
 
-export async function publish(_evt: IntelEvent): Promise<void> {
-  throw new Error("publish not implemented yet");
+export async function publish(evt: IntelEvent): Promise<void> {
+  if (!sqlRef) throw new Error("intel-bus not initialized — call initIntelBus(sql) first");
+  const wire: WireEvent = { event: evt.event, data: evt.data };
+  const json = JSON.stringify(wire);
+  if (Buffer.byteLength(json, "utf8") > MAX_NOTIFY_BYTES) {
+    // Overflow path implemented in Task 6.
+    throw new Error("payload exceeds NOTIFY limit; overflow path not yet implemented");
+  }
+  await sqlRef.notify(CHANNEL, json);
 }
 
 export function subscribe(handler: Handler): () => void {
