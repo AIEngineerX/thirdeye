@@ -20,6 +20,7 @@ import {
 import { heliusWebhook } from "./routes/helius-webhook";
 import { intelAggregatesRoutes, intelFeed, intelFundersRoutes } from "./routes/intel";
 import { tokenScan } from "./routes/token";
+import { tokensRoutes } from "./routes/tokens";
 import { walletCheck } from "./routes/wallet";
 import { watchesRoutes } from "./routes/watches";
 import { startWorker } from "./workers/runner";
@@ -132,6 +133,14 @@ const watchesRouter = new Hono<{ Variables: Variables }>();
 watchesRouter.use("*", requireAuth);
 watchesRouter.route("/", watchesRoutes);
 app.route("/api/db/watches", watchesRouter);
+
+// Phase 6a — token cache (read-only). Auth required since the contents
+// are populated by user-driven scans + the worker; no rate-limit because
+// these are cheap indexed reads.
+const tokensRouter = new Hono<{ Variables: Variables }>();
+tokensRouter.use("*", requireAuth);
+tokensRouter.route("/", tokensRoutes);
+app.route("/api/db/tokens", tokensRouter);
 
 app.route("/api/helius-webhook", heliusWebhook);
 

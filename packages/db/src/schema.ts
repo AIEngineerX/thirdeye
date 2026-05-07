@@ -166,3 +166,27 @@ export const intelEvents = pgTable("intel_events", {
   payload: jsonb("payload").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Phase 6a — cached price/MC for tracked Solana tokens. Refreshed by the
+// `tokens-refresh` worker from a PriceSource (DexScreener in v1). Mints are
+// seeded by `persistScan` (so any token that's been scanned auto-tracks);
+// future phases may add other seed paths (e.g. discovered_wallets source_mints).
+export const tokens = pgTable(
+  "tokens",
+  {
+    mint: text("mint").primaryKey(),
+    symbol: text("symbol"),
+    name: text("name"),
+    mcUsd: numeric("mc_usd"),
+    priceUsd: numeric("price_usd"),
+    mc24hPct: numeric("mc_24h_pct"),
+    liquidityUsd: numeric("liquidity_usd"),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastRefreshedAt: timestamp("last_refreshed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // Worker selects "oldest refresh first" — index supports both that and
+    // the hot-tokens API (filtered on last_refreshed_at recency).
+    refreshedIdx: index("tokens_last_refreshed_idx").on(t.lastRefreshedAt.desc()),
+  }),
+);
