@@ -589,7 +589,7 @@ Self-host parity preserved: when env `ANTHROPIC_API_KEY` is set, BYOK is optiona
 
 | # | Sub-phase | Depends on | Estimate | Notes |
 |---|---|---|---|---|
-| **6.0** | **intel-bus → Postgres LISTEN/NOTIFY migration** | none | **2-3d** | **Prerequisite for all agent loops. Must land first.** |
+| **6.0** | **intel-bus → Postgres LISTEN/NOTIFY migration** | none | **2-3d** | **SHIPPED.** Postgres LISTEN/NOTIFY backed bus, overflow table for >7800-byte payloads. |
 | 6a | Tokens cache + DexScreener integration + `PriceSource` interface | none | 3-5d | Birdeye/Jupiter as documented escape-hatches in code, unimplemented |
 | 6b | `packages/agent` + cost controls + Anthropic SDK + prompt caching | 6.0 | **8-11d** | Up from 5-7d. Tool-use loop, BYOK threading through worker tasks (no request-scoped headers), pricing table, token counting across loop iterations, prompt caching wiring, advisory-lock budget gate, integration test harness |
 | 6c | Discovery loop (hourly cron + briefs) | 6.0, 6a, 6b | 4-6d | Up from 3-5d. Includes early-buyers query with caps and filter pass |
