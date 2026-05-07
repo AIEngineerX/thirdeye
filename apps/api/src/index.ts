@@ -157,6 +157,7 @@ if (import.meta.main) {
   startWorker({
     connectionString: env.DATABASE_URL,
     db,
+    sql: pgSql,
     serverHeliusKey: env.HELIUS_API_KEY,
     smartMoneyMinSol: env.SMART_MONEY_MIN_SOL,
   })
