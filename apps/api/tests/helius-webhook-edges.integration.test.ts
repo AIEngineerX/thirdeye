@@ -3,20 +3,11 @@ import { authTokens, watchEvents, watches } from "@thirdeye/db";
 import { app } from "../src/index";
 import { type IntelEvent, subscribe } from "../src/lib/intel-bus";
 import { generateToken } from "../src/lib/tokens";
-import { type TestDb, setupTestDb } from "./setup";
+import { type TestDb, setupTestDb, waitFor } from "./setup";
 
 const ORIGINAL_ENV = { ...process.env };
 let testDb: TestDb;
 let token: string;
-
-async function waitFor(predicate: () => boolean, timeoutMs = 1500): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (predicate()) return;
-    await new Promise((r) => setTimeout(r, 10));
-  }
-  throw new Error("waitFor: predicate never satisfied within timeout");
-}
 
 beforeAll(async () => {
   testDb = await setupTestDb();
