@@ -115,3 +115,52 @@ export const intelAggregates = pgTable("intel_aggregates", {
   payload: jsonb("payload").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ── Phase 5e: Helius webhook subscriptions ──────────────────────────────────
+
+// Per-(token, address) row tracking which session is interested in which
+// wallet. The set of distinct addresses across all rows is the source of
+// truth we sync into Helius's single managed webhook.
+export const watches = pgTable(
+  "watches",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    address: text("address").notNull(),
+    label: text("label"),
+    token: text("token")
+      .notNull()
+      .references(() => authTokens.token, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    addressIdx: index("watches_address_idx").on(t.address),
+  }),
+);
+
+// Events delivered by Helius for any watched address. Persisted for replay
+// and history; the live SSE feed emits them as they arrive (intel-bus).
+export const watchEvents = pgTable(
+  "watch_events",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    address: text("address").notNull(),
+    signature: text("signature").notNull(),
+    type: text("type"),
+    payload: jsonb("payload").notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    addressIdx: index("watch_events_address_idx").on(t.address, t.receivedAt.desc()),
+  }),
+);
+
+// Single-row registry of the Helius webhook this instance manages. Stores
+// the Helius-issued webhookID so we can call updateWebhook with the merged
+// address set whenever a user adds/removes a watch. lastSyncedAddressCount
+// is purely informational (drift-detection in logs, not a correctness gate).
+export const heliusWebhooks = pgTable("helius_webhooks", {
+  id: integer("id").primaryKey(), // hardcoded 1 — single-row table
+  webhookId: text("webhook_id").notNull(),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).notNull().defaultNow(),
+  lastSyncedAddressCount: integer("last_synced_address_count").notNull().default(0),
+});

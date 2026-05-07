@@ -38,3 +38,18 @@ export const env = {
   // varies wildly by wallet population (memecoin vs blue-chip swappers).
   SMART_MONEY_MIN_SOL: Number(optional("SMART_MONEY_MIN_SOL", "50")),
 } as const;
+
+// Phase 5e: webhook subscription secrets. Read fresh from process.env on
+// each access so they can be hot-rotated without restart (per design doc
+// §5e "Stay manual" — operator changes the env, no redeploy needed) and
+// so test setups can mutate the secret in beforeAll/beforeEach. Undefined
+// by design until set; watch routes return 503 until both are present.
+export function publicBaseUrl(): string | undefined {
+  const v = process.env.PUBLIC_BASE_URL;
+  return v && v.length > 0 ? v : undefined;
+}
+
+export function heliusWebhookAuth(): string | undefined {
+  const v = process.env.HELIUS_WEBHOOK_AUTH;
+  return v && v.length > 0 ? v : undefined;
+}

@@ -20,7 +20,22 @@ export type IntelEvent =
       event: "check:complete";
       data: { address: string; score: number; verdict: string };
     }
-  | { event: "tag:applied"; data: { address: string; tag: string } };
+  | { event: "tag:applied"; data: { address: string; tag: string } }
+  | {
+      // Phase 5e: pushed by /api/helius-webhook ingest. One event per Helius
+      // payload entry. Filtering by address is currently client-side; a
+      // ?watch=addr1,addr2 server-side filter on /api/db/intel/feed is a
+      // documented v1.1 enhancement.
+      event: "watch:event";
+      data: {
+        address: string;
+        signature: string;
+        type: string | null;
+        source: string | null;
+        description: string | null;
+        timestamp: number | null;
+      };
+    };
 
 type Handler = (evt: IntelEvent) => void;
 
