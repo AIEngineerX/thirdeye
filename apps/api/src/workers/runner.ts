@@ -25,9 +25,11 @@ const CRONTAB = `
 `.trim();
 
 export async function startWorker(opts: RunnerOptions): Promise<Runner> {
-  // Phase 6.0: worker process needs its own LISTEN connection so it can
-  // receive events published from the API process and so its own publishes
-  // round-trip through Postgres correctly.
+  // Phase 6.0: worker initializes the intel-bus so its tasks can publish
+  // events that round-trip via Postgres LISTEN/NOTIFY. When co-located
+  // with the API in the same process this is a no-op (the API already
+  // initialized the bus), but kept here so a future separate-entrypoint
+  // worker process gets correct cross-process delivery semantics.
   await initIntelBus(opts.sql);
 
   return run({

@@ -7,7 +7,7 @@
 // Phase 6.0 migration from process-local Set<Handler>. See
 // docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md §3.
 
-import type postgres from "postgres";
+import type { Sql } from "postgres";
 
 export type IntelEvent =
   | { event: "scan:start"; data: { mint: string; symbol: string | null } }
@@ -53,12 +53,12 @@ type WireEvent =
   | { event: IntelEvent["event"]; data: IntelEvent["data"] }
   | { event: IntelEvent["event"]; ref: number };
 
-let sqlRef: postgres.Sql | null = null;
+let sqlRef: Sql | null = null;
 let listenInitialized = false;
 let listenMeta: { unlisten(): Promise<void> } | null = null;
 const handlers = new Set<Handler>();
 
-export async function initIntelBus(sql: postgres.Sql): Promise<void> {
+export async function initIntelBus(sql: Sql): Promise<void> {
   if (listenInitialized) return;
   sqlRef = sql;
   listenMeta = await sql.listen(CHANNEL, async (raw: string) => {
