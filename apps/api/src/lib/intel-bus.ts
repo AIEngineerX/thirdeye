@@ -82,7 +82,11 @@ export async function initIntelBus(sql: postgres.Sql): Promise<void> {
       // Delete after read so the table doesn't grow unboundedly. Best-effort:
       // a crashed subscriber leaves the row; a periodic sweep is unnecessary
       // because rows live milliseconds in the happy path.
-      await sql`DELETE FROM intel_events WHERE id = ${wire.ref}`;
+      try {
+        await sql`DELETE FROM intel_events WHERE id = ${wire.ref}`;
+      } catch (e) {
+        console.error(`[intel-bus] failed to delete overflow row ${wire.ref}`, e);
+      }
       evt = { event: wire.event, data: rows[0]!.payload } as IntelEvent;
     } else {
       evt = wire as IntelEvent;
@@ -108,7 +112,9 @@ export async function publish(evt: IntelEvent): Promise<void> {
     return;
   }
   // Overflow: persist payload, notify with reference id.
-  // Use explicit cast to jsonb so postgres.js does not attempt binary binding.
+  // postgres.js v3.4 + Bun bug: passing a JS object in a tagged-template parameter
+  // triggers binary-protocol binding which Bun rejects. Workaround: stringify to
+  // JSON manually and cast with ::jsonb so the server parses it as text-mode input.
   const payloadJson = JSON.stringify(evt.data);
   const rows = await sqlRef<{ id: number }[]>`
     INSERT INTO intel_events (kind, payload)
