@@ -19,7 +19,7 @@ export async function setupTestDb(): Promise<TestDb> {
   const { db, sql } = createDb(url);
 
   await sql.unsafe(`
-    TRUNCATE auth_tokens, wallet_checks, wallets, token_scans, funders, intel_aggregates RESTART IDENTITY CASCADE;
+    TRUNCATE auth_tokens, wallet_checks, wallets, token_scans, funders, intel_aggregates, intel_events RESTART IDENTITY CASCADE;
   `);
 
   return {
