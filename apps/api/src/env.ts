@@ -24,26 +24,16 @@ export const env = {
   HELIUS_API_KEY: optionalUndef("HELIUS_API_KEY"),
   HELIUS_PROXY_LIMIT: Number(optional("HELIUS_PROXY_LIMIT", "600")),
   HELIUS_PROXY_WINDOW_SEC: Number(optional("HELIUS_PROXY_WINDOW_SEC", "3600")),
-  // Phase 5a: bumped wallet-check defaults (30 → 120 calls/hr, 24h → 4h cache)
-  // and scan-token defaults (3 → 60 calls/hr, 1h → 5min cache). Cache unit
-  // refactored hours → seconds so the new sub-hour defaults read cleanly.
   WALLET_CHECK_LIMIT: Number(optional("WALLET_CHECK_LIMIT", "120")),
   WALLET_CHECK_WINDOW_SEC: Number(optional("WALLET_CHECK_WINDOW_SEC", "3600")),
   WALLET_CHECK_CACHE_SEC: Number(optional("WALLET_CHECK_CACHE_SEC", "14400")),
   SCAN_TOKEN_LIMIT: Number(optional("SCAN_TOKEN_LIMIT", "60")),
   SCAN_TOKEN_WINDOW_SEC: Number(optional("SCAN_TOKEN_WINDOW_SEC", "3600")),
   SCAN_TOKEN_CACHE_SEC: Number(optional("SCAN_TOKEN_CACHE_SEC", "300")),
-  // Phase 5d: realized SOL PnL threshold for SMART_MONEY tag. Tune to
-  // your market — 50 SOL realized over 30d is a defensible default but
-  // varies wildly by wallet population (memecoin vs blue-chip swappers).
   SMART_MONEY_MIN_SOL: Number(optional("SMART_MONEY_MIN_SOL", "50")),
 } as const;
 
-// Phase 5e: webhook subscription secrets. Read fresh from process.env on
-// each access so they can be hot-rotated without restart (per design doc
-// §5e "Stay manual" — operator changes the env, no redeploy needed) and
-// so test setups can mutate the secret in beforeAll/beforeEach. Undefined
-// by design until set; watch routes return 503 until both are present.
+// Read fresh so secrets can be hot-rotated without restart.
 export function publicBaseUrl(): string | undefined {
   const v = process.env.PUBLIC_BASE_URL;
   return v && v.length > 0 ? v : undefined;

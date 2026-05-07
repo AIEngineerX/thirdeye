@@ -1,13 +1,3 @@
-// Phase 5e: thin wrapper over Helius's webhook management API. Distinct
-// base URL from wallet-api / DAS:
-//   wallet-api: api.helius.xyz/v1/...
-//   DAS:        mainnet.helius-rpc.com/?
-//   webhooks:   api-mainnet.helius-rpc.com/v0/webhooks
-//
-// Lives in @thirdeye/helius (not @thirdeye/scanner) because it's pure
-// Helius infra — no scanner-domain logic. The route handlers in apps/api
-// orchestrate it against our own DB state.
-
 const WEBHOOK_BASE = "https://api-mainnet.helius-rpc.com/v0/webhooks";
 
 export interface HeliusWebhook {
@@ -25,16 +15,12 @@ export interface CreateWebhookOptions {
   webhookURL: string;
   accountAddresses: string[];
   authHeader: string;
-  // transactionTypes omitted ⇒ Helius sends all types. We filter client-side
-  // via the SSE feed's intel-bus consumer; keeps the system flexible.
 }
 
 export interface UpdateWebhookOptions {
   apiKey: string;
   webhookID: string;
   accountAddresses: string[];
-  // We don't change webhookURL or authHeader on update — those are set at
-  // create time and only mutated by explicit ops calls (manual rotation).
 }
 
 async function jsonOrThrow<T>(res: Response, op: string): Promise<T> {
@@ -89,10 +75,6 @@ export async function deleteWebhook(apiKey: string, webhookID: string): Promise<
   }
 }
 
-// ── Inbound payload shape (a SUBSET of fields we actually use) ──────────────
-// Helius sends an array of these. Documented at
-// https://www.helius.dev/docs/api-reference/webhooks#webhook-payload-enhanced
-// Defensive about extra fields; only declares what we read.
 export interface HeliusInboundEvent {
   signature: string;
   type?: string;

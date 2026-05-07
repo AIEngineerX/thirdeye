@@ -66,10 +66,6 @@ app.get("/health", async (c) => {
 });
 app.route("/api/db", authRoutes); // /auth is unauthenticated by design (it issues tokens)
 
-// Test-only probe used by middleware-auth tests. Per-route auth (NOT
-// `use("*", requireAuth)` on a sub-router mounted at /api/db) — a wildcard
-// at this level leaks onto every /api/db/* route including the SSE feed
-// and watches CRUD which have their own auth model.
 app.get("/api/db/protected-probe", requireAuth, (c) => c.json({ ok: true }));
 
 const heliusProxyLimit = rateLimit({
@@ -132,9 +128,6 @@ app.route("/api/token", tokenRouter);
 app.route("/api/db/intel", intelAggregatesRoutes);
 app.route("/api/db/intel", intelFundersRoutes);
 
-// Phase 5e — watches CRUD (auth-protected) + public webhook ingest. The
-// ingest endpoint validates Helius's auth header itself; it must NOT be
-// behind requireAuth because Helius doesn't have an X-Auth-Token.
 const watchesRouter = new Hono<{ Variables: Variables }>();
 watchesRouter.use("*", requireAuth);
 watchesRouter.route("/", watchesRoutes);
@@ -146,9 +139,6 @@ const intelFeedRouter = new Hono<{ Variables: Variables }>();
 intelFeedRouter.route("/", intelFeed);
 app.route("/api/db/intel", intelFeedRouter);
 
-// Phase 6.0: initialize the intel-bus LISTEN connection. We do this at
-// module load (top-level await is fine in Bun) so SSE handlers can
-// subscribe immediately without an init race.
 await initIntelBus(pgSql);
 
 // Background worker — only when this file is the entrypoint, never under tests

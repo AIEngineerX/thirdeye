@@ -43,7 +43,6 @@ describe("intel-bus overflow path", () => {
     const seen: IntelEvent[] = [];
     subscribe((e) => seen.push(e));
 
-    // Construct a payload larger than 7800 bytes by stuffing the description.
     const big = "x".repeat(9000);
     const evt: IntelEvent = {
       event: "watch:event",

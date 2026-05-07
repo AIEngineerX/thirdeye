@@ -111,7 +111,7 @@ export type CheckEvent =
   | { event: "result"; data: WalletCheckResult }
   | { event: "error"; data: { error: string; message: string } };
 
-// ── Phase 3: Scan Token ─────────────────────────────────────────────────────
+// ── Scan Token ──────────────────────────────────────────────────────────────
 
 export type TokenVerdict = "CLEAN" | "LOW_RISK" | "HIGH_RISK";
 

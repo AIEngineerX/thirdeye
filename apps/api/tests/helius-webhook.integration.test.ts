@@ -10,9 +10,6 @@ const ORIGINAL_ENV = { ...process.env };
 let testDb: TestDb;
 let token: string;
 
-// publish() now goes through Postgres NOTIFY/LISTEN. The LISTEN callback fires
-// asynchronously after the route returns, so tests that assert on in-process
-// subscriber state need to poll until the event arrives.
 async function waitFor(predicate: () => boolean, timeoutMs = 1500): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {

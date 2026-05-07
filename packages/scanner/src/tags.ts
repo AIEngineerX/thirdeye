@@ -9,18 +9,10 @@ export interface TagInputs {
   tokenCount: number;
   cluster: Cluster;
   txPattern: TxPattern;
-  // Phase 5d: realized SOL PnL across recent SWAPs. Null when wallet has
-  // no swap activity in the window or PnL was not computed for this scan.
   realizedPnlSol: number | null;
-  // Threshold (in SOL) above which the wallet earns SMART_MONEY. Configurable
-  // per env var SMART_MONEY_MIN_SOL — passed in by the route handler so the
-  // scanner package stays env-agnostic.
   smartMoneyMinSol: number;
 }
 
-// Phase 5a tuning — values chosen for current Solana memecoin tempo
-// (mid-2025 baseline). See docs/superpowers/specs/2026-05-06-thirdeye-phase-5-alpha-design.md §5a
-// for rationale per constant. Revisit when launch dynamics shift.
 const FRESH_AGE_DAYS = 14;
 const FRESH_TX_COUNT = 20;
 const DISTRIBUTOR_RECIPIENTS = 10;
@@ -72,8 +64,7 @@ export function computeTags(inputs: TagInputs): Tag[] {
     tags.push("WHALE");
   }
 
-  // Phase 5d: SMART_MONEY — net SOL extraction from recent swaps. Suppress
-  // for known exchanges (their PnL is operational, not strategic).
+  // exchanges' PnL is operational, not strategic
   if (
     inputs.realizedPnlSol !== null &&
     inputs.realizedPnlSol >= inputs.smartMoneyMinSol &&

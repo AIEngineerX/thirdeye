@@ -14,8 +14,7 @@ export function computeVerdict(inputs: VerdictInputs): Verdict {
   if (has("SYBIL")) return "SYBIL";
   if (has("BUNDLER")) return "BUNDLER";
   if (has("SNIPER")) return "SNIPER BOT";
-  // Phase 5d: SMART_MONEY ranks above WHALE (a profitable trader is more
-  // useful to know about than a passive bag-holder of similar USD value).
+  // profitable trader ranks above passive bag-holder
   if (has("SMART_MONEY")) return "SMART_MONEY";
   if (has("WHALE") && !has("BUNDLER") && !has("SNIPER")) return "WHALE";
   if (has("FRESH_WALLET") && inputs.tags.length === 1) return "FRESH";

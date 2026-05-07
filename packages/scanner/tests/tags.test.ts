@@ -32,9 +32,6 @@ const baseTxPattern: TxPattern = {
   uniqueOutboundRecipients: 0,
 };
 
-// Phase 5d added realizedPnlSol + smartMoneyMinSol to TagInputs. Tests that
-// don't care about SMART_MONEY pass null PnL (no tag fires regardless of
-// threshold) and a sentinel high threshold.
 function makeInputs(overrides: Partial<TagInputs>): TagInputs {
   return {
     identity: cleanIdentity,

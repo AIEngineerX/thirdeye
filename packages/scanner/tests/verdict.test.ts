@@ -33,9 +33,6 @@ describe("computeVerdict", () => {
     expect(computeVerdict({ tags: [], txCount: 10 })).toBe("CLEAN");
   });
 
-  // Phase 5d: SMART_MONEY ranks above WHALE but below risk tags. Lone
-  // smart-money trader gets the SMART_MONEY label; bundler-with-PnL is
-  // still a bundler.
   test("SMART_MONEY when tagged alone or with WHALE", () => {
     expect(computeVerdict({ tags: ["SMART_MONEY"], txCount: 200 })).toBe("SMART_MONEY");
     expect(computeVerdict({ tags: ["SMART_MONEY", "WHALE"], txCount: 200 })).toBe("SMART_MONEY");

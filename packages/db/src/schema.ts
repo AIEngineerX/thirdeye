@@ -22,7 +22,6 @@ export const authTokens = pgTable("auth_tokens", {
   rateBucket: jsonb("rate_bucket").notNull().default(sql`'{}'::jsonb`),
 });
 
-// Wallets — cached profiles, spec §9
 export const wallets = pgTable(
   "wallets",
   {
@@ -34,9 +33,6 @@ export const wallets = pgTable(
     txCount: integer("tx_count"),
     ageDays: integer("age_days"),
     tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
-    // Phase 5d: realized SOL PnL across last 100 swaps over the 30d window
-    // preceding the most recent check. Nullable — older rows pre-migration
-    // and wallets with zero swap history both legitimately have null.
     realizedPnlSol: numeric("realized_pnl_sol"),
     lastChecked: timestamp("last_checked", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -47,7 +43,6 @@ export const wallets = pgTable(
   }),
 );
 
-// Wallet checks — history of /wallet-check writes, spec §9
 // `id` mode: "number" — JS number is safe to 2^53, far beyond any realistic count.
 // `mode: "bigint"` would return native BigInt which is NOT JSON-serializable
 // and would throw inside Hono's c.json().
@@ -68,7 +63,6 @@ export const walletChecks = pgTable(
   }),
 );
 
-// Token scans — history of /scan writes, spec §9
 export const tokenScans = pgTable(
   "token_scans",
   {
@@ -94,7 +88,7 @@ export const tokenScans = pgTable(
   }),
 );
 
-// Funders — denormalized for fast funder-fanout queries, spec §9
+// denormalized for fast funder-fanout queries
 export const funders = pgTable(
   "funders",
   {
@@ -109,14 +103,11 @@ export const funders = pgTable(
   }),
 );
 
-// Aggregates — refreshed every 30s by cron, spec §9
 export const intelAggregates = pgTable("intel_aggregates", {
   key: text("key").primaryKey(), // '24h_pulse' | 'all_time' | 'risk_dist' | 'heatmap'
   payload: jsonb("payload").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
-
-// ── Phase 5e: Helius webhook subscriptions ──────────────────────────────────
 
 // Per-(token, address) row tracking which session is interested in which
 // wallet. The set of distinct addresses across all rows is the source of
@@ -165,11 +156,10 @@ export const heliusWebhooks = pgTable("helius_webhooks", {
   lastSyncedAddressCount: integer("last_synced_address_count").notNull().default(0),
 });
 
-// Phase 6.0: overflow table for intel-bus events whose JSON payload exceeds
-// the Postgres NOTIFY 8000-byte limit. The bus INSERTs a row, then NOTIFYs
-// with the row id; the subscriber fetches and deletes the row when it
-// dispatches the event. Bounded growth: rows live milliseconds in the
-// happy path. A nightly cleanup task is unnecessary for now.
+// Overflow table for intel-bus events whose JSON payload exceeds the
+// Postgres NOTIFY 8000-byte limit. The bus INSERTs a row, NOTIFYs with the
+// row id, and the subscriber fetches and deletes the row on dispatch.
+// Bounded growth: rows live milliseconds in the happy path.
 export const intelEvents = pgTable("intel_events", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
   kind: text("kind").notNull(),

@@ -1,13 +1,3 @@
-// Edge cases for the public ingest endpoint that the existing
-// helius-webhook.integration.test.ts doesn't cover:
-//  - event with no signature is silently skipped
-//  - empty array body is accepted (received: 0)
-//  - mixed batch where only some events involve watched addresses
-//  - event with no candidate addresses at all (no feePayer, no transfers)
-//  - persistence failure for one event doesn't kill the whole batch
-//  - unique-constraint collision: same (address, signature) inserted twice
-//    causes one insert to throw — batch should still report partial success
-
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { authTokens, watchEvents, watches } from "@thirdeye/db";
 import { app } from "../src/index";
@@ -19,9 +9,6 @@ const ORIGINAL_ENV = { ...process.env };
 let testDb: TestDb;
 let token: string;
 
-// publish() now goes through Postgres NOTIFY/LISTEN. The LISTEN callback fires
-// asynchronously after the route returns, so tests that assert on in-process
-// subscriber state need to poll until the event arrives.
 async function waitFor(predicate: () => boolean, timeoutMs = 1500): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
