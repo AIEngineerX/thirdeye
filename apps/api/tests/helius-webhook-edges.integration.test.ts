@@ -24,10 +24,11 @@ let token: string;
 // subscriber state need to poll until the event arrives.
 async function waitFor(predicate: () => boolean, timeoutMs = 1500): Promise<void> {
   const deadline = Date.now() + timeoutMs;
-  while (!predicate()) {
-    if (Date.now() >= deadline) throw new Error("waitFor: predicate never satisfied within timeout");
+  while (Date.now() < deadline) {
+    if (predicate()) return;
     await new Promise((r) => setTimeout(r, 10));
   }
+  throw new Error("waitFor: predicate never satisfied within timeout");
 }
 
 beforeAll(async () => {
