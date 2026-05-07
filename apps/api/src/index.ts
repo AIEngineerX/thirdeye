@@ -21,9 +21,10 @@ import { intelAggregatesRoutes, intelFeed, intelFundersRoutes } from "./routes/i
 import { tokenScan } from "./routes/token";
 import { walletCheck } from "./routes/wallet";
 import { watchesRoutes } from "./routes/watches";
+import { initIntelBus } from "./lib/intel-bus";
 import { startWorker } from "./workers/runner";
 
-const { db } = createDb(env.DATABASE_URL);
+const { db, sql: pgSql } = createDb(env.DATABASE_URL);
 
 type Variables = { db: DbClient };
 
@@ -144,6 +145,11 @@ app.route("/api/helius-webhook", heliusWebhook);
 const intelFeedRouter = new Hono<{ Variables: Variables }>();
 intelFeedRouter.route("/", intelFeed);
 app.route("/api/db/intel", intelFeedRouter);
+
+// Phase 6.0: initialize the intel-bus LISTEN connection. We do this at
+// module load (top-level await is fine in Bun) so SSE handlers can
+// subscribe immediately without an init race.
+await initIntelBus(pgSql);
 
 // Background worker — only when this file is the entrypoint, never under tests
 // (tests import `{ app }` and would otherwise spin up cron + DB schema install).
