@@ -164,3 +164,15 @@ export const heliusWebhooks = pgTable("helius_webhooks", {
   lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }).notNull().defaultNow(),
   lastSyncedAddressCount: integer("last_synced_address_count").notNull().default(0),
 });
+
+// Phase 6.0: overflow table for intel-bus events whose JSON payload exceeds
+// the Postgres NOTIFY 8000-byte limit. The bus INSERTs a row, then NOTIFYs
+// with the row id; the subscriber fetches and deletes the row when it
+// dispatches the event. Bounded growth: rows live milliseconds in the
+// happy path. A nightly cleanup task is unnecessary for now.
+export const intelEvents = pgTable("intel_events", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  kind: text("kind").notNull(),
+  payload: jsonb("payload").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
