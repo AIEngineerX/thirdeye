@@ -4,11 +4,11 @@
 // intel/feed. So we boot a real Bun.serve on a random port and connect via
 // real fetch, which streams chunks.
 
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { authTokens } from "@thirdeye/db";
 import { eq } from "drizzle-orm";
 import { app } from "../src/index";
-import { publish } from "../src/lib/intel-bus";
+import { _resetIntelBus, initIntelBus, publish } from "../src/lib/intel-bus";
 import { generateToken } from "../src/lib/tokens";
 import { _resetIntelFeed } from "../src/routes/intel/feed";
 import { type TestDb, setupTestDb } from "./setup";
@@ -30,9 +30,17 @@ afterAll(async () => {
   await testDb.cleanup();
 });
 
+afterEach(async () => {
+  await _resetIntelBus();
+});
+
 beforeEach(async () => {
   await testDb.sql.unsafe("TRUNCATE auth_tokens RESTART IDENTITY CASCADE;");
   _resetIntelFeed();
+  // Re-initialize intel-bus in case another test file reset it during the same
+  // Bun process run (e.g. intel-bus.test.ts calls _resetIntelBus in afterEach).
+  await _resetIntelBus();
+  await initIntelBus(testDb.sql);
   const t = generateToken();
   await testDb.db.insert(authTokens).values({ token: t.token, expiresAt: t.expiresAt });
   token = t.token;
