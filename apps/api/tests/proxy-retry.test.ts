@@ -6,7 +6,7 @@
 // responses that real Helius cannot be coerced into.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { getCache, parseRetryAfterMs, proxyToHelius } from "@thirdeye/helius";
+import { cache, parseRetryAfterMs, proxyToHelius } from "@thirdeye/helius";
 
 describe("parseRetryAfterMs", () => {
   test("null header → default 1s", () => {
@@ -60,7 +60,7 @@ describe("proxyToHelius retry / error paths (real local server)", () => {
     count500 = 0;
     countOk = 0;
     countSlow = 0;
-    getCache().clear();
+    cache.clear();
   }
 
   beforeAll(async () => {

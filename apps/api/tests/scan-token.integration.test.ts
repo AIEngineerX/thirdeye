@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { authTokens } from "@thirdeye/db";
-import { getCache } from "@thirdeye/helius";
+import { cache } from "@thirdeye/helius";
 import { app } from "../src/index";
 import { generateToken } from "../src/lib/tokens";
 import { type TestDb, setupTestDb } from "./setup";
@@ -33,7 +33,7 @@ beforeEach(async () => {
   await testDb.sql.unsafe(
     "TRUNCATE auth_tokens, wallet_checks, wallets, token_scans, funders RESTART IDENTITY CASCADE;",
   );
-  getCache().clear();
+  cache.clear();
   const t = generateToken();
   await testDb.db.insert(authTokens).values({ token: t.token, expiresAt: t.expiresAt });
   token = t.token;
