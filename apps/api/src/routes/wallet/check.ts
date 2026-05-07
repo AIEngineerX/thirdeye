@@ -40,7 +40,7 @@ walletCheck.get("/:addr/check", async (c) => {
       }
     }
 
-    void publish({ event: "check:start", data: { address: addr } });
+    await publish({ event: "check:start", data: { address: addr } });
 
     const generator = checkWallet({
       address: addr,
@@ -68,7 +68,7 @@ walletCheck.get("/:addr/check", async (c) => {
     if (final) {
       try {
         await persistCheck(db, final);
-        void publish({
+        await publish({
           event: "check:complete",
           data: { address: final.address, score: final.score, verdict: final.verdict },
         });
