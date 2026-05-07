@@ -1,7 +1,8 @@
 import { type DbClient, watchEvents, watches } from "@thirdeye/db";
 import { and, eq, sql } from "drizzle-orm";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { env, heliusWebhookAuth, publicBaseUrl } from "../../env";
+import { clampInt } from "../../lib/http";
 import { isValidSolanaAddress } from "../../lib/solana-address";
 import { syncHeliusWebhook } from "./sync";
 
@@ -12,6 +13,46 @@ export const watchesRoutes = new Hono<{ Variables: Variables }>();
 interface AddBody {
   addresses?: unknown;
   label?: unknown;
+}
+
+type WebhookSync = { apiKey: string; webhookURL: string; authHeader: string };
+
+// Returns the sync options or a Hono response carrying the specific 503.
+function resolveWebhookSync(
+  c: Context<{ Variables: Variables }>,
+  detailed: boolean,
+): WebhookSync | Response {
+  const baseUrl = publicBaseUrl();
+  const webhookAuth = heliusWebhookAuth();
+  if (env.HELIUS_API_KEY && baseUrl && webhookAuth) {
+    return {
+      apiKey: env.HELIUS_API_KEY,
+      webhookURL: `${baseUrl.replace(/\/$/, "")}/api/helius-webhook`,
+      authHeader: webhookAuth,
+    };
+  }
+  if (!detailed) return c.json({ error: "webhook_env_unset" }, 503);
+  if (!env.HELIUS_API_KEY)
+    return c.json(
+      { error: "no_helius_key", message: "Server has no HELIUS_API_KEY configured" },
+      503,
+    );
+  if (!baseUrl)
+    return c.json(
+      {
+        error: "missing_public_base_url",
+        message: "PUBLIC_BASE_URL must be set so Helius knows where to push events",
+      },
+      503,
+    );
+  return c.json(
+    {
+      error: "missing_webhook_auth",
+      message:
+        "HELIUS_WEBHOOK_AUTH must be set — it's the shared secret that authenticates Helius callbacks",
+    },
+    503,
+  );
 }
 
 watchesRoutes.post("/", async (c) => {
@@ -37,33 +78,8 @@ watchesRoutes.post("/", async (c) => {
     return c.json({ error: "missing_token" }, 401);
   }
 
-  const baseUrl = publicBaseUrl();
-  const webhookAuth = heliusWebhookAuth();
-  if (!env.HELIUS_API_KEY) {
-    return c.json(
-      { error: "no_helius_key", message: "Server has no HELIUS_API_KEY configured" },
-      503,
-    );
-  }
-  if (!baseUrl) {
-    return c.json(
-      {
-        error: "missing_public_base_url",
-        message: "PUBLIC_BASE_URL must be set so Helius knows where to push events",
-      },
-      503,
-    );
-  }
-  if (!webhookAuth) {
-    return c.json(
-      {
-        error: "missing_webhook_auth",
-        message:
-          "HELIUS_WEBHOOK_AUTH must be set — it's the shared secret that authenticates Helius callbacks",
-      },
-      503,
-    );
-  }
+  const sync = resolveWebhookSync(c, true);
+  if (sync instanceof Response) return sync;
 
   const db = c.get("db");
   // Insert each (token, address) pair; ON CONFLICT on the (token, address)
@@ -80,11 +96,7 @@ watchesRoutes.post("/", async (c) => {
   }
 
   try {
-    await syncHeliusWebhook(db, {
-      apiKey: env.HELIUS_API_KEY,
-      webhookURL: `${baseUrl.replace(/\/$/, "")}/api/helius-webhook`,
-      authHeader: webhookAuth,
-    });
+    await syncHeliusWebhook(db, sync);
   } catch (e) {
     console.error("[watches.add] sync failed — rolling back inserts", e);
     for (const address of addresses as string[]) {
@@ -103,11 +115,8 @@ watchesRoutes.delete("/:address", async (c) => {
   }
   const token = c.req.header("X-Auth-Token");
   if (!token) return c.json({ error: "missing_token" }, 401);
-  const baseUrl = publicBaseUrl();
-  const webhookAuth = heliusWebhookAuth();
-  if (!env.HELIUS_API_KEY || !baseUrl || !webhookAuth) {
-    return c.json({ error: "webhook_env_unset" }, 503);
-  }
+  const sync = resolveWebhookSync(c, false);
+  if (sync instanceof Response) return sync;
 
   const db = c.get("db");
   await db.delete(watches).where(and(eq(watches.token, token), eq(watches.address, address)));
@@ -115,11 +124,7 @@ watchesRoutes.delete("/:address", async (c) => {
   // Sync after delete — if this was the last user watching this address it
   // gets pruned from the Helius set.
   try {
-    await syncHeliusWebhook(db, {
-      apiKey: env.HELIUS_API_KEY,
-      webhookURL: `${baseUrl.replace(/\/$/, "")}/api/helius-webhook`,
-      authHeader: webhookAuth,
-    });
+    await syncHeliusWebhook(db, sync);
   } catch (e) {
     console.error("[watches.delete] sync failed — local row already removed", e);
     return c.json({ error: "helius_sync_failed", message: String(e) }, 502);
@@ -160,10 +165,3 @@ watchesRoutes.get("/:address/events", async (c) => {
     .limit(limit);
   return c.json({ address, items: rows });
 });
-
-function clampInt(raw: string | undefined, fallback: number, min: number, max: number): number {
-  if (raw === undefined) return fallback;
-  const n = Number.parseInt(raw, 10);
-  if (Number.isNaN(n)) return fallback;
-  return Math.max(min, Math.min(max, n));
-}

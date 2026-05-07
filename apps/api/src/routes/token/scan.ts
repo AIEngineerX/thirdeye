@@ -1,13 +1,9 @@
 import type { DbClient } from "@thirdeye/db";
-import {
-  HeliusError,
-  type ScanTokenEvent,
-  type TokenScanResult,
-  scanToken,
-} from "@thirdeye/scanner";
+import { HeliusError, type TokenScanResult, scanToken } from "@thirdeye/scanner";
 import { Hono } from "hono";
-import { type SSEStreamingApi, streamSSE } from "hono/streaming";
+import { streamSSE } from "hono/streaming";
 import { env } from "../../env";
+import { sendSseEvent } from "../../lib/http";
 import { publish } from "../../lib/intel-bus";
 import { isValidSolanaAddress } from "../../lib/solana-address";
 import { lookupRecentScan, persistScan, resolvePriorTags } from "./persist";
@@ -31,11 +27,11 @@ tokenScan.get("/:mint/scan", async (c) => {
     if (!force) {
       const cached = await lookupRecentScan(db, mint, env.SCAN_TOKEN_CACHE_SEC);
       if (cached) {
-        await sendEvent(stream, {
+        await sendSseEvent(stream, {
           event: "started",
           data: { mint, mode, cached: true },
         });
-        await sendEvent(stream, { event: "result", data: cached });
+        await sendSseEvent(stream, { event: "result", data: cached });
         return;
       }
     }
@@ -52,7 +48,7 @@ tokenScan.get("/:mint/scan", async (c) => {
     let final: TokenScanResult | null = null;
     try {
       for await (const evt of generator) {
-        await sendEvent(stream, evt);
+        await sendSseEvent(stream, evt);
         if (evt.event === "result") final = evt.data;
       }
     } catch (e) {
@@ -61,7 +57,7 @@ tokenScan.get("/:mint/scan", async (c) => {
           ? { error: "helius_error", message: e.message }
           : { error: "scanner_error", message: e instanceof Error ? e.message : String(e) };
       console.error(`[scan-token ${mint}] ${err.error}: ${err.message}`, e);
-      await sendEvent(stream, { event: "error", data: err });
+      await sendSseEvent(stream, { event: "error", data: err });
       return;
     }
     if (final) {
@@ -93,7 +89,3 @@ tokenScan.get("/:mint/scans/latest", async (c) => {
   if (!cached) return c.json({ error: "not_found", message: "No recent scan" }, 404);
   return c.json(cached);
 });
-
-async function sendEvent(stream: SSEStreamingApi, evt: ScanTokenEvent): Promise<void> {
-  await stream.writeSSE({ event: evt.event, data: JSON.stringify(evt.data) });
-}

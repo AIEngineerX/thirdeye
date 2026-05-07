@@ -1,6 +1,7 @@
 import { type DbClient, intelAggregates, tokenScans, walletChecks } from "@thirdeye/db";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { clampInt, toIso } from "../../lib/http";
 import { requireAuth } from "../../middleware/auth";
 import { AGGREGATE_KEYS } from "../../workers/refresh-aggregates";
 
@@ -15,10 +16,6 @@ interface AggRow {
   key: string;
   payload: unknown;
   updatedAt: Date | string;
-}
-
-function toIso(t: Date | string): string {
-  return t instanceof Date ? t.toISOString() : new Date(t).toISOString();
 }
 
 intelAggregatesRoutes.get("/aggregates", requireAuth, async (c) => {
@@ -78,10 +75,3 @@ intelAggregatesRoutes.get("/recent/checks", requireAuth, async (c) => {
     .offset(offset);
   return c.json({ items: rows, limit, offset });
 });
-
-function clampInt(raw: string | undefined, fallback: number, min: number, max: number): number {
-  if (raw === undefined) return fallback;
-  const n = Number.parseInt(raw, 10);
-  if (Number.isNaN(n)) return fallback;
-  return Math.max(min, Math.min(max, n));
-}

@@ -44,26 +44,20 @@ heliusWebhook.post("/", async (c) => {
   }
   const events = body as HeliusInboundEvent[];
 
-  // Resolve which of OUR watched addresses appear in any of these events.
+  // Walk addresses once per event; reuse the per-event list when filtering
+  // against the watches table (avoids a second pass over the same fields).
+  const involvedByEvent = events.map(collectInvolvedAddresses);
   const candidateAddresses = new Set<string>();
-  for (const evt of events) {
-    if (typeof evt.feePayer === "string") candidateAddresses.add(evt.feePayer);
-    for (const t of evt.tokenTransfers ?? []) {
-      if (typeof t.fromUserAccount === "string") candidateAddresses.add(t.fromUserAccount);
-      if (typeof t.toUserAccount === "string") candidateAddresses.add(t.toUserAccount);
-    }
-    for (const a of evt.accountData ?? []) {
-      if (typeof a.account === "string") candidateAddresses.add(a.account);
-    }
-  }
+  for (const list of involvedByEvent) for (const a of list) candidateAddresses.add(a);
 
   const db = c.get("db");
   const watchedSet = await resolveWatched(db, [...candidateAddresses]);
 
   let persisted = 0;
-  for (const evt of events) {
+  for (let i = 0; i < events.length; i++) {
+    const evt = events[i]!;
     if (!evt.signature) continue;
-    const involved = collectInvolvedAddresses(evt).filter((a) => watchedSet.has(a));
+    const involved = involvedByEvent[i]!.filter((a) => watchedSet.has(a));
     if (involved.length === 0) continue;
 
     for (const address of involved) {
