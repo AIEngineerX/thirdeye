@@ -1,4 +1,4 @@
-import { type DbClient, tokenScans, wallets } from "@thirdeye/db";
+import { type DbClient, tokenScans, tokens, wallets } from "@thirdeye/db";
 import type { TokenScanResult } from "@thirdeye/scanner";
 import { inArray, sql } from "drizzle-orm";
 
@@ -19,6 +19,20 @@ export async function persistScan(db: DbClient, r: TokenScanResult): Promise<voi
     verdict: r.verdict,
     payload: r as unknown as Record<string, unknown>,
   });
+
+  // Phase 6a — seed the price-tracked tokens set so the tokens-refresh
+  // worker picks this mint up on its next tick. last_refreshed_at left at
+  // its default (now()) — the first real refresh will overwrite it. Symbol
+  // and name come from the scan's metadata so the row has something useful
+  // even before the first DexScreener tick.
+  await db
+    .insert(tokens)
+    .values({
+      mint: r.mint,
+      symbol: r.metadata.symbol,
+      name: r.metadata.name,
+    })
+    .onConflictDoNothing({ target: tokens.mint });
 
   // Increment cluster_count on each detected funder root.
   for (const c of r.clusters) {

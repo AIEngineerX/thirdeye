@@ -16,6 +16,7 @@
       "dependencies": {
         "@thirdeye/db": "workspace:*",
         "@thirdeye/helius": "workspace:*",
+        "@thirdeye/prices": "workspace:*",
         "@thirdeye/scanner": "workspace:*",
         "@thirdeye/shared": "workspace:*",
         "drizzle-orm": "^0.45.2",
@@ -41,6 +42,10 @@
       "dependencies": {
         "lru-cache": "^11.0.0",
       },
+    },
+    "packages/prices": {
+      "name": "@thirdeye/prices",
+      "version": "0.0.0",
     },
     "packages/scanner": {
       "name": "@thirdeye/scanner",
@@ -146,6 +151,8 @@
     "@thirdeye/db": ["@thirdeye/db@workspace:packages/db"],
 
     "@thirdeye/helius": ["@thirdeye/helius@workspace:packages/helius"],
+
+    "@thirdeye/prices": ["@thirdeye/prices@workspace:packages/prices"],
 
     "@thirdeye/scanner": ["@thirdeye/scanner@workspace:packages/scanner"],
 

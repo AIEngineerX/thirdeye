@@ -4,7 +4,7 @@
 // they're correct.
 
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { funders, tokenScans, wallets } from "@thirdeye/db";
+import { funders, tokenScans, tokens, wallets } from "@thirdeye/db";
 import type { TokenScanResult } from "@thirdeye/scanner";
 import { eq, sql } from "drizzle-orm";
 import { lookupRecentScan, persistScan, resolvePriorTags } from "../src/routes/token/persist";
@@ -22,7 +22,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDb.sql.unsafe(
-    "TRUNCATE auth_tokens, wallet_checks, wallets, token_scans, funders, intel_aggregates RESTART IDENTITY CASCADE;",
+    "TRUNCATE auth_tokens, wallet_checks, wallets, token_scans, funders, intel_aggregates, tokens RESTART IDENTITY CASCADE;",
   );
 });
 
@@ -121,6 +121,23 @@ describe("persistScan (real DB)", () => {
     expect(payload.mint).toBe(scan.mint);
     expect(payload.clusters).toHaveLength(2);
     expect(payload.clusters[0]!.root).toBe("FUNDER_A");
+  });
+
+  test("seeds tokens cache row on first scan (Phase 6a auto-track)", async () => {
+    await persistScan(testDb.db, buildScan());
+    const rows = await testDb.db.select().from(tokens).where(eq(tokens.mint, "MINT_X"));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.symbol).toBe("TKX");
+    expect(rows[0]!.name).toBe("TokenX");
+    // Price columns are null until the worker refreshes from DexScreener.
+    expect(rows[0]!.priceUsd).toBeNull();
+  });
+
+  test("scanning the same mint twice does not duplicate the tokens row", async () => {
+    await persistScan(testDb.db, buildScan());
+    await persistScan(testDb.db, buildScan({ risk: 90 }));
+    const rows = await testDb.db.select().from(tokens).where(eq(tokens.mint, "MINT_X"));
+    expect(rows).toHaveLength(1);
   });
 });
 
