@@ -59,8 +59,8 @@ let listenMeta: { unlisten(): Promise<void> } | null = null;
 const handlers = new Set<Handler>();
 
 export async function initIntelBus(sql: postgres.Sql): Promise<void> {
-  sqlRef = sql;
   if (listenInitialized) return;
+  sqlRef = sql;
   listenMeta = await sql.listen(CHANNEL, async (raw: string) => {
     let wire: WireEvent;
     try {
