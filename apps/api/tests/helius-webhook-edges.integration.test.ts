@@ -19,6 +19,17 @@ const ORIGINAL_ENV = { ...process.env };
 let testDb: TestDb;
 let token: string;
 
+// publish() now goes through Postgres NOTIFY/LISTEN. The LISTEN callback fires
+// asynchronously after the route returns, so tests that assert on in-process
+// subscriber state need to poll until the event arrives.
+async function waitFor(predicate: () => boolean, timeoutMs = 1500): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() >= deadline) throw new Error("waitFor: predicate never satisfied within timeout");
+    await new Promise((r) => setTimeout(r, 10));
+  }
+}
+
 beforeAll(async () => {
   testDb = await setupTestDb();
   process.env.HELIUS_WEBHOOK_AUTH = "edge-secret";
@@ -130,6 +141,8 @@ describe("/api/helius-webhook ingest edges", () => {
     expect(body.received).toBe(3);
     expect(body.persisted).toBe(1);
 
+    // intel-bus NOTIFY/LISTEN is async — wait for the subscriber callback to fire.
+    await waitFor(() => seen.filter((e) => e.event === "watch:event").length === 1);
     const watchEvts = seen.filter((e) => e.event === "watch:event");
     expect(watchEvts).toHaveLength(1);
     expect((watchEvts[0]!.data as { signature: string }).signature).toBe("sig-watched");
