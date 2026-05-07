@@ -130,7 +130,7 @@ describe("GET /api/db/intel/feed", () => {
     expect(sse.events[0]!.event).toBe("hello");
     expect((sse.events[0]!.data as { at: string }).at).toMatch(/T.*Z$/);
 
-    publish({
+    await publish({
       event: "scan:complete",
       data: { id: 1, mint: "MINT_X", symbol: "XX", risk: 50, sybilFlag: true },
     });
@@ -151,7 +151,7 @@ describe("GET /api/db/intel/feed", () => {
     const sse2 = makeSseReader(r2);
     await sse2.readUntil((e) => e.some((x) => x.event === "hello"));
 
-    publish({ event: "check:start", data: { address: "abc" } });
+    await publish({ event: "check:start", data: { address: "abc" } });
     await sse2.readUntil((e) => e.some((x) => x.event === "check:start"));
     expect(sse2.events.find((x) => x.event === "check:start")).toBeDefined();
 
