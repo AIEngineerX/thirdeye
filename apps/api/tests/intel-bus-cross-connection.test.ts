@@ -1,11 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import postgres, { type Sql } from "postgres";
-import {
-  type IntelEvent,
-  _resetIntelBus,
-  initIntelBus,
-  subscribe,
-} from "../src/lib/intel-bus";
+import { type IntelEvent, _resetIntelBus, initIntelBus, subscribe } from "../src/lib/intel-bus";
 
 // Phase 6.0: validates that publish on one connection is received by
 // LISTEN on a separate connection. This mirrors the API/worker
@@ -21,7 +16,7 @@ let sqlListener: Sql;
 
 beforeAll(async () => {
   if (!url) return;
-  await _resetIntelBus();         // guard against dirty state from prior test files
+  await _resetIntelBus(); // guard against dirty state from prior test files
   sqlPublisher = postgres(url, { max: 2 });
   sqlListener = postgres(url, { max: 2 });
 });

@@ -30,10 +30,7 @@ afterEach(async () => {
 
 // Helper: wait until predicate is true or timeout. LISTEN delivery is
 // asynchronous (Postgres round-trip), so tests must poll briefly.
-async function waitFor(
-  predicate: () => boolean,
-  timeoutMs = 1000,
-): Promise<void> {
+async function waitFor(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (predicate()) return;
