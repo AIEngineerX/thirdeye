@@ -55,12 +55,13 @@ type WireEvent =
 
 let sqlRef: postgres.Sql | null = null;
 let listenInitialized = false;
+let listenMeta: { unlisten(): Promise<void> } | null = null;
 const handlers = new Set<Handler>();
 
 export async function initIntelBus(sql: postgres.Sql): Promise<void> {
   sqlRef = sql;
   if (listenInitialized) return;
-  await sql.listen(CHANNEL, async (raw: string) => {
+  listenMeta = await sql.listen(CHANNEL, async (raw: string) => {
     let wire: WireEvent;
     try {
       wire = JSON.parse(raw) as WireEvent;
@@ -110,8 +111,16 @@ export function subscriberCount(): number {
 }
 
 // Test-only helper to reset bus state between tests.
-export function _resetIntelBus(): void {
+export async function _resetIntelBus(): Promise<void> {
   handlers.clear();
+  if (listenMeta) {
+    try {
+      await listenMeta.unlisten();
+    } catch {
+      // Ignore errors if connection is already closed.
+    }
+    listenMeta = null;
+  }
   listenInitialized = false;
   sqlRef = null;
 }
