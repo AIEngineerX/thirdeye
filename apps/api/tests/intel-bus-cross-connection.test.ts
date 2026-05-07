@@ -2,10 +2,6 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import postgres, { type Sql } from "postgres";
 import { type IntelEvent, _resetIntelBus, initIntelBus, subscribe } from "../src/lib/intel-bus";
 
-// Phase 6.0: validates that publish on one connection is received by
-// LISTEN on a separate connection. This mirrors the API/worker
-// cross-process delivery the spec requires (§3, "Prerequisite").
-
 const url = process.env.DATABASE_URL;
 if (!url) {
   console.warn("[intel-bus-cross-connection] DATABASE_URL unset, skipping");

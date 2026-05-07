@@ -9,8 +9,6 @@ import { analyzeTxPattern } from "./tx-patterns";
 import type { CheckEvent, Cluster, ScanMode, WalletCheckResult } from "./types";
 import { computeVerdict } from "./verdict";
 
-// Phase 5a: BYOK cluster limit 200 → 300 to capture larger bundler ops.
-// Shared mode unchanged (50) to bound credit cost for free / low-tier users.
 const SHARED_MAX_HOPS = 3;
 const BYOK_MAX_HOPS = 5;
 const SHARED_CLUSTER_LIMIT = 50;
@@ -77,9 +75,6 @@ export async function* checkWallet(opts: CheckWalletOptions): AsyncGenerator<Che
       identitiesByAddress,
     });
 
-    // Phase 5b: compute CoV across cluster siblings' SOL outflows. Lights
-    // up the SYBIL tag (was hardcoded null in v1). Sample-bounded; per-
-    // member errors swallowed so one bad sibling can't kill the signal.
     const memberAddrs = cluster.siblings.map((s) => s.address);
     const cov = await computeClusterCov(client, memberAddrs, opts.address);
     cluster = { ...cluster, cov };
@@ -90,8 +85,6 @@ export async function* checkWallet(opts: CheckWalletOptions): AsyncGenerator<Che
   const txPattern = analyzeTxPattern(opts.address, txs);
   yield { event: "txPattern", data: txPattern };
 
-  // Phase 5d: realized SOL PnL across SWAPs in the 30d window. Reuses
-  // the txs array we already fetched — zero extra Helius cost.
   const realizedPnlSol = txs.length > 0 ? computeRealizedSolPnl(opts.address, txs) : null;
 
   const tags = computeTags({

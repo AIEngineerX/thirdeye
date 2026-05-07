@@ -1,11 +1,6 @@
-// Postgres LISTEN/NOTIFY-backed pub/sub for intel feed events. Producers
-// (route handlers + worker tasks) publish events that get notified across
-// processes via Postgres. Consumers (the intel/feed SSE handler) subscribe
-// in-process; a single LISTEN connection per process dispatches incoming
-// notifications to all local handlers.
-//
-// Phase 6.0 migration from process-local Set<Handler>. See
-// docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md §3.
+// Postgres LISTEN/NOTIFY-backed pub/sub. Producers publish events that get
+// notified across processes via Postgres; consumers subscribe in-process via
+// a single LISTEN connection per process that dispatches to local handlers.
 
 import type { Sql } from "postgres";
 

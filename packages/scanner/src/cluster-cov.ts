@@ -1,12 +1,3 @@
-// Phase 5b: compute coefficient-of-variation across cluster members'
-// recent SOL outflow patterns. A low CoV ⇒ all members are sending
-// suspiciously similar amounts ⇒ bot-coordinated → SYBIL tag fires.
-//
-// Phase 2 designed this but stubbed cluster.cov to null because the
-// per-sibling tx fetch was deemed too expensive on shared mode. With
-// paid Helius + the 429 retry shipped in 9c735d5, the cost (~50 extra
-// enhanced-tx calls per scan, bounded by Semaphore) is acceptable.
-
 import { computeCov } from "./cluster";
 import type { HeliusClient } from "./helius-client";
 import { PROCESS_HELIUS_SEMAPHORE, Semaphore } from "./semaphore";
