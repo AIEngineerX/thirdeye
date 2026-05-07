@@ -40,7 +40,7 @@ tokenScan.get("/:mint/scan", async (c) => {
       }
     }
 
-    publish({ event: "scan:start", data: { mint, symbol: null } });
+    void publish({ event: "scan:start", data: { mint, symbol: null } });
 
     const generator = scanToken({
       mint,
@@ -67,7 +67,7 @@ tokenScan.get("/:mint/scan", async (c) => {
     if (final) {
       try {
         await persistScan(db, final);
-        publish({
+        void publish({
           event: "scan:complete",
           data: {
             id: null,

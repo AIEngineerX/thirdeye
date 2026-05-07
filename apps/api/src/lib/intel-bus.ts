@@ -1,7 +1,13 @@
-// Process-local pub/sub for intel feed events. Producers (scan/check route
-// handlers) publish on write; consumers (the intel/feed SSE handler)
-// subscribe and forward to connected clients. Multi-process variants would
-// swap this for Postgres LISTEN/NOTIFY — see Phase 4 design doc.
+// Postgres LISTEN/NOTIFY-backed pub/sub for intel feed events. Producers
+// (route handlers + worker tasks) publish events that get notified across
+// processes via Postgres. Consumers (the intel/feed SSE handler) subscribe
+// in-process; a single LISTEN connection per process dispatches incoming
+// notifications to all local handlers.
+//
+// Phase 6.0 migration from process-local Set<Handler>. See
+// docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md §3.
+
+import type postgres from "postgres";
 
 export type IntelEvent =
   | { event: "scan:start"; data: { mint: string; symbol: string | null } }
@@ -22,10 +28,6 @@ export type IntelEvent =
     }
   | { event: "tag:applied"; data: { address: string; tag: string } }
   | {
-      // Phase 5e: pushed by /api/helius-webhook ingest. One event per Helius
-      // payload entry. Filtering by address is currently client-side; a
-      // ?watch=addr1,addr2 server-side filter on /api/db/intel/feed is a
-      // documented v1.1 enhancement.
       event: "watch:event";
       data: {
         address: string;
@@ -39,23 +41,44 @@ export type IntelEvent =
 
 type Handler = (evt: IntelEvent) => void;
 
+// Postgres NOTIFY payload limit is 8000 bytes (Postgres docs §SQL-NOTIFY).
+// We use a slightly conservative budget to leave room for JSON quoting.
+const MAX_NOTIFY_BYTES = 7800;
+
+const CHANNEL = "intel_bus";
+
+// Wire format on the bus channel: either the full event inline, or a
+// {event, ref} pointer to a row in intel_events for oversized payloads.
+type WireEvent =
+  | { event: IntelEvent["event"]; data: IntelEvent["data"] }
+  | { event: IntelEvent["event"]; ref: number };
+
+let sqlRef: postgres.Sql | null = null;
+let listenInitialized = false;
 const handlers = new Set<Handler>();
 
-export function publish(evt: IntelEvent): void {
-  for (const h of handlers) {
-    try {
-      h(evt);
-    } catch (e) {
-      console.error("[intel-bus] handler threw", e);
-    }
-  }
+export async function initIntelBus(_sql: postgres.Sql): Promise<void> {
+  throw new Error("initIntelBus not implemented yet");
+}
+
+export async function publish(_evt: IntelEvent): Promise<void> {
+  throw new Error("publish not implemented yet");
 }
 
 export function subscribe(handler: Handler): () => void {
   handlers.add(handler);
-  return () => handlers.delete(handler);
+  return () => {
+    handlers.delete(handler);
+  };
 }
 
 export function subscriberCount(): number {
   return handlers.size;
+}
+
+// Test-only helper to reset bus state between tests.
+export function _resetIntelBus(): void {
+  handlers.clear();
+  listenInitialized = false;
+  sqlRef = null;
 }
