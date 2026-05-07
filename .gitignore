@@ -48,3 +48,7 @@ coverage/
 
 # Helius diagnostic scripts (one-shot, not for commit)
 scripts/diagnose-*.ts
+
+# Local research / session artifacts
+.playwright-mcp/
+redacted-reference.png
