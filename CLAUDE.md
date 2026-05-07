@@ -19,6 +19,10 @@ The design spec is the source of truth for architecture, data model, API contrac
 
 Re-read it before any architectural decision. If implementation diverges from spec, either update the spec or change the implementation — never let them silently drift.
 
+## Spec review workflow
+
+Before merging any new spec under `docs/superpowers/specs/`, run `/review-spec` (defaults to the most recent spec) or `/review-spec <path>`. The command dispatches five parallel adversarial reviewers (architecture fit, code-vs-spec drift, cost/feasibility, scope skeptic, frontend taste) and writes a synthesized report to `docs/superpowers/reviews/`. Reviewer definitions live under `.claude/agents/spec-*.md`; the orchestrator at `.claude/commands/review-spec.md`.
+
 ## Stack
 
 | Layer | Choice |
