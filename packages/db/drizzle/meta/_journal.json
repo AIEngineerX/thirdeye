@@ -15,6 +15,13 @@
       "when": 1778093547097,
       "tag": "0001_smart_money_pnl",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778114109794,
+      "tag": "0002_helius_webhooks",
+      "breakpoints": true
     }
   ]
 }

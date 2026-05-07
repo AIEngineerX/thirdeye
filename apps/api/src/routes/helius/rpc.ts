@@ -4,7 +4,11 @@ import { executeProxy, respondError } from "./_lib";
 
 export const rpc = new Hono();
 
-rpc.post("/api/helius-rpc", async (c) => {
+// Path is "/" because the parent mounts this router at "/api/helius-rpc".
+// Mounting the wrapper at "/" with `use("*", requireAuth)` previously
+// leaked the auth middleware to every other route — fixed by binding to
+// the specific prefix.
+rpc.post("/", async (c) => {
   const body: unknown = await c.req.json().catch(() => null);
   if (body === null) return respondError(c, ProxyError.invalidRpcBody("body must be valid JSON"));
 

@@ -16,9 +16,11 @@ import {
   transactions,
   transactionsBySig,
 } from "./routes/helius";
+import { heliusWebhook } from "./routes/helius-webhook";
 import { intelAggregatesRoutes, intelFeed, intelFundersRoutes } from "./routes/intel";
 import { tokenScan } from "./routes/token";
 import { walletCheck } from "./routes/wallet";
+import { watchesRoutes } from "./routes/watches";
 import { startWorker } from "./workers/runner";
 
 const { db } = createDb(env.DATABASE_URL);
@@ -91,7 +93,10 @@ const heliusRpcRouter = new Hono<{ Variables: Variables }>();
 heliusRpcRouter.use("*", requireAuth);
 heliusRpcRouter.use("*", heliusProxyLimit);
 heliusRpcRouter.route("/", heliusRpc);
-app.route("/", heliusRpcRouter);
+// Mount at the specific prefix; mounting at "/" caused use("*") on this
+// router to leak requireAuth onto every route in the app (including
+// public endpoints like /api/helius-webhook).
+app.route("/api/helius-rpc", heliusRpcRouter);
 
 const walletCheckLimit = rateLimit({
   name: "wallet_check",
@@ -126,6 +131,16 @@ intelReadRouter.use("*", requireAuth);
 intelReadRouter.route("/", intelAggregatesRoutes);
 intelReadRouter.route("/", intelFundersRoutes);
 app.route("/api/db/intel", intelReadRouter);
+
+// Phase 5e — watches CRUD (auth-protected) + public webhook ingest. The
+// ingest endpoint validates Helius's auth header itself; it must NOT be
+// behind requireAuth because Helius doesn't have an X-Auth-Token.
+const watchesRouter = new Hono<{ Variables: Variables }>();
+watchesRouter.use("*", requireAuth);
+watchesRouter.route("/", watchesRoutes);
+app.route("/api/db/watches", watchesRouter);
+
+app.route("/api/helius-webhook", heliusWebhook);
 
 const intelFeedRouter = new Hono<{ Variables: Variables }>();
 intelFeedRouter.route("/", intelFeed);
