@@ -1,11 +1,14 @@
 import type { DbClient } from "@thirdeye/db";
 import { type Runner, run } from "graphile-worker";
+import type { Sql } from "postgres";
+import { initIntelBus } from "../lib/intel-bus";
 import { enrichWallet } from "./enrich-wallet";
 import { refreshAggregates } from "./refresh-aggregates";
 
 export interface RunnerOptions {
   connectionString: string;
   db: DbClient;
+  sql: Sql;
   serverHeliusKey: string | undefined;
   smartMoneyMinSol: number;
 }
@@ -22,6 +25,11 @@ const CRONTAB = `
 `.trim();
 
 export async function startWorker(opts: RunnerOptions): Promise<Runner> {
+  // Phase 6.0: worker process needs its own LISTEN connection so it can
+  // receive events published from the API process and so its own publishes
+  // round-trip through Postgres correctly.
+  await initIntelBus(opts.sql);
+
   return run({
     connectionString: opts.connectionString,
     concurrency: 4,
