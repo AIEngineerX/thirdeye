@@ -156,6 +156,37 @@ Every `/api/helius/*` and `/api/helius-rpc` response carries `X-ThirdEye-Cache: 
 
 `/api/db/intel/feed` event kinds emitted today: `token:scan`, `wallet:check`, `watch:event`. Phase 6 adds `watch:anomaly`, `discovery:new_candidate`, `discovery:rescored`, `agent:run_started`, `agent:run_finished`.
 
+## Operations
+
+### Rollback
+
+The codebase commits atomically (one phase = one or more discrete commits with passing tests on each). To roll back:
+
+**Code:** `git revert <sha>` for the offending commit, or `git revert <oldest>..<newest>` for a range. Push, redeploy.
+
+**Schema:** Drizzle generates forward-only migrations. To roll back a phase's schema, run the inverse SQL manually:
+
+| Phase | Forward (in `packages/db/drizzle/`) | Manual reverse |
+|---|---|---|
+| 6.0 | `0003_intel_events.sql` | `DROP TABLE intel_events;` |
+| 5e | `0002_helius_webhooks.sql` | `DROP TABLE helius_webhooks; DROP TABLE watch_events; DROP TABLE watches;` |
+| 5d | `0001_smart_money_pnl.sql` | `ALTER TABLE wallets DROP COLUMN realized_pnl_sol;` |
+| 0–4 | `0000_clever_justin_hammer.sql` | drop the schema and re-bootstrap |
+
+After manual SQL, also delete the corresponding row from `drizzle.__drizzle_migrations` so a future `bun run migrate` doesn't think the migration is still applied.
+
+**Container:** `docker compose down && git checkout <good-sha> && docker compose up -d --build`. Postgres data persists in the named volume.
+
+**Health check:** `curl http://localhost:3001/health` returns `{"ok":true,"db":"ok"}` when the API can reach Postgres. Add this to your container orchestrator's liveness probe.
+
+### Monitoring (current state)
+
+- `/health` endpoint with DB ping (200/503)
+- HTTP request logging via `hono/logger` middleware (stdout)
+- `X-ThirdEye-Cache` and `X-ThirdEye-Proxy-Duration-Ms` response headers on all proxy routes
+
+Not yet shipped (gaps you should fill before public-instance traffic): structured JSON logging (pino), Prometheus/OTEL metrics, external alerting on `/health` failures and on rate-limit-bypass anomalies. The CLAUDE.md design doc flags pino as a v2 enhancement.
+
 ## Contributing
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md). TL;DR: `bun install && docker compose up -d postgres && bun run migrate && bun test`. Linter, typechecker, and full test suite must be green before opening a PR.
