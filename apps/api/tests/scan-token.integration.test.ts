@@ -20,6 +20,9 @@ let token: string;
 
 beforeAll(async () => {
   testDb = await setupTestDb();
+  // Helius LRU cache shared across tests in this file — clearing per-test
+  // burns free-tier rate limits in CI. Each test still gets fresh DB state.
+  cache.clear();
   if (!HAVE_KEY) {
     console.log("[skip] HELIUS_API_KEY not set — scan token integration tests skipped");
   }
@@ -33,7 +36,6 @@ beforeEach(async () => {
   await testDb.sql.unsafe(
     "TRUNCATE auth_tokens, wallet_checks, wallets, token_scans, funders RESTART IDENTITY CASCADE;",
   );
-  cache.clear();
   const t = generateToken();
   await testDb.db.insert(authTokens).values({ token: t.token, expiresAt: t.expiresAt });
   token = t.token;
