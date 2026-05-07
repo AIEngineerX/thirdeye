@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { env } from "./env";
+import { initIntelBus } from "./lib/intel-bus";
 import { requireAuth } from "./middleware/auth";
 import { rateLimit } from "./middleware/rate-limit";
 import { authRoutes } from "./routes/auth";
@@ -21,7 +22,6 @@ import { intelAggregatesRoutes, intelFeed, intelFundersRoutes } from "./routes/i
 import { tokenScan } from "./routes/token";
 import { walletCheck } from "./routes/wallet";
 import { watchesRoutes } from "./routes/watches";
-import { initIntelBus } from "./lib/intel-bus";
 import { startWorker } from "./workers/runner";
 
 const { db, sql: pgSql } = createDb(env.DATABASE_URL);
