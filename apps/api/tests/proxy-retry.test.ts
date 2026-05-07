@@ -144,7 +144,7 @@ describe("proxyToHelius retry / error paths (real local server)", () => {
     expect((r.body as { ok: boolean }).ok).toBe(true);
   }, 10_000);
 
-  test("429 every time → returns mapped 429 error after one retry", async () => {
+  test("429 every time → returns mapped 429 error after retries exhausted", async () => {
     reset();
     const r = await proxyToHelius({
       target: { kind: "rest", path: "/always-429" },
@@ -153,10 +153,11 @@ describe("proxyToHelius retry / error paths (real local server)", () => {
       serverKey: "test-key",
     });
     expect(r.status).toBe(429);
-    expect(count429).toBe(2);
+    // 1 initial + 2 retries = 3 attempts (RETRY_429_MAX_ATTEMPTS=2)
+    expect(count429).toBe(3);
     const body = r.body as { error: string };
     expect(body.error).toBe("upstream_429");
-  }, 10_000);
+  }, 15_000);
 
   test("upstream 500 → mapped to ThirdEye 502", async () => {
     reset();

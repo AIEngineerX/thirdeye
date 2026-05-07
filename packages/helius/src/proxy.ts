@@ -30,6 +30,11 @@ export interface ProxyResult {
 const DEFAULT_TIMEOUT_MS = 10_000;
 const RETRY_429_DEFAULT_MS = 1000;
 const RETRY_429_MAX_MS = 5000;
+// Two retries on 429 instead of one. Free-tier Helius and bursty
+// concurrent-scan workloads (per-scan semaphore = 10) blow through a
+// single retry's budget; the extra attempt with 2x backoff catches the
+// common case of a rolling-window cooldown that needs >5s to clear.
+const RETRY_429_MAX_ATTEMPTS = 2;
 
 export function parseRetryAfterMs(headerVal: string | null): number {
   if (headerVal === null) return RETRY_429_DEFAULT_MS;
@@ -121,12 +126,18 @@ export async function proxyToHelius(opts: ProxyOptions): Promise<ProxyResult> {
   };
   if (fetchBody !== null) init.body = fetchBody;
 
-  // First attempt; on 429 honor Retry-After once before giving up. Helius
-  // returns 429 in bursts (rolling window) more easily than a per-second
-  // cap suggests; one retry catches the common case without compounding.
+  // On 429, retry up to RETRY_429_MAX_ATTEMPTS more times. Each retry
+  // honors Retry-After when present, otherwise applies an exponential
+  // backoff (1s → 2s, capped). Helius's rolling-window quota typically
+  // clears within seconds, but bursty parallel-scan workloads
+  // (per-scan semaphore = 10) regularly need more than a single 5s
+  // retry to clear.
   let attempt = await attemptFetch(url, init, opts.timeoutMs);
-  if (attempt.kind === "result" && attempt.res.status === 429) {
-    const waitMs = parseRetryAfterMs(attempt.res.headers.get("retry-after"));
+  for (let i = 0; i < RETRY_429_MAX_ATTEMPTS; i++) {
+    if (attempt.kind !== "result" || attempt.res.status !== 429) break;
+    const headerWait = parseRetryAfterMs(attempt.res.headers.get("retry-after"));
+    const expBackoff = Math.min(RETRY_429_DEFAULT_MS * 2 ** i, RETRY_429_MAX_MS);
+    const waitMs = Math.max(headerWait, expBackoff);
     await new Promise((r) => setTimeout(r, waitMs));
     attempt = await attemptFetch(url, init, opts.timeoutMs);
   }

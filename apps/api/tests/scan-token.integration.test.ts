@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { authTokens } from "@thirdeye/db";
-import { cache } from "@thirdeye/helius";
 import { app } from "../src/index";
 import { generateToken } from "../src/lib/tokens";
 import { type TestDb, setupTestDb } from "./setup";
@@ -20,9 +19,11 @@ let token: string;
 
 beforeAll(async () => {
   testDb = await setupTestDb();
-  // Helius LRU cache shared across tests in this file — clearing per-test
-  // burns free-tier rate limits in CI. Each test still gets fresh DB state.
-  cache.clear();
+  // Don't clear the Helius LRU cache — `bun test` runs every integration
+  // file in the same process, so a warm cache from earlier files (e.g.
+  // wallet-check) saves real Helius calls here. Free-tier rate limits in CI
+  // are tight enough that any per-file clear risks 429s. Tests still get
+  // fresh DB state via the beforeEach TRUNCATE.
   if (!HAVE_KEY) {
     console.log("[skip] HELIUS_API_KEY not set — scan token integration tests skipped");
   }
