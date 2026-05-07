@@ -65,11 +65,11 @@ app.get("/health", async (c) => {
 });
 app.route("/api/db", authRoutes); // /auth is unauthenticated by design (it issues tokens)
 
-const protectedDb = new Hono<{ Variables: Variables }>();
-protectedDb.use("*", requireAuth);
-protectedDb.get("/protected-probe", (c) => c.json({ ok: true }));
-
-app.route("/api/db", protectedDb);
+// Test-only probe used by middleware-auth tests. Per-route auth (NOT
+// `use("*", requireAuth)` on a sub-router mounted at /api/db) — a wildcard
+// at this level leaks onto every /api/db/* route including the SSE feed
+// and watches CRUD which have their own auth model.
+app.get("/api/db/protected-probe", requireAuth, (c) => c.json({ ok: true }));
 
 const heliusProxyLimit = rateLimit({
   name: "helius_proxy",
@@ -124,13 +124,12 @@ tokenRouter.use("*", scanTokenLimit);
 tokenRouter.route("/", tokenScan);
 app.route("/api/token", tokenRouter);
 
-// Intel module — read aggregates + funders require auth; SSE feed handles
-// its own query-param token check (EventSource can't send headers).
-const intelReadRouter = new Hono<{ Variables: Variables }>();
-intelReadRouter.use("*", requireAuth);
-intelReadRouter.route("/", intelAggregatesRoutes);
-intelReadRouter.route("/", intelFundersRoutes);
-app.route("/api/db/intel", intelReadRouter);
+// Intel module — read aggregates + funders apply requireAuth per-route
+// (NOT via use("*")) because SSE feed lives at the same /api/db/intel
+// prefix. A wildcard middleware would leak across sub-routers and
+// intercept /feed before its query-param token check could run.
+app.route("/api/db/intel", intelAggregatesRoutes);
+app.route("/api/db/intel", intelFundersRoutes);
 
 // Phase 5e — watches CRUD (auth-protected) + public webhook ingest. The
 // ingest endpoint validates Helius's auth header itself; it must NOT be

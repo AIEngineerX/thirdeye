@@ -1,10 +1,14 @@
 import { type DbClient, intelAggregates, tokenScans, walletChecks } from "@thirdeye/db";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { requireAuth } from "../../middleware/auth";
 import { AGGREGATE_KEYS } from "../../workers/refresh-aggregates";
 
 type Variables = { db: DbClient };
 
+// Auth attaches per-route (not via use("*")). When multiple sub-routers share
+// a prefix (here /api/db/intel with feed.ts), wildcard middleware leaks across
+// them. Per-route attachment prevents that.
 export const intelAggregatesRoutes = new Hono<{ Variables: Variables }>();
 
 interface AggRow {
@@ -17,7 +21,7 @@ function toIso(t: Date | string): string {
   return t instanceof Date ? t.toISOString() : new Date(t).toISOString();
 }
 
-intelAggregatesRoutes.get("/aggregates", async (c) => {
+intelAggregatesRoutes.get("/aggregates", requireAuth, async (c) => {
   const db = c.get("db");
   const rows = (await db.select().from(intelAggregates)) as unknown as AggRow[];
   const out: Record<string, Record<string, unknown> | undefined> = {};
@@ -34,7 +38,7 @@ intelAggregatesRoutes.get("/aggregates", async (c) => {
   return c.json(out);
 });
 
-intelAggregatesRoutes.get("/recent/scans", async (c) => {
+intelAggregatesRoutes.get("/recent/scans", requireAuth, async (c) => {
   const limit = clampInt(c.req.query("limit"), 20, 1, 100);
   const offset = clampInt(c.req.query("offset"), 0, 0, 1000);
   const db = c.get("db");
@@ -56,7 +60,7 @@ intelAggregatesRoutes.get("/recent/scans", async (c) => {
   return c.json({ items: rows, limit, offset });
 });
 
-intelAggregatesRoutes.get("/recent/checks", async (c) => {
+intelAggregatesRoutes.get("/recent/checks", requireAuth, async (c) => {
   const limit = clampInt(c.req.query("limit"), 20, 1, 100);
   const offset = clampInt(c.req.query("offset"), 0, 0, 1000);
   const db = c.get("db");
