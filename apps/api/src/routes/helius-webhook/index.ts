@@ -74,7 +74,7 @@ heliusWebhook.post("/", async (c) => {
           type: evt.type ?? null,
           payload: evt as unknown as Record<string, unknown>,
         });
-        void publish({
+        await publish({
           event: "watch:event",
           data: {
             address,
