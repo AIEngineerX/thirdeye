@@ -69,14 +69,25 @@ export async function initIntelBus(sql: postgres.Sql): Promise<void> {
       console.error("[intel-bus] malformed payload, dropping", e);
       return;
     }
+
     let evt: IntelEvent;
     if ("ref" in wire) {
-      // Overflow path implemented in Task 6.
-      console.error("[intel-bus] overflow ref received before overflow path implemented");
-      return;
+      const rows = await sql<{ payload: IntelEvent["data"] }[]>`
+        SELECT payload FROM intel_events WHERE id = ${wire.ref}
+      `;
+      if (rows.length === 0) {
+        console.error(`[intel-bus] ref ${wire.ref} not found, dropping`);
+        return;
+      }
+      // Delete after read so the table doesn't grow unboundedly. Best-effort:
+      // a crashed subscriber leaves the row; a periodic sweep is unnecessary
+      // because rows live milliseconds in the happy path.
+      await sql`DELETE FROM intel_events WHERE id = ${wire.ref}`;
+      evt = { event: wire.event, data: rows[0]!.payload } as IntelEvent;
     } else {
       evt = wire as IntelEvent;
     }
+
     for (const h of handlers) {
       try {
         h(evt);
@@ -90,13 +101,23 @@ export async function initIntelBus(sql: postgres.Sql): Promise<void> {
 
 export async function publish(evt: IntelEvent): Promise<void> {
   if (!sqlRef) throw new Error("intel-bus not initialized — call initIntelBus(sql) first");
-  const wire: WireEvent = { event: evt.event, data: evt.data };
-  const json = JSON.stringify(wire);
-  if (Buffer.byteLength(json, "utf8") > MAX_NOTIFY_BYTES) {
-    // Overflow path implemented in Task 6.
-    throw new Error("payload exceeds NOTIFY limit; overflow path not yet implemented");
+  const wireInline: WireEvent = { event: evt.event, data: evt.data };
+  const json = JSON.stringify(wireInline);
+  if (Buffer.byteLength(json, "utf8") <= MAX_NOTIFY_BYTES) {
+    await sqlRef.notify(CHANNEL, json);
+    return;
   }
-  await sqlRef.notify(CHANNEL, json);
+  // Overflow: persist payload, notify with reference id.
+  // Use explicit cast to jsonb so postgres.js does not attempt binary binding.
+  const payloadJson = JSON.stringify(evt.data);
+  const rows = await sqlRef<{ id: number }[]>`
+    INSERT INTO intel_events (kind, payload)
+    VALUES (${evt.event}, ${payloadJson}::jsonb)
+    RETURNING id
+  `;
+  const id = rows[0]!.id;
+  const wireRef: WireEvent = { event: evt.event, ref: id };
+  await sqlRef.notify(CHANNEL, JSON.stringify(wireRef));
 }
 
 export function subscribe(handler: Handler): () => void {
