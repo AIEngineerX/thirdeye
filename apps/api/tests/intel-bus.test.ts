@@ -7,7 +7,7 @@ import {
   subscribe,
   subscriberCount,
 } from "../src/lib/intel-bus";
-import { type TestDb, setupTestDb } from "./setup";
+import { type TestDb, setupTestDb, waitFor } from "./setup";
 
 let testDb: TestDb;
 
@@ -27,17 +27,6 @@ beforeEach(async () => {
 afterEach(async () => {
   await _resetIntelBus();
 });
-
-// Helper: wait until predicate is true or timeout. LISTEN delivery is
-// asynchronous (Postgres round-trip), so tests must poll briefly.
-async function waitFor(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (predicate()) return;
-    await new Promise((r) => setTimeout(r, 10));
-  }
-  throw new Error("waitFor: predicate never satisfied within timeout");
-}
 
 describe("intel-bus", () => {
   test("publish delivers to local subscribers", async () => {

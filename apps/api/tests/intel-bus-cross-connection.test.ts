@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import postgres, { type Sql } from "postgres";
 import { type IntelEvent, _resetIntelBus, initIntelBus, subscribe } from "../src/lib/intel-bus";
+import { waitFor } from "./setup";
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -23,15 +24,6 @@ afterAll(async () => {
   await sqlPublisher.end();
   await sqlListener.end();
 });
-
-async function waitFor(predicate: () => boolean, timeoutMs = 2000): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (predicate()) return;
-    await new Promise((r) => setTimeout(r, 20));
-  }
-  throw new Error("waitFor: predicate never satisfied");
-}
 
 describe.skipIf(!url)("intel-bus cross-connection delivery", () => {
   test("event published on one connection is received on another", async () => {

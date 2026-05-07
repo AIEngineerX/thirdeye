@@ -8,7 +8,7 @@ import {
   publish,
   subscribe,
 } from "../src/lib/intel-bus";
-import { type TestDb, setupTestDb } from "./setup";
+import { type TestDb, setupTestDb, waitFor } from "./setup";
 
 let testDb: TestDb;
 
@@ -28,15 +28,6 @@ beforeEach(async () => {
 afterEach(async () => {
   await _resetIntelBus();
 });
-
-async function waitFor(predicate: () => boolean, timeoutMs = 1500): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (predicate()) return;
-    await new Promise((r) => setTimeout(r, 10));
-  }
-  throw new Error("waitFor: predicate never satisfied");
-}
 
 describe("intel-bus overflow path", () => {
   test("payload exceeding NOTIFY limit goes through intel_events table", async () => {
