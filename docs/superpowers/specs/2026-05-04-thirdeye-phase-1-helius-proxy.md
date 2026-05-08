@@ -2,7 +2,7 @@
 
 **Status:** approved 2026-05-04 · **Author:** brainstorming with user · **Parent spec:** [`2026-05-01-thirdeye-design.md`](./2026-05-01-thirdeye-design.md)
 
-This document is the design output for Phase 1 of ThirdEye. It is the source of truth for the implementation plan that follows in `docs/superpowers/plans/2026-05-04-thirdeye-phase-1-helius-proxy.md`. Where this document and the parent spec disagree, **this document wins for Phase 1 scope** and the parent spec is amended in the same commit.
+This document is the design output for Phase 1 of ThirdEye and the source of truth for its implementation. Where this document and the parent spec disagree, **this document wins for Phase 1 scope** and the parent spec is amended in the same commit.
 
 ## 1. Goal
 

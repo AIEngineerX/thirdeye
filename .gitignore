@@ -52,3 +52,18 @@ scripts/diagnose-*.ts
 # Local research / session artifacts
 .playwright-mcp/
 redacted-reference.png
+
+# Claude Code workspace — agent definitions, slash-command orchestrators,
+# settings. Useful for the maintainer locally; noise for OSS contributors.
+.claude/
+
+# Claude project-instructions file — kept local because it carries
+# machine-specific paths and identity hints. Public conventions live in
+# CONTRIBUTING.md.
+CLAUDE.md
+
+# Internal tactical execution plans + competitor research scrapes. Kept
+# local for replay; not part of the public design surface (specs are).
+docs/superpowers/plans/
+docs/superpowers/research/
+docs/superpowers/reviews/
