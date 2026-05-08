@@ -31,7 +31,9 @@ Every wallet has a *first funder* — the wallet that first sent it SOL. Group t
 | **5c** | Cross-token bundler view — `/api/db/intel/funders/top-clustered` and `/funders/:addr/clusters` | shipped |
 | **5d** | `SMART_MONEY` tag — realized SOL PnL across recent SWAPs, threshold-gated, `wallets.realized_pnl_sol` | shipped |
 | **5e** | Helius webhook subscription — `watches` CRUD, `watch_events`, single managed Helius webhook synced from local watch set | shipped |
-| **6** | Personal alpha terminal: Next.js 16 dashboard + agent brain (discovery loop, anomaly detector, cluster expander) | next — see [phase 6 spec](docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md) |
+| **6.0** | intel-bus migration — Postgres `LISTEN/NOTIFY` with overflow table for >7800-byte payloads (cross-process worker → API events) | shipped |
+| **6a** | Tokens cache + `@thirdeye/prices` package + DexScreener `PriceSource` + `tokens-refresh` worker (60s cron) + `/api/db/tokens/hot` and `/:mint` | shipped |
+| **6** | Personal alpha terminal: Next.js 16 dashboard + agent brain (discovery loop, anomaly detector, cluster expander) — sub-phases 6b–6k remain | in progress — see [phase 6 spec](docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md) |
 | 7+ | TG ingest, LaserStream migration, behavior embeddings, CLI surface, multi-provider Helius abstraction | deferred |
 
 Per-phase plans live under [`docs/superpowers/plans/`](docs/superpowers/plans). The canonical design spec is [`docs/superpowers/specs/2026-05-01-thirdeye-design.md`](docs/superpowers/specs/2026-05-01-thirdeye-design.md). Phase 5 alpha-extraction design is at [`docs/superpowers/specs/2026-05-06-thirdeye-phase-5-alpha-design.md`](docs/superpowers/specs/2026-05-06-thirdeye-phase-5-alpha-design.md).
@@ -147,6 +149,15 @@ Two services, one Postgres. No Redis, no message broker, no separate cache serve
 | `DELETE` | `/api/db/watches/:address` | unsubscribe + sync removal to Helius |
 | `GET` | `/api/db/watches/:address/events` | recent events for an address (`?limit=50`) |
 | `POST` | `/api/helius-webhook` | **public** ingest — Helius calls this; auth-header validated against `HELIUS_WEBHOOK_AUTH` |
+
+### Tokens (Phase 6a)
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/api/db/tokens/hot` | filter the price cache; query: `since=6h` (`Nm`/`Nh`/`Nd`), `minMcChange=5x` (or plain percent), `limit=20` |
+| `GET` | `/api/db/tokens/:mint` | single mint lookup, 404 if not in cache |
+
+Backed by the `tokens` table — every scan auto-seeds the row, and the `tokens-refresh` worker hits DexScreener every 60s to keep price/MC/liquidity fresh. Source plumbed via the `PriceSource` interface in `@thirdeye/prices` (Birdeye/Jupiter as documented escape hatches).
 
 Every `/api/helius/*` and `/api/helius-rpc` response carries `X-ThirdEye-Cache: HIT|MISS` and `X-ThirdEye-Proxy-Duration-Ms: <n>` for client-side observability.
 
