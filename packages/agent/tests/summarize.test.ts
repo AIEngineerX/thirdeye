@@ -5,7 +5,12 @@ import { summarizeWalletForLLM } from "../src/summarize";
 const FIXTURE: WalletCheckResult = {
   address: "VJSDW6S74YXR4rRR9P4xwhMvLZJQMhrUb8XMFirUsy1",
   mode: "shared",
-  identity: { address: "VJSDW6S74YXR4rRR9P4xwhMvLZJQMhrUb8XMFirUsy1", name: null, type: null, category: null },
+  identity: {
+    address: "VJSDW6S74YXR4rRR9P4xwhMvLZJQMhrUb8XMFirUsy1",
+    name: null,
+    type: null,
+    category: null,
+  },
   balances: {
     solBalance: 12.4,
     usdValue: 1840.5,

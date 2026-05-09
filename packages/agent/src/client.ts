@@ -48,16 +48,12 @@ export async function callModel(opts: CallModelOptions): Promise<CallModelResult
   const message = await client.messages.create({
     model: opts.model,
     max_tokens: opts.maxTokens,
-    system: [
-      { type: "text", text: opts.systemPrompt, cache_control: { type: "ephemeral" } },
-    ],
+    system: [{ type: "text", text: opts.systemPrompt, cache_control: { type: "ephemeral" } }],
     tools: sdkTools,
     messages: opts.messages,
   });
 
-  const toolUses = message.content.filter(
-    (b): b is ToolUseBlock => b.type === "tool_use",
-  );
+  const toolUses = message.content.filter((b): b is ToolUseBlock => b.type === "tool_use");
   const text = message.content
     .filter((b): b is TextBlock => b.type === "text")
     .map((b) => b.text)
