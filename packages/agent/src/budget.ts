@@ -54,12 +54,17 @@ export async function acquireBudget(opts: AcquireBudgetOptions): Promise<Acquire
       return { runId: row.id, admitted: false };
     }
 
+    // Reserve the estimated cost on the running row. Without this, a
+    // concurrent acquire that wins the lock after this commit would see
+    // the running row's default cost_usd=0 and miscount available budget.
+    // finalizeBudget overwrites with the actual post-run cost.
     const inserted = await tx
       .insert(agentRuns)
       .values({
         kind: opts.kind,
         status: "running",
         model: opts.model,
+        costUsd: String(opts.estimatedCostUsd),
         metadata: opts.metadata ?? {},
       })
       .returning({ id: agentRuns.id });
