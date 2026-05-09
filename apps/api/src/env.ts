@@ -31,6 +31,14 @@ export const env = {
   SCAN_TOKEN_WINDOW_SEC: Number(optional("SCAN_TOKEN_WINDOW_SEC", "3600")),
   SCAN_TOKEN_CACHE_SEC: Number(optional("SCAN_TOKEN_CACHE_SEC", "300")),
   SMART_MONEY_MIN_SOL: Number(optional("SMART_MONEY_MIN_SOL", "50")),
+
+  // Phase 6b — agent engine
+  ANTHROPIC_API_KEY: optionalUndef("ANTHROPIC_API_KEY"),
+  AGENT_DAILY_COST_USD_CAP: Number(optional("AGENT_DAILY_COST_USD_CAP", "25")),
+  AGENT_MAX_TOOL_CALLS_PER_RUN: Number(optional("AGENT_MAX_TOOL_CALLS_PER_RUN", "20")),
+  AGENT_MAX_INPUT_TOKENS_PER_RUN: Number(optional("AGENT_MAX_INPUT_TOKENS_PER_RUN", "200000")),
+  AGENT_CHEAP_MODEL: optionalUndef("AGENT_CHEAP_MODEL"),
+  AGENT_REASONING_MODEL: optionalUndef("AGENT_REASONING_MODEL"),
 } as const;
 
 // Read fresh so secrets can be hot-rotated without restart.
