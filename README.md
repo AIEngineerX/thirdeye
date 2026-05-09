@@ -33,7 +33,8 @@ Every wallet has a *first funder* — the wallet that first sent it SOL. Group t
 | **5e** | Helius webhook subscription — `watches` CRUD, `watch_events`, single managed Helius webhook synced from local watch set | shipped |
 | **6.0** | intel-bus migration — Postgres `LISTEN/NOTIFY` with overflow table for >7800-byte payloads (cross-process worker → API events) | shipped |
 | **6a** | Tokens cache + `@thirdeye/prices` package + DexScreener `PriceSource` + `tokens-refresh` worker (60s cron) + `/api/db/tokens/hot` and `/:mint` | shipped |
-| **6** | Personal alpha terminal: Next.js 16 dashboard + agent brain (discovery loop, anomaly detector, cluster expander) — sub-phases 6b–6k remain | in progress — see [phase 6 spec](docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md) |
+| **6b** | `@thirdeye/agent` package — Anthropic SDK + tool-use loop + prompt caching + per-run/daily cost caps (advisory-lock budget gate) + `agent_runs` audit table + replay test harness | shipped |
+| **6** | Personal alpha terminal: Next.js 16 dashboard + agent brain (discovery loop, anomaly detector, cluster expander) — sub-phases 6c–6k remain | in progress — see [phase 6 spec](docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md) |
 | 7+ | TG ingest, LaserStream migration, behavior embeddings, CLI surface, multi-provider Helius abstraction | deferred |
 
 The canonical design spec is [`docs/superpowers/specs/2026-05-01-thirdeye-design.md`](docs/superpowers/specs/2026-05-01-thirdeye-design.md). Per-phase specs live alongside it (e.g. Phase 5 alpha-extraction at [`docs/superpowers/specs/2026-05-06-thirdeye-phase-5-alpha-design.md`](docs/superpowers/specs/2026-05-06-thirdeye-phase-5-alpha-design.md)).
@@ -179,6 +180,7 @@ The codebase commits atomically (one phase = one or more discrete commits with p
 
 | Phase | Forward (in `packages/db/drizzle/`) | Manual reverse |
 |---|---|---|
+| 6b | `0005_agent_runs.sql` | `DROP TABLE agent_runs;` |
 | 6a | `0004_tokens.sql` | `DROP TABLE tokens;` |
 | 6.0 | `0003_intel_events.sql` | `DROP TABLE intel_events;` |
 | 5e | `0002_helius_webhooks.sql` | `DROP TABLE helius_webhooks; DROP TABLE watch_events; DROP TABLE watches;` |

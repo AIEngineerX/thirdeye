@@ -190,3 +190,30 @@ export const tokens = pgTable(
     refreshedIdx: index("tokens_last_refreshed_idx").on(t.lastRefreshedAt.desc()),
   }),
 );
+
+// Phase 6b — audit trail for every agent run plus source of truth for the
+// daily-budget cap. Sum of cost_usd over today (UTC) is what the advisory
+// lock at packages/agent/src/budget.ts reads + writes inside one tx guarded
+// by pg_advisory_xact_lock(hashtext('agent_daily_budget')).
+export const agentRuns = pgTable(
+  "agent_runs",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    kind: text("kind").notNull(), // 'discovery' | 'anomaly' | 'morning_brief' | 'cluster_expand'
+    status: text("status").notNull(), // 'running' | 'success' | 'failed' | 'skipped_budget' | 'capped'
+    model: text("model").notNull(),
+    toolCallsMade: integer("tool_calls_made").notNull().default(0),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
+    costUsd: numeric("cost_usd").notNull().default("0"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    errorMessage: text("error_message"),
+    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
+  },
+  (t) => ({
+    startedAtIdx: index("agent_runs_started_at_idx").on(t.startedAt.desc()),
+    kindStartedAtIdx: index("agent_runs_kind_started_at_idx").on(t.kind, t.startedAt.desc()),
+  }),
+);
