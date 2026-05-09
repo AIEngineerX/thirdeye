@@ -1,0 +1,84 @@
+{
+  "turns": [
+    {
+      "expectedToolUseNames": ["getHotTokens"],
+      "result": {
+        "message": {
+          "id": "msg_replay_001",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-haiku-4-5-20251001",
+          "content": [
+            { "type": "text", "text": "Looking up hot tokens.", "citations": null },
+            {
+              "type": "tool_use",
+              "id": "toolu_001",
+              "name": "getHotTokens",
+              "input": { "limit": 5 },
+              "caller": { "type": "direct" }
+            }
+          ],
+          "stop_reason": "tool_use",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 1200,
+            "output_tokens": 80,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0
+          }
+        },
+        "toolUses": [
+          {
+            "type": "tool_use",
+            "id": "toolu_001",
+            "name": "getHotTokens",
+            "input": { "limit": 5 },
+            "caller": { "type": "direct" }
+          }
+        ],
+        "text": "Looking up hot tokens.",
+        "usage": {
+          "inputTokens": 1200,
+          "outputTokens": 80,
+          "cacheReadTokens": 0,
+          "cacheCreationTokens": 0
+        },
+        "stopReason": "tool_use"
+      }
+    },
+    {
+      "result": {
+        "message": {
+          "id": "msg_replay_002",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-haiku-4-5-20251001",
+          "content": [
+            {
+              "type": "text",
+              "text": "Top mint by 24h velocity is MintAlpha.",
+              "citations": null
+            }
+          ],
+          "stop_reason": "end_turn",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 800,
+            "output_tokens": 40,
+            "cache_read_input_tokens": 1100,
+            "cache_creation_input_tokens": 0
+          }
+        },
+        "toolUses": [],
+        "text": "Top mint by 24h velocity is MintAlpha.",
+        "usage": {
+          "inputTokens": 800,
+          "outputTokens": 40,
+          "cacheReadTokens": 1100,
+          "cacheCreationTokens": 0
+        },
+        "stopReason": "end_turn"
+      }
+    }
+  ]
+}
