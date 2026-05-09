@@ -27,12 +27,15 @@ d("acquireBudget multi-process race", () => {
   });
 
   test("two concurrent acquireBudget calls near the cap admit exactly one", async () => {
-    // Pre-load $4.99 spent today; cap is $5; each estimate is $0.05.
-    // Without the lock, both could pass the SUM check independently and
-    // both insert 'running' — the test assertion below would fail.
+    // Pre-load $4.94 spent today; cap is $5; each estimate is $0.05.
+    // Process A wins lock first → sees $4.94, $4.94+$0.05=$4.99 ≤ $5 → admits,
+    //   commits running row with cost_usd=$0.05 (the reservation).
+    // Process B wins lock next → sees $4.94+$0.05=$4.99 (A's reservation),
+    //   $4.99+$0.05=$5.04 > $5 → denies, commits skipped_budget.
+    // Without the lock OR without the reservation, both could admit.
     await conn.sql`
       INSERT INTO agent_runs (kind, status, model, cost_usd, started_at, ended_at)
-      VALUES ('discovery', 'success', 'claude-haiku-4-5-20251001', '4.99', now(), now())
+      VALUES ('discovery', 'success', 'claude-haiku-4-5-20251001', '4.94', now(), now())
     `;
 
     const childScript = path.join(import.meta.dir, "budget-child.ts");
@@ -94,7 +97,7 @@ d("acquireBudget multi-process race", () => {
   test("solo acquireBudget over cap inserts 'skipped_budget' and reports admitted=false", async () => {
     await conn.sql`
       INSERT INTO agent_runs (kind, status, model, cost_usd, started_at, ended_at)
-      VALUES ('discovery', 'success', 'claude-haiku-4-5-20251001', '24.99', now(), now())
+      VALUES ('discovery', 'success', 'claude-haiku-4-5-20251001', '24.96', now(), now())
     `;
     const { acquireBudget } = await import("../src/budget");
     const r = await acquireBudget({
