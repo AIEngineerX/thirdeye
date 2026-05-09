@@ -46,7 +46,7 @@ d("Helius routes (real Helius)", () => {
       headers: { "X-Auth-Token": token },
     });
     expect(r.status).toBe(200);
-  });
+  }, 20_000);
 
   test("GET /api/helius/v1/wallet/:addr/funded-by passes through Helius status (200 or 404)", async () => {
     // Some wallets (e.g., genesis-allocated) have no funding tx → Helius returns 404.
