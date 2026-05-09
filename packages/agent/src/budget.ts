@@ -1,4 +1,4 @@
-import { agentRuns, type DbClient } from "@thirdeye/db";
+import { type DbClient, agentRuns } from "@thirdeye/db";
 import { eq, sql } from "drizzle-orm";
 import type { LoopResult } from "./loop";
 import type { AgentRunKind } from "./types";
@@ -81,7 +81,8 @@ export async function finalizeBudget(
   await db
     .update(agentRuns)
     .set({
-      status: result.status === "success" ? "success" : result.status === "capped" ? "capped" : "failed",
+      status:
+        result.status === "success" ? "success" : result.status === "capped" ? "capped" : "failed",
       toolCallsMade: result.toolCallsMade,
       inputTokens: result.usage.inputTokens,
       outputTokens: result.usage.outputTokens,

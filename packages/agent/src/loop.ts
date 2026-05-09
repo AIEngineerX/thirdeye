@@ -2,7 +2,7 @@ import type { MessageParam, ToolResultBlockParam } from "@anthropic-ai/sdk/resou
 import { type CallModelResult, callModel } from "./client";
 import { resolveModel } from "./models";
 import { type TokenUsage, computeCost } from "./pricing";
-import { type ToolContext, getToolByName, tools as defaultTools } from "./tools";
+import { type ToolContext, tools as defaultTools, getToolByName } from "./tools";
 import type { AgentRunOptions } from "./types";
 
 export interface LoopResult {
@@ -31,7 +31,8 @@ export interface RunAgentLoopOptions extends AgentRunOptions {
 
 export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<LoopResult> {
   const apiKey = opts.anthropicKey ?? process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("no Anthropic API key (BYOK header missing and ANTHROPIC_API_KEY env unset)");
+  if (!apiKey)
+    throw new Error("no Anthropic API key (BYOK header missing and ANTHROPIC_API_KEY env unset)");
 
   const model = resolveModel(opts.modelTier);
   const tools = opts.toolsOverride ?? defaultTools;

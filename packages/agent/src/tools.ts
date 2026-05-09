@@ -1,10 +1,10 @@
 import { type DbClient, funders, tokens, wallets, watches } from "@thirdeye/db";
 import {
   HeliusError,
+  type TokenScanResult,
   type WalletCheckResult,
   checkWallet as scannerCheckWallet,
   scanToken as scannerScanToken,
-  type TokenScanResult,
 } from "@thirdeye/scanner";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
@@ -53,10 +53,7 @@ async function resolveSiblings(
   }));
 }
 
-async function resolvePriorTags(
-  db: DbClient,
-  addresses: string[],
-): Promise<Map<string, string[]>> {
+async function resolvePriorTags(db: DbClient, addresses: string[]): Promise<Map<string, string[]>> {
   if (addresses.length === 0) return new Map();
   const rows = await db
     .select({ address: wallets.address, tags: wallets.tags })

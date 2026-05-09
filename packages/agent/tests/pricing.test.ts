@@ -15,7 +15,12 @@ describe("computeCost", () => {
 
   test("Haiku 4.5: 1M input + 1M output = $1.00 + $5.00 = $6.00", () => {
     const got = computeCost(
-      { inputTokens: 1_000_000, outputTokens: 1_000_000, cacheReadTokens: 0, cacheCreationTokens: 0 },
+      {
+        inputTokens: 1_000_000,
+        outputTokens: 1_000_000,
+        cacheReadTokens: 0,
+        cacheCreationTokens: 0,
+      },
       PINNED_MODELS.cheap,
     );
     const rates = pricingFixture.rates[PINNED_MODELS.cheap];

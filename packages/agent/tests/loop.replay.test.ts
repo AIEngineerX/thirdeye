@@ -94,6 +94,7 @@ describe("runAgentLoop replay", () => {
   });
 
   test("missing API key throws before calling client", async () => {
+    // biome-ignore lint/performance/noDelete: Node coerces non-string env assignments to "undefined" string. delete is the only way to actually unset.
     delete process.env.ANTHROPIC_API_KEY;
     const replay = recordedAnthropicClient(FIXTURE);
     await expect(
