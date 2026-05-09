@@ -179,6 +179,7 @@ The codebase commits atomically (one phase = one or more discrete commits with p
 
 | Phase | Forward (in `packages/db/drizzle/`) | Manual reverse |
 |---|---|---|
+| 6a | `0004_tokens.sql` | `DROP TABLE tokens;` |
 | 6.0 | `0003_intel_events.sql` | `DROP TABLE intel_events;` |
 | 5e | `0002_helius_webhooks.sql` | `DROP TABLE helius_webhooks; DROP TABLE watch_events; DROP TABLE watches;` |
 | 5d | `0001_smart_money_pnl.sql` | `ALTER TABLE wallets DROP COLUMN realized_pnl_sol;` |
