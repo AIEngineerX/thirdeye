@@ -6,7 +6,7 @@ import {
   checkWallet as scannerCheckWallet,
   scanToken as scannerScanToken,
 } from "@thirdeye/scanner";
-import { sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { type WalletSummary, summarizeWalletForLLM } from "./summarize";
 
@@ -53,12 +53,17 @@ async function resolveSiblings(
   }));
 }
 
-async function resolvePriorTags(db: DbClient, addresses: string[]): Promise<Map<string, string[]>> {
+export async function resolvePriorTags(
+  db: DbClient,
+  addresses: string[],
+): Promise<Map<string, string[]>> {
   if (addresses.length === 0) return new Map();
+  // postgres.js + Bun mishandle JS-array-bound ANY() params; use inArray()
+  // which encodes the element type correctly.
   const rows = await db
     .select({ address: wallets.address, tags: wallets.tags })
     .from(wallets)
-    .where(sql`${wallets.address} = ANY(${addresses})`);
+    .where(inArray(wallets.address, addresses));
   const out = new Map<string, string[]>();
   for (const r of rows) out.set(r.address, r.tags);
   return out;
