@@ -591,7 +591,8 @@ Self-host parity preserved: when env `ANTHROPIC_API_KEY` is set, BYOK is optiona
 |---|---|---|---|---|
 | **6.0** | **intel-bus → Postgres LISTEN/NOTIFY migration** | none | **2-3d** | **SHIPPED.** Postgres LISTEN/NOTIFY backed bus, overflow table for >7800-byte payloads. |
 | **6a** | **Tokens cache + DexScreener integration + `PriceSource` interface** | none | **3-5d** | **SHIPPED 2026-05-07.** `tokens` table + 0004 migration, `@thirdeye/prices` package, `tokens-refresh` worker on 60s cron, `/api/db/tokens/hot` and `/:mint`, persistScan auto-tracks scanned mints. Birdeye/Jupiter escape-hatches in code comments only. |
-| 6b | `packages/agent` + cost controls + Anthropic SDK + prompt caching | 6.0 | **8-11d** | Up from 5-7d. Tool-use loop, BYOK threading through worker tasks (no request-scoped headers), pricing table, token counting across loop iterations, prompt caching wiring, advisory-lock budget gate, integration test harness |
+| 6b | `packages/agent` + cost controls + Anthropic SDK + prompt caching | 6.0 | **8-11d** | **SHIPPED 2026-05-09.** Tool-use loop, BYOK threading through worker tasks (no request-scoped headers), pricing table, token counting across loop iterations, prompt caching wiring, advisory-lock budget gate, integration test harness |
+| **6b.5** | `@thirdeye/mcp-server` — MCP transport over the agent tool registry | 6b | 2-3d | Distribution play. Stdio transport, local-only v1. Claim the open Solana-forensics-MCP slot before someone else does. HTTP/SSE + npm publish deferred to v1.1. |
 | 6c | Discovery loop (hourly cron + briefs) | 6.0, 6a, 6b | 4-6d | Up from 3-5d. Includes early-buyers query with caps and filter pass |
 | 6d | Anomaly detector + `wallet_baselines` materialization | 6.0, 6b | 4-6d | Up from 3-5d. Median+MAD baseline computation, cold-start handling, dedup |
 | 6e | Morning brief generator | 6c, 6d | 2-3d | Composes prior loop outputs |

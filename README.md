@@ -34,6 +34,7 @@ Every wallet has a *first funder* — the wallet that first sent it SOL. Group t
 | **6.0** | intel-bus migration — Postgres `LISTEN/NOTIFY` with overflow table for >7800-byte payloads (cross-process worker → API events) | shipped |
 | **6a** | Tokens cache + `@thirdeye/prices` package + DexScreener `PriceSource` + `tokens-refresh` worker (60s cron) + `/api/db/tokens/hot` and `/:mint` | shipped |
 | **6b** | `@thirdeye/agent` package — Anthropic SDK + tool-use loop + prompt caching + per-run/daily cost caps (advisory-lock budget gate) + `agent_runs` audit table + replay test harness | shipped |
+| **6b.5** | `@thirdeye/mcp-server` — Model Context Protocol stdio transport over the agent tool registry; the six forensics tools become callable from Claude Desktop / Cursor / any MCP client | shipped |
 | **6** | Personal alpha terminal: Next.js 16 dashboard + agent brain (discovery loop, anomaly detector, cluster expander) — sub-phases 6c–6k remain | in progress — see [phase 6 spec](docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md) |
 | 7+ | TG ingest, LaserStream migration, behavior embeddings, CLI surface, multi-provider Helius abstraction | deferred |
 
