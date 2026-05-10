@@ -31,11 +31,16 @@ export interface AgentTool {
   handler: (input: unknown, ctx: ToolContext) => Promise<unknown>;
 }
 
-// Solana base58 addresses are 32–44 chars. Stricter validation (full b58
-// charset) is the route layer's job; this is a quick filter that prevents
-// the LLM from passing obvious garbage.
-const ADDRESS = z.string().min(32).max(44);
-const MINT = z.string().min(32).max(44);
+// Solana base58 addresses are 32–44 chars over the b58 charset. Tools are
+// reachable via the MCP server (Phase 6b.5), so the LLM is a less-trusted
+// caller than the cron workers that previously owned this path. Both
+// length and charset must be enforced here so a non-b58 character can't
+// splice path segments or query params into the Helius URLs the scanner
+// builds via template-literal interpolation. Mirrors the regex in
+// apps/api/src/lib/solana-address.ts.
+const B58_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const ADDRESS = z.string().regex(B58_RE);
+const MINT = z.string().regex(B58_RE);
 
 async function resolveSiblings(
   db: DbClient,
