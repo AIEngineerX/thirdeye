@@ -1,8 +1,5 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { type ToolContext, tools as agentTools } from "@thirdeye/agent";
 import { dispatchTool } from "./dispatch";
 
