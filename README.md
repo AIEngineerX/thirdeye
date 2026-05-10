@@ -75,6 +75,10 @@ curl -X POST http://localhost:3001/api/db/watches \
 curl -N "http://localhost:3001/api/db/intel/feed?token=$TOKEN"
 ```
 
+## Use from Claude Desktop (MCP)
+
+Phase 6b.5 ships [`@thirdeye/mcp-server`](packages/mcp-server/README.md) — a Model Context Protocol server that exposes the six forensics tools above (`checkWallet`, `scanToken`, `getClusterSiblings`, `getFunderClusters`, `getHotTokens`, `getWatchlist`) to any MCP client. Point Claude Desktop's `claude_desktop_config.json` at `packages/mcp-server/src/bin.ts` and the tools light up natively. See [`packages/mcp-server/README.md`](packages/mcp-server/README.md) for the working config snippet.
+
 ## Stack
 
 Bun · Hono · Drizzle · Postgres 16 · `graphile-worker` (cron + watch-sync) · Next.js 16 (Phase 6) · Helius RPC (REST + JSON-RPC + Webhooks)
