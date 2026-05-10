@@ -1,3 +1,4 @@
-// Phase 6b.5 — MCP server transport over @thirdeye/agent's tool registry.
-// Public surface filled in by later tasks.
-export {};
+export { createServer } from "./server";
+export type { ServerOptions } from "./server";
+export { dispatchTool } from "./dispatch";
+export type { DispatchResult } from "./dispatch";

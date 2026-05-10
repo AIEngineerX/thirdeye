@@ -1,9 +1,7 @@
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { type ToolContext, getToolByName, tools } from "@thirdeye/agent";
 
-export interface DispatchResult {
-  content: Array<{ type: "text"; text: string }>;
-  isError?: boolean;
-}
+export type DispatchResult = CallToolResult;
 
 export async function dispatchTool(
   name: string,
