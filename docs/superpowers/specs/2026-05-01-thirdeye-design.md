@@ -1,7 +1,7 @@
 ---
 title: ThirdEye — Open-Source Solana Wallet Intelligence
 date: 2026-05-01
-status: Draft
+status: Superseded for Phase 6+ — see docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md
 license: MIT
 ---
 
@@ -10,6 +10,8 @@ license: MIT
 > *The eye that sees what the other two cannot.*
 
 Open-source Solana wallet & token forensics — bundle/sybil detection, funding-chain tracing, cluster analysis.
+
+> **Note (2026-05-09):** The "AI Assistant" originally listed as a v2 deferral has been pulled into v1 as the Phase 6 agent brain (discovery, anomaly, brief, MCP transport). For current Phase 6+ direction read the Phase 6 design spec; the historical record below stays intact.
 
 ---
 
