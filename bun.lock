@@ -89,6 +89,7 @@
       "dependencies": {
         "@thirdeye/agent": "workspace:*",
         "@thirdeye/db": "workspace:*",
+        "drizzle-orm": "^0.45.2",
       },
     },
   },
