@@ -19,6 +19,7 @@
         "@thirdeye/prices": "workspace:*",
         "@thirdeye/scanner": "workspace:*",
         "@thirdeye/shared": "workspace:*",
+        "@thirdeye/tg-bot": "workspace:*",
         "drizzle-orm": "^0.45.2",
         "graphile-worker": "^0.16.6",
         "hono": "^4.6.0",
