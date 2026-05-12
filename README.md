@@ -35,6 +35,7 @@ Every wallet has a *first funder* — the wallet that first sent it SOL. Group t
 | **6a** | Tokens cache + `@thirdeye/prices` package + DexScreener `PriceSource` + `tokens-refresh` worker (60s cron) + `/api/db/tokens/hot` and `/:mint` | shipped |
 | **6b** | `@thirdeye/agent` package — Anthropic SDK + tool-use loop + prompt caching + per-run/daily cost caps (advisory-lock budget gate) + `agent_runs` audit table + replay test harness | shipped |
 | **6b.5** | `@thirdeye/mcp-server` — Model Context Protocol stdio transport over the agent tool registry; the six forensics tools become callable from Claude Desktop / Cursor / any MCP client | shipped |
+| **6b.6** | `@thirdeye/tg-bot` — Single-user Telegram bot embedded in the api process; six forensics tools accessible via natural-language chat, deployed to Railway alongside the api | shipped |
 | **6** | Personal alpha terminal: Next.js 16 dashboard + agent brain (discovery loop, anomaly detector, cluster expander) — sub-phases 6c–6k remain | in progress — see [phase 6 spec](docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md) |
 | 7+ | TG ingest, LaserStream migration, behavior embeddings, CLI surface, multi-provider Helius abstraction | deferred |
 
@@ -79,6 +80,10 @@ curl -N "http://localhost:3001/api/db/intel/feed?token=$TOKEN"
 ## Use from Claude Desktop (MCP)
 
 Phase 6b.5 ships [`@thirdeye/mcp-server`](packages/mcp-server/README.md) — a Model Context Protocol server that exposes the six forensics tools above (`checkWallet`, `scanToken`, `getClusterSiblings`, `getFunderClusters`, `getHotTokens`, `getWatchlist`) to any MCP client. Point Claude Desktop's `claude_desktop_config.json` at `packages/mcp-server/src/bin.ts` and the tools light up natively. See [`packages/mcp-server/README.md`](packages/mcp-server/README.md) for the working config snippet.
+
+## Use from Telegram
+
+Phase 6b.6 ships [`@thirdeye/tg-bot`](packages/tg-bot/README.md) — a single-user Telegram bot embedded in the api process. Set `TG_BOT_TOKEN` (from @BotFather) and `TG_ALLOWED_CHAT_ID` (your numeric chat ID from @userinfobot), redeploy, and chat with the bot in Telegram. The same six forensics tools the MCP server exposes are accessible via natural language. See [`packages/tg-bot/README.md`](packages/tg-bot/README.md) for setup.
 
 ## Stack
 
