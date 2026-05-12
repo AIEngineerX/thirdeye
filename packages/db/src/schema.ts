@@ -199,7 +199,7 @@ export const agentRuns = pgTable(
   "agent_runs",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    kind: text("kind").notNull(), // 'discovery' | 'anomaly' | 'morning_brief' | 'cluster_expand'
+    kind: text("kind").notNull(), // 'discovery' | 'anomaly' | 'morning_brief' | 'cluster_expand' | 'tg_query'
     status: text("status").notNull(), // 'running' | 'success' | 'failed' | 'skipped_budget' | 'capped'
     model: text("model").notNull(),
     toolCallsMade: integer("tool_calls_made").notNull().default(0),
