@@ -39,6 +39,13 @@ export const env = {
   AGENT_MAX_INPUT_TOKENS_PER_RUN: Number(optional("AGENT_MAX_INPUT_TOKENS_PER_RUN", "200000")),
   AGENT_CHEAP_MODEL: optionalUndef("AGENT_CHEAP_MODEL"),
   AGENT_REASONING_MODEL: optionalUndef("AGENT_REASONING_MODEL"),
+
+  // Phase 6b.6 — Telegram bot (embedded in this process; both vars must
+  // be set for the bot to start, otherwise startBot() returns immediately)
+  TG_BOT_TOKEN: optionalUndef("TG_BOT_TOKEN"),
+  TG_ALLOWED_CHAT_ID: process.env.TG_ALLOWED_CHAT_ID
+    ? Number(process.env.TG_ALLOWED_CHAT_ID)
+    : undefined,
 } as const;
 
 // Read fresh so secrets can be hot-rotated without restart.

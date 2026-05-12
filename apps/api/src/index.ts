@@ -1,4 +1,5 @@
 import { type DbClient, createDb } from "@thirdeye/db";
+import { startBot } from "@thirdeye/tg-bot";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -162,6 +163,20 @@ if (import.meta.main) {
   })
     .then(() => console.log("[worker] graphile-worker started"))
     .catch((e) => console.error("[worker] start failed", e));
+
+  startBot({
+    db,
+    sql: pgSql,
+    tgBotToken: env.TG_BOT_TOKEN,
+    tgAllowedChatId: env.TG_ALLOWED_CHAT_ID,
+    serverHeliusKey: env.HELIUS_API_KEY,
+    smartMoneyMinSol: env.SMART_MONEY_MIN_SOL,
+    dailyCapUsd: env.AGENT_DAILY_COST_USD_CAP,
+    maxToolCalls: env.AGENT_MAX_TOOL_CALLS_PER_RUN,
+    maxInputTokens: env.AGENT_MAX_INPUT_TOKENS_PER_RUN,
+  })
+    .then(() => console.log("[tg-bot] startBot invoked"))
+    .catch((e) => console.error("[tg-bot] startBot failed", e));
 }
 
 console.log(`thirdeye api ready on :${env.PORT}`);
