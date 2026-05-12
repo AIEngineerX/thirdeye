@@ -5,6 +5,24 @@ import type { DispatchContext } from "./dispatch";
 import { loop } from "./loop";
 import { getMe, sendChatAction, sendMessage } from "./telegram";
 
+/**
+ * Flip 'running' rows older than the threshold to 'failed' with a
+ * 'process_crash_or_redeploy' error_message. Required for budget
+ * correctness — acquireBudget's daily-spend SUM includes 'running'
+ * rows, so orphans permanently consume quota.
+ *
+ * Exported so tests can exercise it without booting the bot.
+ */
+export async function cleanupOrphanRuns(sql: Sql): Promise<void> {
+  await sql`
+    UPDATE agent_runs
+    SET status = 'failed',
+        error_message = 'process_crash_or_redeploy',
+        ended_at = now()
+    WHERE status = 'running' AND started_at < now() - interval '1 hour'
+  `;
+}
+
 export interface StartBotOptions {
   db: DbClient;
   sql: Sql;
@@ -25,16 +43,8 @@ export async function startBot(opts: StartBotOptions): Promise<void> {
   const token = opts.tgBotToken;
   const allowedChatId = opts.tgAllowedChatId;
 
-  // Recover from prior process crashes: any 'running' row older than 1h
-  // is stranded. Without this, orphan rows permanently consume budget
-  // quota (the SUM in acquireBudget includes status='running').
-  await opts.sql`
-    UPDATE agent_runs
-    SET status = 'failed',
-        error_message = 'process_crash_or_redeploy',
-        ended_at = now()
-    WHERE status = 'running' AND started_at < now() - interval '1 hour'
-  `;
+  // Recover from prior process crashes — see cleanupOrphanRuns docs.
+  await cleanupOrphanRuns(opts.sql);
 
   // Sanity check; non-fatal if Telegram is briefly down at boot.
   try {

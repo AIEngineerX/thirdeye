@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { createDb } from "@thirdeye/db";
 import { dispatch } from "../src/dispatch";
+import { cleanupOrphanRuns } from "../src/start";
 import type { TgMessage } from "../src/telegram";
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -158,7 +159,7 @@ d("dispatch (integration)", () => {
     expect(runs[0]!.error_message).toContain("boom");
   });
 
-  test("truncates oversized replies at 4090 chars", async () => {
+  test("truncates oversized replies within Telegram's 4096-char limit", async () => {
     const big = "x".repeat(5000);
     const bigReplyLoop = (async () => ({
       status: "success" as const,
@@ -169,7 +170,47 @@ d("dispatch (integration)", () => {
     })) as unknown as RunAgentLoopFn;
     await dispatch(msg({ message_id: 400 }), ctx({ runAgentLoop: bigReplyLoop }));
     expect(sent.length).toBe(1);
-    expect(sent[0]!.text.length).toBeLessThanOrEqual(4090 + "…[truncated]".length);
+    expect(sent[0]!.text.length).toBeLessThanOrEqual(4096);
     expect(sent[0]!.text.endsWith("…[truncated]")).toBe(true);
+  });
+});
+
+d("cleanupOrphanRuns (integration)", () => {
+  let conn: ReturnType<typeof createDb>;
+
+  beforeAll(() => {
+    conn = createDb(DATABASE_URL!);
+  });
+
+  afterAll(async () => {
+    await conn.sql.end();
+  });
+
+  beforeEach(async () => {
+    await conn.sql`TRUNCATE agent_runs RESTART IDENTITY CASCADE`;
+  });
+
+  test("flips 'running' rows older than 1h to 'failed' with process_crash_or_redeploy", async () => {
+    await conn.sql`
+      INSERT INTO agent_runs (kind, status, model, started_at, ended_at)
+      VALUES ('tg_query', 'running', 'claude-haiku-4-5-20251001', now() - interval '2 hours', NULL),
+             ('discovery', 'running', 'claude-haiku-4-5-20251001', now() - interval '30 minutes', NULL),
+             ('tg_query', 'success', 'claude-haiku-4-5-20251001', now() - interval '2 hours', now() - interval '2 hours')
+    `;
+
+    await cleanupOrphanRuns(conn.sql);
+
+    const rows = await conn.sql<{ kind: string; status: string; error_message: string | null }[]>`
+      SELECT kind, status, error_message FROM agent_runs ORDER BY id
+    `;
+    expect(rows.length).toBe(3);
+    // First (tg_query, 2h old, running) → flipped
+    expect(rows[0]!.status).toBe("failed");
+    expect(rows[0]!.error_message).toBe("process_crash_or_redeploy");
+    // Second (discovery, 30min old, running) → unchanged
+    expect(rows[1]!.status).toBe("running");
+    expect(rows[1]!.error_message).toBe(null);
+    // Third (already success) → unchanged
+    expect(rows[2]!.status).toBe("success");
   });
 });
