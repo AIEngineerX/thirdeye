@@ -6,8 +6,11 @@ import type { TgMessage } from "./telegram";
 
 // Hard-coded constants — see spec for rationale on why these aren't env vars.
 const ESTIMATED_COST_PER_RUN_USD = 0.05;
-const MAX_REPLY_CHARS = 4090;
 const TRUNCATION_SUFFIX = "…[truncated]";
+// 4096 is Telegram's hard limit for sendMessage text. Compute the slice
+// budget so reply.length === MAX_REPLY_CHARS + TRUNCATION_SUFFIX.length
+// never exceeds the limit.
+const MAX_REPLY_CHARS = 4096 - TRUNCATION_SUFFIX.length;
 
 const SYSTEM_PROMPT = `You are ThirdEye, a Solana wallet and token forensics assistant. The operator chats with you over Telegram.
 
@@ -138,6 +141,7 @@ export async function dispatch(msg: TgMessage, ctx: DispatchContext): Promise<vo
           status: "failed",
           errorMessage: errMessage,
           endedAt: new Date(),
+          costUsd: "0",
         })
         .where(eq(agentRuns.id, budget.runId));
     } catch (finalizeErr) {
