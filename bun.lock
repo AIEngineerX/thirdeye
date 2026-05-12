@@ -83,6 +83,14 @@
       "name": "@thirdeye/shared",
       "version": "0.0.0",
     },
+    "packages/tg-bot": {
+      "name": "@thirdeye/tg-bot",
+      "version": "0.0.0",
+      "dependencies": {
+        "@thirdeye/agent": "workspace:*",
+        "@thirdeye/db": "workspace:*",
+      },
+    },
   },
   "overrides": {
     "esbuild": "^0.25.0",
@@ -195,6 +203,8 @@
     "@thirdeye/scanner": ["@thirdeye/scanner@workspace:packages/scanner"],
 
     "@thirdeye/shared": ["@thirdeye/shared@workspace:packages/shared"],
+
+    "@thirdeye/tg-bot": ["@thirdeye/tg-bot@workspace:packages/tg-bot"],
 
     "@types/bun": ["@types/bun@1.3.13", "", { "dependencies": { "bun-types": "1.3.13" } }, "sha512-9fqXWk5YIHGGnUau9TEi+qdlTYDAnOj+xLCmSTwXfAIqXr2x4tytJb43E9uCvt09zJURKXwAtkoH4nLQfzeTXw=="],
 
