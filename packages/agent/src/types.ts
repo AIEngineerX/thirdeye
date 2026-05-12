@@ -1,6 +1,11 @@
 import type { TokenUsage } from "./pricing";
 
-export type AgentRunKind = "discovery" | "anomaly" | "morning_brief" | "cluster_expand";
+export type AgentRunKind =
+  | "discovery"
+  | "anomaly"
+  | "morning_brief"
+  | "cluster_expand"
+  | "tg_query";
 
 export interface AgentRunOptions {
   kind: AgentRunKind;
