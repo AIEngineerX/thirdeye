@@ -78,6 +78,25 @@ describe("POST /api/helius-webhook (ingest)", () => {
     expect(r.status).toBe(401);
   });
 
+  test("rejects same-length-but-wrong auth (constant-time compare prevents byte oracle)", async () => {
+    // HELIUS_WEBHOOK_AUTH is "test-secret-abc" (15 chars). A same-length wrong
+    // value MUST 401 — under a timing-unsafe === comparison, this would also
+    // 401 but with a measurable latency curve that leaks the secret one byte
+    // at a time. The fix uses timingSafeEqual so we can't assert latency here
+    // (CI is too noisy), but the structural test confirms the same-length
+    // rejection path doesn't throw or 500.
+    const sameLengthWrong = "xxxx-xxxxxx-xxx"; // 15 chars, matches "test-secret-abc"
+    const r = await app.request("/api/helius-webhook", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: sameLengthWrong,
+      },
+      body: JSON.stringify(inboundBatch([WATCHED])),
+    });
+    expect(r.status).toBe(401);
+  });
+
   test("400 when body is not an array", async () => {
     const r = await app.request("/api/helius-webhook", {
       method: "POST",

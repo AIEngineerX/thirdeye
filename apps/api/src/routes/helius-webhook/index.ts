@@ -15,12 +15,26 @@
 // we always 200 OK after parsing — even if downstream persistence partially
 // fails. Per-event errors are logged but don't fail the batch.
 
+import { timingSafeEqual } from "node:crypto";
 import { type DbClient, watchEvents, watches } from "@thirdeye/db";
 import type { HeliusInboundEvent } from "@thirdeye/helius";
 import { inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { heliusWebhookAuth } from "../../env";
 import { publish } from "../../lib/intel-bus";
+
+// Constant-time string compare. Plain !== short-circuits on the first
+// differing byte, which lets a network attacker oracle the secret one
+// character at a time via response-latency measurement. timingSafeEqual
+// requires equal-length buffers, so do the length check first (different
+// lengths are publicly distinguishable and a timing-safe compare would
+// throw on them anyway).
+function constantTimeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
 
 type Variables = { db: DbClient };
 
@@ -34,7 +48,7 @@ heliusWebhook.post("/", async (c) => {
     return c.json({ error: "webhook_auth_unset" }, 503);
   }
   const auth = c.req.header("Authorization");
-  if (auth !== expectedAuth) {
+  if (!auth || !constantTimeEqual(auth, expectedAuth)) {
     return c.json({ error: "unauthorized" }, 401);
   }
 
