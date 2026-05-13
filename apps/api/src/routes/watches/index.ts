@@ -149,8 +149,25 @@ watchesRoutes.get("/:address/events", async (c) => {
   if (!isValidSolanaAddress(address)) {
     return c.json({ error: "invalid_address" }, 400);
   }
+  const token = c.req.header("X-Auth-Token");
+  if (!token) return c.json({ error: "missing_token" }, 401);
   const limit = clampInt(c.req.query("limit"), 50, 1, 200);
   const db = c.get("db");
+
+  // Token ownership gate: the caller must hold a watch on this address. Without
+  // this check, any authenticated token can enumerate any address's full
+  // event history (and the payloads contain enhanced-transaction detail about
+  // unrelated parties). Return 404 (not 403) so callers can't probe which
+  // addresses other tokens are watching.
+  const owned = await db
+    .select({ address: watches.address })
+    .from(watches)
+    .where(and(eq(watches.token, token), eq(watches.address, address)))
+    .limit(1);
+  if (owned.length === 0) {
+    return c.json({ error: "not_found" }, 404);
+  }
+
   const rows = await db
     .select({
       id: watchEvents.id,
