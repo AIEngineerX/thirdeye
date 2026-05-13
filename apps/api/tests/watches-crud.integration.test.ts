@@ -357,4 +357,33 @@ describe("GET /api/db/watches/:address/events", () => {
     });
     expect(r.status).toBe(400);
   });
+
+  test("token without a watch on the address gets 404 (no IDOR)", async () => {
+    // token1 watches ADDR_A; token2 should NOT be able to read its events.
+    await testDb.db.insert(watches).values({ address: ADDR_A, token });
+    await testDb.db.insert(watchEvents).values({
+      address: ADDR_A,
+      signature: "sig-leak",
+      type: "TRANSFER",
+      payload: { secret: "should not leak across tokens" },
+    });
+
+    // Cross-token request returns 404 without disclosing events.
+    const cross = await app.request(`/api/db/watches/${ADDR_A}/events`, {
+      headers: { "X-Auth-Token": token2 },
+    });
+    expect(cross.status).toBe(404);
+    const crossBody = (await cross.json()) as { error?: string; items?: unknown };
+    expect(crossBody.error).toBe("not_found");
+    expect(crossBody.items).toBeUndefined();
+
+    // Same-token request still works for the owner.
+    const owner = await app.request(`/api/db/watches/${ADDR_A}/events`, {
+      headers: { "X-Auth-Token": token },
+    });
+    expect(owner.status).toBe(200);
+    const ownerBody = (await owner.json()) as { items: { signature: string }[] };
+    expect(ownerBody.items.length).toBe(1);
+    expect(ownerBody.items[0]!.signature).toBe("sig-leak");
+  });
 });
