@@ -68,11 +68,53 @@ function optionalIntInRange(name: string, fallback: number, min: number, max: nu
 
 // Re-exported for tests.
 export { intStrict };
+export { validateCorsOrigin };
+
+// M3: CORS_ORIGIN is a literal string match (no wildcard expansion).
+// Validate at startup so operator-config errors don't fail silently when
+// the first browser request shows up with a CORS error in devtools.
+function validateCorsOrigin(raw: string, credentials: boolean): string {
+  const v = raw.trim();
+  if (v.length === 0) {
+    throw new Error("CORS_ORIGIN must be a non-empty origin URL");
+  }
+  if (v === "*") {
+    if (credentials) {
+      throw new Error(
+        "CORS_ORIGIN='*' is incompatible with credentials:true — browsers reject this. Set a specific origin like https://app.example.com.",
+      );
+    }
+    return v;
+  }
+  if (v.includes("*")) {
+    throw new Error(
+      `CORS_ORIGIN=${JSON.stringify(v)} contains a wildcard; this is a literal string match, not a glob. Set the exact origin (no wildcards).`,
+    );
+  }
+  // Must parse as a URL with scheme + host. Hono's cors() accepts comma-
+  // separated values too; we permit them but validate each.
+  for (const candidate of v.split(",").map((s) => s.trim())) {
+    try {
+      const u = new URL(candidate);
+      if (u.protocol !== "http:" && u.protocol !== "https:") {
+        throw new Error("must be http or https");
+      }
+    } catch (e) {
+      throw new Error(
+        `CORS_ORIGIN entry ${JSON.stringify(candidate)} is not a valid origin URL: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    }
+  }
+  return v;
+}
 
 export const env = {
   DATABASE_URL: required("DATABASE_URL"),
   PORT: optionalInt("PORT", 3001),
-  CORS_ORIGIN: optional("CORS_ORIGIN", "http://localhost:3000"),
+  // credentials is true in apps/api/src/index.ts, so we validate accordingly.
+  CORS_ORIGIN: validateCorsOrigin(optional("CORS_ORIGIN", "http://localhost:3000"), true),
   PUBLIC_INSTANCE_MODE: optional("PUBLIC_INSTANCE_MODE", "false") === "true",
 
   HELIUS_API_KEY: optionalUndef("HELIUS_API_KEY"),

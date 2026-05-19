@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { intStrict } from "../src/env";
+import { intStrict, validateCorsOrigin } from "../src/env";
 
 describe("intStrict (env parsing)", () => {
   test("parses well-formed positive integer", () => {
@@ -44,5 +44,46 @@ describe("intStrict (env parsing)", () => {
 
   test("throws on out-of-range value", () => {
     expect(() => intStrict("LIMIT", "99999999999999999999")).toThrow(/range/);
+  });
+});
+
+describe("validateCorsOrigin (M3)", () => {
+  test("accepts a valid https origin with credentials", () => {
+    expect(validateCorsOrigin("https://app.example.com", true)).toBe("https://app.example.com");
+  });
+
+  test("accepts http://localhost for dev", () => {
+    expect(validateCorsOrigin("http://localhost:3000", true)).toBe("http://localhost:3000");
+  });
+
+  test("accepts comma-separated list of origins", () => {
+    expect(validateCorsOrigin("https://a.example.com, https://b.example.com", true)).toBe(
+      "https://a.example.com, https://b.example.com",
+    );
+  });
+
+  test("rejects empty / whitespace", () => {
+    expect(() => validateCorsOrigin("", true)).toThrow(/non-empty/);
+    expect(() => validateCorsOrigin("   ", true)).toThrow(/non-empty/);
+  });
+
+  test("rejects '*' with credentials (browsers reject this combo)", () => {
+    expect(() => validateCorsOrigin("*", true)).toThrow(/incompatible/i);
+  });
+
+  test("allows '*' when credentials are off", () => {
+    expect(validateCorsOrigin("*", false)).toBe("*");
+  });
+
+  test("rejects wildcard subdomain syntax (literal match, no glob)", () => {
+    expect(() => validateCorsOrigin("*.example.com", true)).toThrow(/wildcard/i);
+  });
+
+  test("rejects non-URL string", () => {
+    expect(() => validateCorsOrigin("not-a-url", true)).toThrow();
+  });
+
+  test("rejects ftp:// scheme (must be http/https)", () => {
+    expect(() => validateCorsOrigin("ftp://example.com", true)).toThrow();
   });
 });
