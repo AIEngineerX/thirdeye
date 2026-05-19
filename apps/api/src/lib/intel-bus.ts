@@ -50,11 +50,22 @@ type WireEvent =
 
 let sqlRef: Sql | null = null;
 let listenInitialized = false;
+let listenInitPromise: Promise<void> | null = null;
 let listenMeta: { unlisten(): Promise<void> } | null = null;
 const handlers = new Set<Handler>();
 
 export async function initIntelBus(sql: Sql): Promise<void> {
   if (listenInitialized) return;
+  // Coalesce concurrent initializers onto one promise so we don't open two
+  // parallel LISTEN connections and double-fire every handler.
+  if (listenInitPromise) return listenInitPromise;
+  listenInitPromise = doInit(sql).finally(() => {
+    listenInitPromise = null;
+  });
+  return listenInitPromise;
+}
+
+async function doInit(sql: Sql): Promise<void> {
   sqlRef = sql;
   listenMeta = await sql.listen(CHANNEL, async (raw: string) => {
     let wire: WireEvent;
@@ -106,19 +117,28 @@ export async function publish(evt: IntelEvent): Promise<void> {
     await sqlRef.notify(CHANNEL, json);
     return;
   }
-  // Overflow: persist payload, notify with reference id.
+  // Overflow: persist payload, notify with reference id. INSERT and NOTIFY
+  // must be atomic — without a transaction, a crash between them commits the
+  // row but never fires NOTIFY, leaking the row forever and silently dropping
+  // the event. Postgres NOTIFY inside a tx is buffered and only flushed on
+  // COMMIT, which is exactly the atomicity guarantee we want.
+  //
   // postgres.js v3.4 + Bun bug: passing a JS object in a tagged-template parameter
   // triggers binary-protocol binding which Bun rejects. Workaround: stringify to
   // JSON manually and cast with ::jsonb so the server parses it as text-mode input.
   const payloadJson = JSON.stringify(evt.data);
-  const rows = await sqlRef<{ id: number }[]>`
-    INSERT INTO intel_events (kind, payload)
-    VALUES (${evt.event}, ${payloadJson}::jsonb)
-    RETURNING id
-  `;
-  const id = rows[0]!.id;
-  const wireRef: WireEvent = { event: evt.event, ref: id };
-  await sqlRef.notify(CHANNEL, JSON.stringify(wireRef));
+  await sqlRef.begin(async (tx) => {
+    const rows = await tx<{ id: number }[]>`
+      INSERT INTO intel_events (kind, payload)
+      VALUES (${evt.event}, ${payloadJson}::jsonb)
+      RETURNING id
+    `;
+    const wireRef: WireEvent = { event: evt.event, ref: rows[0]!.id };
+    // pg_notify via the tx callable, not tx.notify — postgres.js's .notify
+    // is bound to the outer sql object and runs on a pool connection that
+    // bypasses the transaction, defeating the atomicity guarantee.
+    await tx`SELECT pg_notify(${CHANNEL}, ${JSON.stringify(wireRef)})`;
+  });
 }
 
 export function subscribe(handler: Handler): () => void {
