@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { RPC_DENY_LIST, validateRpcEnvelope } from "@thirdeye/helius";
+import { RPC_ALLOW_LIST, validateRpcEnvelope } from "@thirdeye/helius";
 
 describe("validateRpcEnvelope", () => {
-  test("accepts well-formed envelope", () => {
+  test("accepts well-formed envelope with allowlisted method", () => {
     const r = validateRpcEnvelope({
       jsonrpc: "2.0",
       id: 1,
@@ -53,7 +53,16 @@ describe("validateRpcEnvelope", () => {
     expect(r.kind).toBe("invalid");
   });
 
-  test("rejects denied method (sendTransaction)", () => {
+  test("rejects batched RPC (array body) with explicit reason", () => {
+    const r = validateRpcEnvelope([
+      { jsonrpc: "2.0", id: 1, method: "getBalance", params: [] },
+      { jsonrpc: "2.0", id: 2, method: "getBalance", params: [] },
+    ]);
+    expect(r.kind).toBe("invalid");
+    if (r.kind === "invalid") expect(r.reason).toMatch(/batched|array/i);
+  });
+
+  test("rejects mutating method sendTransaction (not on allowlist)", () => {
     const r = validateRpcEnvelope({
       jsonrpc: "2.0",
       id: 1,
@@ -64,7 +73,7 @@ describe("validateRpcEnvelope", () => {
     if (r.kind === "forbidden") expect(r.method).toBe("sendTransaction");
   });
 
-  test("rejects denied method (simulateTransaction)", () => {
+  test("rejects mutating method simulateTransaction", () => {
     const r = validateRpcEnvelope({
       jsonrpc: "2.0",
       id: 1,
@@ -74,7 +83,7 @@ describe("validateRpcEnvelope", () => {
     expect(r.kind).toBe("forbidden");
   });
 
-  test("rejects denied method (requestAirdrop)", () => {
+  test("rejects mutating method requestAirdrop", () => {
     const r = validateRpcEnvelope({
       jsonrpc: "2.0",
       id: 1,
@@ -84,11 +93,41 @@ describe("validateRpcEnvelope", () => {
     expect(r.kind).toBe("forbidden");
   });
 
-  test("DENY_LIST is non-empty and exact", () => {
-    expect(RPC_DENY_LIST.has("sendTransaction")).toBe(true);
-    expect(RPC_DENY_LIST.has("simulateTransaction")).toBe(true);
-    expect(RPC_DENY_LIST.has("requestAirdrop")).toBe(true);
-    expect(RPC_DENY_LIST.has("getTransaction")).toBe(false);
-    expect(RPC_DENY_LIST.has("getBalance")).toBe(false);
+  test("rejects sendRawTransaction (the canonical signed-tx submission) — H6", () => {
+    // This is the actual method wallets/programs use to submit signed
+    // transactions. The old denylist missed it; the allowlist blocks it
+    // by default because it's not enumerated.
+    const r = validateRpcEnvelope({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "sendRawTransaction",
+      params: ["base64-encoded-tx"],
+    });
+    expect(r.kind).toBe("forbidden");
+  });
+
+  test("rejects unknown methods by default (allowlist semantics)", () => {
+    const r = validateRpcEnvelope({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "futureUnreleasedMethod",
+      params: [],
+    });
+    expect(r.kind).toBe("forbidden");
+  });
+
+  test("allowlist contains essential read methods", () => {
+    expect(RPC_ALLOW_LIST.has("getBalance")).toBe(true);
+    expect(RPC_ALLOW_LIST.has("getTransaction")).toBe(true);
+    expect(RPC_ALLOW_LIST.has("getHealth")).toBe(true);
+    expect(RPC_ALLOW_LIST.has("getAccountInfo")).toBe(true);
+    expect(RPC_ALLOW_LIST.has("getAssetsByOwner")).toBe(true);
+  });
+
+  test("allowlist excludes all known mutating methods", () => {
+    expect(RPC_ALLOW_LIST.has("sendTransaction")).toBe(false);
+    expect(RPC_ALLOW_LIST.has("sendRawTransaction")).toBe(false);
+    expect(RPC_ALLOW_LIST.has("simulateTransaction")).toBe(false);
+    expect(RPC_ALLOW_LIST.has("requestAirdrop")).toBe(false);
   });
 });
