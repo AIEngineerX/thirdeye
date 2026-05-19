@@ -31,6 +31,19 @@ export const authIssueRateBuckets = pgTable("auth_issue_rate_buckets", {
   count: integer("count").notNull().default(0),
 });
 
+// M1 — one-time tickets for SSE upgrades. EventSource can't send custom
+// headers, so historically the auth token was passed in the URL as
+// `?token=...` which leaks into logs (server, reverse proxy, edge, browser
+// history). New flow: client POSTs to /api/db/intel/feed/ticket with
+// X-Auth-Token header, server returns an opaque ticket valid for 30s and
+// consumed on first use; the SSE URL is `?ticket=...`.
+export const sseTickets = pgTable("sse_tickets", {
+  ticket: text("ticket").primaryKey(),
+  token: text("token").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const wallets = pgTable(
   "wallets",
   {

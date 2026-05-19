@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { sendSseEvent } from "../../lib/http";
 import { type IntelEvent, subscribe } from "../../lib/intel-bus";
+import { consumeSseTicket, issueSseTicket } from "../../lib/sse-tickets";
 
 type Variables = { db: DbClient };
 
@@ -15,13 +16,46 @@ const HEARTBEAT_MS = 15_000;
 // token aborts the prior one (spec §12 connection limit).
 const openByToken = new Map<string, AbortController>();
 
+// M1: issue a one-time, short-lived ticket. Client posts with X-Auth-Token
+// in the header (not URL), receives an opaque ticket that's valid for 30s
+// and consumed on first use. Authenticated via the same auth-token check
+// used elsewhere — inlined here because /api/db/intel/* sub-routers don't
+// share a use("*", requireAuth).
+intelFeed.post("/feed/ticket", async (c) => {
+  const token = c.req.header("X-Auth-Token");
+  if (!token) return c.json({ error: "missing_token" }, 401);
+
+  const db = c.get("db");
+  const rows = await db.select().from(authTokens).where(eq(authTokens.token, token));
+  const row = rows[0];
+  if (!row) return c.json({ error: "invalid_token" }, 401);
+  if (row.expiresAt.getTime() <= Date.now()) {
+    return c.json({ error: "token_expired" }, 401);
+  }
+
+  const { ticket, expiresAt } = await issueSseTicket(db, token);
+  return c.json({ ticket, expiresAt: expiresAt.toISOString() });
+});
+
 intelFeed.get("/feed", async (c) => {
-  const token = c.req.query("token");
-  if (!token) {
-    return c.json({ error: "missing_token", message: "?token=<X-Auth-Token> required" }, 401);
+  const ticket = c.req.query("ticket");
+  if (!ticket) {
+    return c.json(
+      {
+        error: "missing_ticket",
+        message:
+          "POST /api/db/intel/feed/ticket with X-Auth-Token to obtain a ticket; then GET ?ticket=...",
+      },
+      401,
+    );
   }
 
   const db = c.get("db");
+  const token = await consumeSseTicket(db, ticket);
+  if (!token) return c.json({ error: "invalid_or_expired_ticket" }, 401);
+
+  // Re-validate the underlying token in case it was revoked or expired
+  // between ticket issue and SSE upgrade.
   const rows = await db.select().from(authTokens).where(eq(authTokens.token, token));
   const row = rows[0];
   if (!row) return c.json({ error: "invalid_token" }, 401);
