@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { WalletCheckResult } from "@thirdeye/scanner";
-import { summarizeWalletForLLM } from "../src/summarize";
+import type { TokenScanResult, WalletCheckResult } from "@thirdeye/scanner";
+import { summarizeTokenScanForLLM, summarizeWalletForLLM } from "../src/summarize";
 
 const FIXTURE: WalletCheckResult = {
   address: "VJSDW6S74YXR4rRR9P4xwhMvLZJQMhrUb8XMFirUsy1",
@@ -139,5 +139,107 @@ describe("summarizeWalletForLLM", () => {
       cluster: { ...FIXTURE.cluster, cov: null },
     };
     expect(summarizeWalletForLLM(sparse).cluster.cov).toBeNull();
+  });
+});
+
+const TOKEN_FIXTURE: TokenScanResult = {
+  mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  mode: "shared",
+  metadata: {
+    mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    name: "Example Coin",
+    symbol: "EX",
+    supply: "1000000000",
+    decimals: 6,
+    updateAuthority: null,
+    firstCreator: null,
+  },
+  totalHolders: 250,
+  scannedHolders: 200,
+  topHolders: Array.from({ length: 200 }, (_, i) => ({
+    owner: `Holder${i.toString().padStart(3, "0")}AddressLongEnoughLooksLikeB58XXXXXXXXX`,
+    amount: String(1_000_000 - i),
+    pct: 5 - i * 0.01,
+  })),
+  lp: { totalPct: 12.3, holders: [] },
+  locked: { totalPct: 0, holders: [] },
+  clusters: Array.from({ length: 20 }, (_, i) => ({
+    root: `Funder${i.toString().padStart(3, "0")}AddrXXXXXXXXXXXXXXXXXXXXXXX`,
+    members: Array.from({ length: 30 }, (_, j) => `MemberC${i}M${j}AddrXXXXXXXXXXXXXXXXXXXX`),
+    totalPct: 4.5 - i * 0.1,
+    isFreshFunder: i % 3 === 0,
+    priorTags: Object.fromEntries(
+      Array.from({ length: 30 }, (_, j) => [
+        `MemberC${i}M${j}AddrXXXXXXXXXXXXXXXXXXXX`,
+        ["BUNDLER"],
+      ]),
+    ),
+  })),
+  totalClusteredPct: 64.5,
+  maxClusterPct: 4.5,
+  freshFunderCount: 7,
+  risk: 78,
+  sybilFlag: true,
+  verdict: "HIGH_RISK",
+  scannedAt: "2026-05-19T12:00:00.000Z",
+};
+
+describe("summarizeTokenScanForLLM (M7)", () => {
+  test("returns a compact summary instead of the raw TokenScanResult", () => {
+    const s = summarizeTokenScanForLLM(TOKEN_FIXTURE);
+    expect(s.mint).toBe(TOKEN_FIXTURE.mint);
+    expect(s.symbol).toBe("EX");
+    expect(s.totalHolders).toBe(250);
+    expect(s.scannedHolders).toBe(200);
+    expect(s.risk).toBe(78);
+    expect(s.sybilFlag).toBe(true);
+    expect(s.verdict).toBe("HIGH_RISK");
+    expect(s.lp.totalPct).toBe(12.3);
+    expect(s.totalClusteredPct).toBe(64.5);
+    expect(s.maxClusterPct).toBe(4.5);
+  });
+
+  test("caps topHolders at 5", () => {
+    const s = summarizeTokenScanForLLM(TOKEN_FIXTURE);
+    expect(s.topHolders.length).toBe(5);
+    expect(s.topHolders[0]!.owner).toBe(TOKEN_FIXTURE.topHolders[0]!.owner);
+  });
+
+  test("caps clusters at 10 and drops full member lists", () => {
+    const s = summarizeTokenScanForLLM(TOKEN_FIXTURE);
+    expect(s.clusters.length).toBe(10);
+    for (const c of s.clusters) {
+      // memberCount is preserved; the full array is not
+      expect(c.memberCount).toBe(30);
+      expect(c).not.toHaveProperty("members");
+      expect(c).not.toHaveProperty("priorTags");
+      // priorTagSummary rolls per-member tags into counts
+      expect(c.priorTagSummary.BUNDLER).toBe(30);
+    }
+  });
+
+  test("payload size is dramatically smaller than raw (budget-exhaustion vector closed)", () => {
+    const raw = new TextEncoder().encode(JSON.stringify(TOKEN_FIXTURE)).length;
+    const summarized = new TextEncoder().encode(
+      JSON.stringify(summarizeTokenScanForLLM(TOKEN_FIXTURE)),
+    ).length;
+    // Raw fixture is tens of KB; summary should be well under 4 KB.
+    expect(summarized).toBeLessThan(4096);
+    expect(summarized).toBeLessThan(raw / 5);
+  });
+
+  test("handles a token with no clusters / no holders gracefully", () => {
+    const empty: TokenScanResult = {
+      ...TOKEN_FIXTURE,
+      topHolders: [],
+      clusters: [],
+      totalHolders: 0,
+      scannedHolders: 0,
+      totalClusteredPct: 0,
+      maxClusterPct: 0,
+    };
+    const s = summarizeTokenScanForLLM(empty);
+    expect(s.topHolders).toEqual([]);
+    expect(s.clusters).toEqual([]);
   });
 });

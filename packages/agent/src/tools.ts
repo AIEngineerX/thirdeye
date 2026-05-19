@@ -8,7 +8,12 @@ import {
 } from "@thirdeye/scanner";
 import { inArray, sql } from "drizzle-orm";
 import { z } from "zod";
-import { type WalletSummary, summarizeWalletForLLM } from "./summarize";
+import {
+  type TokenScanSummary,
+  type WalletSummary,
+  summarizeTokenScanForLLM,
+  summarizeWalletForLLM,
+} from "./summarize";
 
 // Tool handlers receive a context bag so they can access infra (DB, Helius
 // keys, scanner config). Tools must not mutate global state outside what the
@@ -119,7 +124,7 @@ const scanToken: AgentTool = {
     properties: { mint: { type: "string", description: "Solana SPL mint address (base58)" } },
     required: ["mint"],
   },
-  handler: async (raw, ctx): Promise<TokenScanResult> => {
+  handler: async (raw, ctx): Promise<TokenScanSummary> => {
     const { mint } = z.object({ mint: MINT }).parse(raw);
     const generator = scannerScanToken({
       mint,
@@ -137,7 +142,12 @@ const scanToken: AgentTool = {
       throw e;
     }
     if (!final) throw new Error("scanner produced no result event");
-    return final;
+    // M7: return the projected summary, not the raw TokenScanResult — the
+    // raw payload was hundreds of KB on high-holder mints and dominated
+    // LLM context cost. Also closes an adversarial budget-exhaustion
+    // vector (attacker prompts the agent to scan a mint with thousands
+    // of holders).
+    return summarizeTokenScanForLLM(final);
   },
 };
 
