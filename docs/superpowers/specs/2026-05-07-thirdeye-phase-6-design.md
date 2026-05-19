@@ -121,7 +121,7 @@ error             text
 | `running` | Run is in flight |
 | `success` | Clean completion |
 | `failed` | Run errored mid-execution; `error` populated |
-| `budget_exceeded` | Per-run cap (tool calls or tokens) tripped during the run |
+| `capped` | Per-run cap (tool calls or tokens) tripped during the run |
 | `skipped_budget` | Daily cap pre-check failed; run never started |
 
 Index on `(kind, started_at DESC)`, plus index on `started_at` for daily-cap aggregate queries.

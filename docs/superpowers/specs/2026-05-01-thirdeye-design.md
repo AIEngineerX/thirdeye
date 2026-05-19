@@ -127,29 +127,38 @@ Anonymous session token:
 7. Score (0–100, higher = riskier) — see formula below
 8. Save: `POST /wallet`, `POST /wallet-check`
 
-**Wallet score formula (v1)**:
+**Wallet score formula (v1, original)** — superseded by Phase 5a/5d tuning. See [`2026-05-06-thirdeye-phase-5-alpha-design.md`](2026-05-06-thirdeye-phase-5-alpha-design.md) for the shipped weights. Original values preserved here for design context:
 ```
 wallet_score = clamp(
     (has FRESH_WALLET    ? 10 : 0)
   + (has FUND_DISTRIBUTOR ? 20 : 0)
-  + (has BUNDLER          ? 35 : 0)
-  + (has SYBIL            ? 50 : 0)
+  + (has BUNDLER          ? 35 : 0)         // Phase 5a: 30
+  + (has SYBIL            ? 50 : 0)         // Phase 5a: 25
   - (has KOL              ? 10 : 0)         // KOLs are reputation-positive
   + min(cluster_size, 50) * 0.5,
   0, 100)
 ```
 
+Phase 5d added SMART_MONEY (-15) and SNIPER (+15) to the formula; see scanner/src/score.ts for the canonical implementation.
+
 **Verdict thresholds**: `CLEAN` 0–20 · `LOW` 21–45 · `MEDIUM` 46–70 · `HIGH` 71–100
 
-**Behavioral tags** (initial pass — refinable in v1.1):
+**Behavioral tags** (v1 original — superseded by Phase 5a retuning; shipped values in parens):
 
-| Tag | Definition |
+| Tag | Definition (v1 → shipped Phase 5a) |
 |---|---|
-| `FRESH_WALLET` | Age < 30 days AND tx_count < 50 |
-| `FUND_DISTRIBUTOR` | Outbound SOL to > 20 unique recipients |
-| `BUNDLER` | Member of a cluster of ≥ 5 wallets sharing same funder, all funded within 60s of each other |
-| `SYBIL` | Wallet's funder is itself the funder of ≥ 2 BUNDLER clusters |
+| `FRESH_WALLET` | Age < 30 days AND tx_count < 50 → **Age < 14 days AND tx_count < 20** |
+| `FUND_DISTRIBUTOR` | Outbound SOL to > 20 unique recipients → **≥ 10 unique recipients** |
+| `BUNDLER` | Member of a cluster of ≥ 5 wallets sharing same funder, all funded within 60s → **≥ 2 wallets sharing same funder; `BUNDLER_TIGHT` adds 5-min window** |
+| `SYBIL` | Wallet's funder is itself the funder of ≥ 2 BUNDLER clusters → **BUNDLER plus cluster-CoV < 0.20 (Phase 5b)** |
+| `SMART_MONEY` | Added in Phase 5d: realized SOL PnL ≥ `SMART_MONEY_MIN_SOL` (default 50) |
 | `KOL` | Stub for v2 (requires identity source) |
+| `EXCHANGE` | Wallet or its first-funder is a known CEX |
+| `SNIPER` | Rapid-fire tx pattern, swap-only, avg gap < 30s |
+| `WHALE` | USD value > $50k AND token count ≤ 10 |
+| `BUNDLER_TIGHT` | Phase 5a: BUNDLER plus ≥ 2 siblings funded inside the same time window |
+
+The canonical tag emission table is in the README; the canonical thresholds live in `packages/scanner/src/tags.ts`.
 
 ### 8.2 Scan Token
 
