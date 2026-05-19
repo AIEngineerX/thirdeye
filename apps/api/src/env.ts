@@ -90,6 +90,10 @@ export const env = {
   // startup.
   SMART_MONEY_MIN_SOL: optionalInt("SMART_MONEY_MIN_SOL", 50),
 
+  // H2 — per-IP issuance limit on POST /api/db/auth under PUBLIC mode.
+  // Defaults: 10 issuances per IP per hour. Operator can tighten/loosen.
+  AUTH_ISSUE_LIMIT_PER_HOUR: optionalInt("AUTH_ISSUE_LIMIT_PER_HOUR", 10),
+
   // Phase 6b — agent engine
   ANTHROPIC_API_KEY: optionalUndef("ANTHROPIC_API_KEY"),
   AGENT_DAILY_COST_USD_CAP: optionalInt("AGENT_DAILY_COST_USD_CAP", 25),

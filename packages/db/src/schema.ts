@@ -22,6 +22,15 @@ export const authTokens = pgTable("auth_tokens", {
   rateBucket: jsonb("rate_bucket").notNull().default(sql`'{}'::jsonb`),
 });
 
+// H2 — IP-keyed rate limit on POST /api/db/auth (token issuance). Per-token
+// limits elsewhere are defeated by minting a fresh token before each block;
+// this bucket caps issuances themselves under PUBLIC_INSTANCE_MODE.
+export const authIssueRateBuckets = pgTable("auth_issue_rate_buckets", {
+  ip: text("ip").primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull().defaultNow(),
+  count: integer("count").notNull().default(0),
+});
+
 export const wallets = pgTable(
   "wallets",
   {

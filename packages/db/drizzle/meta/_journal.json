@@ -50,6 +50,13 @@
       "when": 1779219904124,
       "tag": "0006_agent_runs_cache_creation",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779221024222,
+      "tag": "0007_auth_issue_rate_buckets",
+      "breakpoints": true
     }
   ]
 }
