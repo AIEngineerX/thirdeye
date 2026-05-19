@@ -19,6 +19,18 @@ const MAX_OUTPUT_TOKENS = 4096;
 // well above the legitimate AGENT_MAX_TOOL_CALLS_PER_RUN cap of 20.
 const HARD_ITER_LIMIT = 50;
 
+// Heuristic chars-per-token. Anthropic doesn't expose a tokenizer in the
+// SDK; this approximation slightly overestimates English token count
+// (real ratio is ~4 for English text, ~2.5 for code/JSON), which is the
+// right bias for a pre-emptive cap (false positives are cheaper than
+// false negatives — a falsely-capped run gets a recorded `capped` status
+// and the user can retry, whereas a false negative is a budget overrun).
+const CHARS_PER_TOKEN_ESTIMATE = 2.5;
+
+function estimateTokensFromText(text: string): number {
+  return Math.ceil(text.length / CHARS_PER_TOKEN_ESTIMATE);
+}
+
 type ClientFn = typeof callModel;
 
 export interface RunAgentLoopOptions extends AgentRunOptions {
@@ -130,6 +142,28 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<LoopResul
         });
       }
     }
+
+    // M6: pre-emptive input-token cap check. The next API call's input
+    // includes all prior messages PLUS the tool results we just built. The
+    // post-call cap (#1) only fires AFTER paying for the bloated turn —
+    // a single oversized tool result inflates the input bill before the
+    // gate trips. Estimate the increment from the tool results' JSON size
+    // and bail if it would push past the cap.
+    const toolResultsTokens = toolResults.reduce(
+      (acc, tr) => acc + estimateTokensFromText(typeof tr.content === "string" ? tr.content : ""),
+      0,
+    );
+    const projectedNextInput = usage.inputTokens + toolResultsTokens;
+    if (projectedNextInput > opts.maxInputTokens) {
+      return {
+        status: "capped",
+        finalText,
+        usage,
+        costUsd: computeCost(usage, model),
+        toolCallsMade,
+      };
+    }
+
     messages.push({ role: "user", content: toolResults });
   }
 
