@@ -52,11 +52,13 @@ tokenScan.get("/:mint/scan", async (c) => {
         if (evt.event === "result") final = evt.data;
       }
     } catch (e) {
+      // L3 (audit): only HeliusError messages are caller-safe. Other
+      // exceptions can leak postgres hostnames or library-assert internals.
       const err =
         e instanceof HeliusError
           ? { error: "helius_error", message: e.message }
-          : { error: "scanner_error", message: e instanceof Error ? e.message : String(e) };
-      console.error(`[scan-token ${mint}] ${err.error}: ${err.message}`, e);
+          : { error: "scanner_error", message: "internal error during scan" };
+      console.error(`[scan-token ${mint}] ${err.error}`, e);
       await sendSseEvent(stream, { event: "error", data: err });
       return;
     }

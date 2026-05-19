@@ -7,6 +7,7 @@ import { logger } from "hono/logger";
 import { env } from "./env";
 import { initIntelBus } from "./lib/intel-bus";
 import { requireAuth } from "./middleware/auth";
+import { bodySizeLimit } from "./middleware/body-size";
 import { rateLimit } from "./middleware/rate-limit";
 import { authRoutes } from "./routes/auth";
 import {
@@ -33,6 +34,12 @@ type Variables = { db: DbClient };
 const app = new Hono<{ Variables: Variables }>();
 
 app.use("*", logger());
+
+// L2 (audit): cap request body size before any parser sees it. Bun has no
+// default maxRequestBodySize so a multi-megabyte body would be loaded into
+// memory before downstream handlers ran. 64KB fits the largest legitimate
+// request (100-element batch-identity body ~5KB) with plenty of headroom.
+app.use("*", bodySizeLimit());
 
 app.use(
   "*",

@@ -56,13 +56,24 @@ function errorResult(
   start: number,
   upstreamBody?: unknown,
 ): ProxyResult {
+  // L5 (audit): the Helius upstream body can mirror request URL fragments
+  // (including ?api-key=...). Log it server-side for diagnostics, do NOT
+  // include it in the response payload that leaves the proxy module
+  // boundary. No external caller consumes this field today; removing it
+  // closes a defense-in-depth gap before future log/forward paths exist.
+  if (upstreamBody !== undefined) {
+    const preview =
+      typeof upstreamBody === "string"
+        ? upstreamBody.slice(0, 500)
+        : JSON.stringify(upstreamBody).slice(0, 500);
+    console.warn(`[helius-proxy] upstream error ${err.status}: ${preview}`);
+  }
   return {
     status: err.status,
     body: {
       error: err.error,
       message: err.message,
       ...(err.upstreamStatus !== undefined && { upstreamStatus: err.upstreamStatus }),
-      ...(upstreamBody !== undefined && { upstreamBody }),
     },
     fromCache: false,
     durationMs: Date.now() - start,

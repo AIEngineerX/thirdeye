@@ -53,11 +53,16 @@ walletCheck.get("/:addr/check", async (c) => {
         if (evt.event === "result") final = evt.data;
       }
     } catch (e) {
+      // L3 (audit): only HeliusError messages are caller-safe (they're
+      // already curated for client display). Other exceptions can carry
+      // internal infrastructure detail — postgres hostnames, partial
+      // dump of data structures from library asserts. Normalize to a
+      // generic message; full error stays in the server log.
       const err =
         e instanceof HeliusError
           ? { error: "helius_error", message: e.message }
-          : { error: "scanner_error", message: e instanceof Error ? e.message : String(e) };
-      console.error(`[scan ${addr}] ${err.error}: ${err.message}`, e);
+          : { error: "scanner_error", message: "internal error during scan" };
+      console.error(`[scan ${addr}] ${err.error}`, e);
       await sendSseEvent(stream, { event: "error", data: err });
       return;
     }

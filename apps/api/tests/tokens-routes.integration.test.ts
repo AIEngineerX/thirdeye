@@ -146,8 +146,22 @@ describe("GET /api/db/tokens/hot", () => {
 });
 
 describe("GET /api/db/tokens/:mint", () => {
-  test("returns 404 for unknown mint", async () => {
+  // Real-looking b58 mints. The route now validates with isValidSolanaAddress
+  // and 400s on garbage like "not-in-cache" / "KNOWN" (audit L1).
+  const VALID_UNKNOWN_MINT = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
+  const VALID_KNOWN_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+
+  test("returns 400 for invalid mint shape (L1)", async () => {
     const r = await app.request("/api/db/tokens/not-in-cache", {
+      headers: { "X-Auth-Token": token },
+    });
+    expect(r.status).toBe(400);
+    const body = (await r.json()) as { error: string };
+    expect(body.error).toBe("invalid_mint");
+  });
+
+  test("returns 404 for unknown but well-formed mint", async () => {
+    const r = await app.request(`/api/db/tokens/${VALID_UNKNOWN_MINT}`, {
       headers: { "X-Auth-Token": token },
     });
     expect(r.status).toBe(404);
@@ -155,7 +169,7 @@ describe("GET /api/db/tokens/:mint", () => {
 
   test("returns row for known mint", async () => {
     await seedToken({
-      mint: "KNOWN",
+      mint: VALID_KNOWN_MINT,
       symbol: "KNW",
       name: "Known Token",
       priceUsd: 0.42,
@@ -164,12 +178,12 @@ describe("GET /api/db/tokens/:mint", () => {
       liquidityUsd: 50_000,
       refreshedAgoMin: 1,
     });
-    const r = await app.request("/api/db/tokens/KNOWN", {
+    const r = await app.request(`/api/db/tokens/${VALID_KNOWN_MINT}`, {
       headers: { "X-Auth-Token": token },
     });
     expect(r.status).toBe(200);
     const body = (await r.json()) as Record<string, unknown>;
-    expect(body.mint).toBe("KNOWN");
+    expect(body.mint).toBe(VALID_KNOWN_MINT);
     expect(body.symbol).toBe("KNW");
     expect(body.priceUsd).toBe(0.42);
     expect(body.mcUsd).toBe(420_000);

@@ -2,6 +2,7 @@ import { type DbClient, tokens } from "@thirdeye/db";
 import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { clampInt, toIso } from "../../lib/http";
+import { isValidSolanaAddress } from "../../lib/solana-address";
 
 type Variables = { db: DbClient };
 
@@ -77,6 +78,12 @@ tokensRoutes.get("/hot", async (c) => {
 
 tokensRoutes.get("/:mint", async (c) => {
   const mint = c.req.param("mint");
+  // L1 (audit): match the validation pattern used on every other
+  // parameterized route. Garbage mints used to hit the DB pointlessly;
+  // now they 400 before the query runs.
+  if (!isValidSolanaAddress(mint)) {
+    return c.json({ error: "invalid_mint" }, 400);
+  }
   const db = c.get("db");
   const rows = await db.select().from(tokens).where(eq(tokens.mint, mint)).limit(1);
   const row = rows[0];
