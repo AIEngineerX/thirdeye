@@ -15,10 +15,23 @@ function required(name: string): string {
   return v;
 }
 
+function intStrict(name: string, raw: string): number {
+  const trimmed = raw.trim();
+  if (!/^-?[0-9]+$/.test(trimmed)) {
+    process.stderr.write(`${PKG_NAME}: ${name} is not a valid integer: "${raw}"\n`);
+    process.exit(2);
+  }
+  return Number(trimmed);
+}
+
 async function main(): Promise<void> {
   const databaseUrl = required("DATABASE_URL");
-  const heliusKey = process.env.HELIUS_API_KEY;
-  const smartMoneyMinSol = Number(process.env.SMART_MONEY_MIN_SOL ?? "50");
+  const heliusKey = process.env.HELIUS_API_KEY?.trim() || undefined;
+  // F4: was Number() which silently produced NaN for malformed values,
+  // making the SMART_MONEY tag's threshold comparison always false.
+  const smartMoneyMinSol = process.env.SMART_MONEY_MIN_SOL
+    ? intStrict("SMART_MONEY_MIN_SOL", process.env.SMART_MONEY_MIN_SOL)
+    : 50;
 
   if (!heliusKey) {
     process.stderr.write(
