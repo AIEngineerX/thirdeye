@@ -123,6 +123,56 @@ describe("rate-limit middleware", () => {
     expect(r.headers.get("X-RateLimit-Reset")).toBeTruthy();
   });
 
+  test("H1: invalid BYOK header values do NOT bypass", async () => {
+    // The old code's `if (bypassOnByok && c.req.header("X-User-Helius-Key"))`
+    // bypassed on any truthy value including " ", "x", "invalid". A real
+    // Helius key looks like a UUID — the gate now requires that shape.
+    const app = appWith({ mode: "true", bypassOnByok: true, limit: 1 });
+    const token = await issueToken(testDb.db);
+
+    // Burn the limit with a normal call.
+    await app.request("/probe", { headers: { "X-Auth-Token": token } });
+
+    // Try to bypass with various malformed BYOK headers — all should 429.
+    for (const bad of [" ", "x", "1234567", "short", "\t", "abc def"]) {
+      const r = await app.request("/probe", {
+        headers: { "X-Auth-Token": token, "X-User-Helius-Key": bad },
+      });
+      expect(r.status).toBe(429);
+    }
+  });
+
+  test("H1: BYOK calls are recorded in a parallel `{name}_byok` bucket", async () => {
+    // Even when BYOK bypasses the limit, abuse-detection needs visibility
+    // into BYOK usage volumes per token.
+    const app = appWith({
+      mode: "true",
+      bypassOnByok: true,
+      limit: 100,
+      name: "audit_bucket",
+    });
+    const token = await issueToken(testDb.db);
+
+    await app.request("/probe", {
+      headers: {
+        "X-Auth-Token": token,
+        "X-User-Helius-Key": "12345678-aaaa-bbbb-cccc-deadbeefcafe",
+      },
+    });
+    await app.request("/probe", {
+      headers: {
+        "X-Auth-Token": token,
+        "X-User-Helius-Key": "12345678-aaaa-bbbb-cccc-deadbeefcafe",
+      },
+    });
+
+    const rows = await testDb.db.select().from(authTokens).where(eq(authTokens.token, token));
+    const bucket = rows[0]!.rateBucket as Record<string, { count: number }>;
+    expect(bucket.audit_bucket_byok?.count).toBe(2);
+    // The non-byok bucket is untouched
+    expect(bucket.audit_bucket).toBeUndefined();
+  });
+
   test("two limits on same token use separate buckets", async () => {
     process.env.PUBLIC_INSTANCE_MODE = "true";
     const app = new Hono<{ Variables: { db: DbClient } }>();
