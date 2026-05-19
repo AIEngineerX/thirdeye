@@ -62,6 +62,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  process.stderr.write(`${PKG_NAME}: fatal: ${e instanceof Error ? e.stack : String(e)}\n`);
+  // F3: e.stack includes absolute file paths that leak repo layout when
+  // logs are aggregated. e.message is enough for an operator looking at
+  // the immediate failure.
+  process.stderr.write(`${PKG_NAME}: fatal: ${e instanceof Error ? e.message : String(e)}\n`);
   process.exit(1);
 });

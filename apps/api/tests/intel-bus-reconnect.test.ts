@@ -73,7 +73,11 @@ describe("intel-bus LISTEN reconnect", () => {
     seen.length = 0;
     await publish({
       event: "check:complete",
-      data: { address: "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9", score: 42, verdict: "CLEAN" },
+      data: {
+        address: "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9",
+        score: 42,
+        verdict: "CLEAN",
+      },
     });
 
     // Subscriber should receive the new event via the re-established
