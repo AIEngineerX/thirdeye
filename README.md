@@ -74,7 +74,11 @@ curl -X POST http://localhost:3001/api/db/watches \
   -d '{"addresses":["<wallet>"],"label":"watching for dump"}'
 
 # Live SSE intel feed:
-curl -N "http://localhost:3001/api/db/intel/feed?token=$TOKEN"
+# SSE auth: obtain a single-use ticket (token never lands in URLs/logs),
+# then connect:
+TICKET=$(curl -s -X POST http://localhost:3001/api/db/intel/feed/ticket \
+  -H "X-Auth-Token: $TOKEN" | jq -r .ticket)
+curl -N "http://localhost:3001/api/db/intel/feed?ticket=$TICKET"
 ```
 
 ## Use from Claude Desktop (MCP)
@@ -147,7 +151,8 @@ Two services, one Postgres. No Redis, no message broker, no separate cache serve
 | `GET` | `/api/db/intel/aggregates` | 24h pulse, all-time totals, risk distribution, heatmap |
 | `GET` | `/api/db/intel/recent/scans` | recent token scans across the network |
 | `GET` | `/api/db/intel/recent/checks` | recent wallet checks across the network |
-| `GET` | `/api/db/intel/feed` | **SSE** live intel-bus feed (token query param for auth) |
+| `POST` | `/api/db/intel/feed/ticket` | obtain a 30s single-use ticket; auth via `X-Auth-Token` header. Use when the SSE client (e.g. browser EventSource) can't set custom headers. |
+| `GET` | `/api/db/intel/feed` | **SSE** live intel-bus feed (auth via `?ticket=<single-use>` from `/feed/ticket`) |
 | `GET` | `/api/db/intel/funders/top-clustered` | top funders by `cluster_count` (cross-token bundler view) |
 | `GET` | `/api/db/intel/funders/:addr/clusters` | per-funder cluster history across all scanned tokens |
 
@@ -190,6 +195,10 @@ The codebase commits atomically (one phase = one or more discrete commits with p
 
 | Phase | Forward (in `packages/db/drizzle/`) | Manual reverse |
 |---|---|---|
+| 6b.6 hardening | `0009_tg_msg_id_dedup.sql` | `DROP INDEX agent_runs_tg_msg_id_dedup_uidx;` |
+| 6b.6 hardening | `0008_sse_tickets.sql` | `DROP TABLE sse_tickets;` |
+| 6b.6 hardening | `0007_auth_issue_rate_buckets.sql` | `DROP TABLE auth_issue_rate_buckets;` |
+| 6b.6 hardening | `0006_agent_runs_cache_creation.sql` | `ALTER TABLE agent_runs DROP COLUMN cache_creation_tokens;` |
 | 6b | `0005_agent_runs.sql` | `DROP TABLE agent_runs;` |
 | 6a | `0004_tokens.sql` | `DROP TABLE tokens;` |
 | 6.0 | `0003_intel_events.sql` | `DROP TABLE intel_events;` |
