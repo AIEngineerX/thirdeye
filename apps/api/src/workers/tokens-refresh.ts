@@ -49,34 +49,44 @@ export async function refreshTokens(db: DbClient, opts: RefreshOptions): Promise
   }
 
   let refreshed = 0;
+  let errored = 0;
   for (const q of quotes) {
-    await db
-      .insert(tokens)
-      .values({
-        mint: q.mint,
-        symbol: q.symbol,
-        name: q.name,
-        // Drizzle's numeric column accepts string for arbitrary precision;
-        // cast undefined/null sensibly. Number-stringification at the
-        // boundary keeps storage stable across JS float churn.
-        mcUsd: q.mcUsd === null ? null : String(q.mcUsd),
-        priceUsd: q.priceUsd === null ? null : String(q.priceUsd),
-        mc24hPct: q.mc24hPct === null ? null : String(q.mc24hPct),
-        liquidityUsd: q.liquidityUsd === null ? null : String(q.liquidityUsd),
-      })
-      .onConflictDoUpdate({
-        target: tokens.mint,
-        set: {
-          symbol: sql`COALESCE(EXCLUDED.symbol, ${tokens.symbol})`,
-          name: sql`COALESCE(EXCLUDED.name, ${tokens.name})`,
-          mcUsd: sql`EXCLUDED.mc_usd`,
-          priceUsd: sql`EXCLUDED.price_usd`,
-          mc24hPct: sql`EXCLUDED.mc_24h_pct`,
-          liquidityUsd: sql`EXCLUDED.liquidity_usd`,
-          lastRefreshedAt: sql`now()`,
-        },
-      });
-    refreshed++;
+    // Bug-L3: per-quote DB write failures previously aborted the loop and
+    // reported errored:0 even when some rows failed. Wrap each write so
+    // one bad row doesn't take down the rest of the batch and the counter
+    // reflects reality.
+    try {
+      await db
+        .insert(tokens)
+        .values({
+          mint: q.mint,
+          symbol: q.symbol,
+          name: q.name,
+          // Drizzle's numeric column accepts string for arbitrary precision;
+          // cast undefined/null sensibly. Number-stringification at the
+          // boundary keeps storage stable across JS float churn.
+          mcUsd: q.mcUsd === null ? null : String(q.mcUsd),
+          priceUsd: q.priceUsd === null ? null : String(q.priceUsd),
+          mc24hPct: q.mc24hPct === null ? null : String(q.mc24hPct),
+          liquidityUsd: q.liquidityUsd === null ? null : String(q.liquidityUsd),
+        })
+        .onConflictDoUpdate({
+          target: tokens.mint,
+          set: {
+            symbol: sql`COALESCE(EXCLUDED.symbol, ${tokens.symbol})`,
+            name: sql`COALESCE(EXCLUDED.name, ${tokens.name})`,
+            mcUsd: sql`EXCLUDED.mc_usd`,
+            priceUsd: sql`EXCLUDED.price_usd`,
+            mc24hPct: sql`EXCLUDED.mc_24h_pct`,
+            liquidityUsd: sql`EXCLUDED.liquidity_usd`,
+            lastRefreshedAt: sql`now()`,
+          },
+        });
+      refreshed++;
+    } catch (e) {
+      errored++;
+      console.error(`[tokens-refresh] write failed mint=${q.mint}`, e);
+    }
   }
 
   // Mints we asked for but the source didn't return: still bump
@@ -86,11 +96,17 @@ export async function refreshTokens(db: DbClient, opts: RefreshOptions): Promise
   const returnedSet = new Set(quotes.map((q) => q.mint));
   const missing = mints.filter((m) => !returnedSet.has(m));
   if (missing.length > 0) {
-    await db
-      .update(tokens)
-      .set({ lastRefreshedAt: sql`now()` })
-      .where(inArray(tokens.mint, missing));
+    try {
+      await db
+        .update(tokens)
+        .set({ lastRefreshedAt: sql`now()` })
+        .where(inArray(tokens.mint, missing));
+    } catch (e) {
+      // Failure to bump the missing rows just means we retry them next
+      // tick — not a real error path. Log and continue.
+      console.warn("[tokens-refresh] bump-missing failed (will retry next tick)", e);
+    }
   }
 
-  return { selected: candidates.length, refreshed, errored: 0 };
+  return { selected: candidates.length, refreshed, errored };
 }

@@ -6,9 +6,14 @@ export function clampInt(
   min: number,
   max: number,
 ): number {
-  if (raw === undefined) return fallback;
-  const n = Number.parseInt(raw, 10);
-  if (Number.isNaN(n)) return fallback;
+  if (raw === undefined || raw === "") return fallback;
+  // Bug-L5: parseInt stops at the first non-numeric character — so "1e10"
+  // would parse as 1, then clamp to min=1 instead of producing the
+  // expected too-large value. Use Math.trunc(Number(...)) which respects
+  // the whole string and returns NaN on garbage suffixes.
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  const n = Math.trunc(parsed);
   return Math.max(min, Math.min(max, n));
 }
 
