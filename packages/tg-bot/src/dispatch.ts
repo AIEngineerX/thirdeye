@@ -37,6 +37,14 @@ export interface DispatchContext {
   runAgentLoop: typeof runAgentLoop;
 }
 
+// Postgres reports unique-violation errors with SQLSTATE 23505. postgres.js
+// surfaces this on the error object's `code` field.
+function isPgUniqueViolation(e: unknown): boolean {
+  return (
+    typeof e === "object" && e !== null && "code" in e && (e as { code: unknown }).code === "23505"
+  );
+}
+
 async function isDuplicate(db: DbClient, messageId: number): Promise<boolean> {
   // Skip replays of messages we've already handled to completion. Rows
   // with status='failed' are NOT considered handled — the user didn't
@@ -75,24 +83,40 @@ export async function dispatch(msg: TgMessage, ctx: DispatchContext): Promise<vo
     console.warn("[tg-bot] sendChatAction failed (non-fatal)", e);
   }
 
-  // 5. Budget gate
+  // 5. Budget gate. acquireBudget INSERTs the running row; if a concurrent
+  // dispatch with the same telegram_msg_id beat us through the dedup check,
+  // the partial-unique index (migration 0009) makes this INSERT fail with
+  // a unique-violation. Catch and treat as "already handled" — the other
+  // dispatch will produce the reply.
   const model = resolveModel("cheap");
-  const budget = await acquireBudget({
-    db: ctx.db,
-    kind: "tg_query",
-    model,
-    estimatedCostUsd: ESTIMATED_COST_PER_RUN_USD,
-    dailyCapUsd: ctx.dailyCapUsd,
-    metadata: {
-      telegram_msg_id: msg.message_id,
-      telegram_user_id: msg.from?.id,
-      // M5: sanitize control/bidi/zero-width chars before persisting.
-      // A future Phase 6c worker re-injecting these prompts into agent
-      // context would otherwise carry adversarial control sequences across
-      // a trust boundary (semantic prompt injection).
-      prompt: sanitizePromptForStorage(truncateUtf16Safe(msg.text, 200)),
-    },
-  });
+  let budget: Awaited<ReturnType<typeof acquireBudget>>;
+  try {
+    budget = await acquireBudget({
+      db: ctx.db,
+      kind: "tg_query",
+      model,
+      estimatedCostUsd: ESTIMATED_COST_PER_RUN_USD,
+      dailyCapUsd: ctx.dailyCapUsd,
+      metadata: {
+        telegram_msg_id: msg.message_id,
+        telegram_user_id: msg.from?.id,
+        // M5: sanitize control/bidi/zero-width chars before persisting.
+        // A future Phase 6c worker re-injecting these prompts into agent
+        // context would otherwise carry adversarial control sequences across
+        // a trust boundary (semantic prompt injection).
+        prompt: sanitizePromptForStorage(truncateUtf16Safe(msg.text, 200)),
+      },
+    });
+  } catch (e) {
+    // Postgres unique_violation = "23505". Closes the audit/bug-scan L4
+    // dedup race where two concurrent dispatches could both pass the
+    // EXISTS check before either INSERT committed.
+    if (isPgUniqueViolation(e)) {
+      console.log(`[tg-bot] dedup race lost — msg_id=${msg.message_id} already running`);
+      return;
+    }
+    throw e;
+  }
 
   if (!budget.admitted) {
     try {

@@ -245,3 +245,16 @@ export const agentRuns = pgTable(
     kindStartedAtIdx: index("agent_runs_kind_started_at_idx").on(t.kind, t.startedAt.desc()),
   }),
 );
+
+// Migration 0009 adds a partial unique index on agent_runs that closes the
+// tg-bot dedup race (audit L4 / bug-scan L4). Two concurrent Telegram
+// updates with the same telegram_msg_id used to be able to both pass the
+// SELECT EXISTS check before either INSERT committed, racing into double
+// agent runs. The unique index over (metadata->>'telegram_msg_id') WHERE
+// status != 'failed' makes the second INSERT fail at the DB level, so the
+// dispatch handler can catch the unique-violation and treat it as
+// "already handled" without a second agent run.
+//
+// Defined as raw SQL in the migration because drizzle's index() doesn't
+// model `WHERE` clauses on partial indexes. Schema definition kept above
+// as documentation.

@@ -214,6 +214,48 @@ d("dispatch (integration)", () => {
     expect(runs[0]!.metadata.prompt.length).toBe(200);
   });
 
+  test("L4: concurrent dispatches with same telegram_msg_id deduplicate via unique index", async () => {
+    // Two parallel dispatch() calls for the same msg.message_id. With the
+    // partial-unique index on (metadata->>'telegram_msg_id') WHERE
+    // status != 'failed' (migration 0009), only one INSERT into
+    // agent_runs can succeed; the other catches the unique-violation and
+    // returns silently. Without the index the EXISTS dedup check race
+    // would let both pass and both run the agent.
+    let runLoopCalls = 0;
+    const slowLoop = (async () => {
+      runLoopCalls++;
+      // Hold the in-flight run a bit so the parallel dispatch can race.
+      await new Promise((r) => setTimeout(r, 50));
+      return {
+        status: "success" as const,
+        finalText: "concurrent ok",
+        usage: { inputTokens: 100, outputTokens: 50, cacheReadTokens: 0, cacheCreationTokens: 0 },
+        costUsd: 0.001,
+        toolCallsMade: 0,
+      };
+    }) as unknown as RunAgentLoopFn;
+
+    const [r1, r2] = await Promise.all([
+      dispatch(msg({ message_id: 555, text: "race A" }), ctx({ runAgentLoop: slowLoop })),
+      dispatch(msg({ message_id: 555, text: "race B" }), ctx({ runAgentLoop: slowLoop })),
+    ]);
+    expect(r1).toBeUndefined();
+    expect(r2).toBeUndefined();
+
+    // Exactly one agent_runs row for msg_id=555
+    const rows = await conn.sql<{ status: string; metadata: { prompt: string } }[]>`
+      SELECT status, metadata FROM agent_runs WHERE metadata->>'telegram_msg_id' = '555'
+    `;
+    expect(rows.length).toBe(1);
+    expect(rows[0]!.status).toBe("success");
+
+    // Only one reply sent
+    expect(sent.length).toBe(1);
+    // And the agent loop ran at most once (might be 0 if the race lost
+    // BEFORE acquiring budget, or 1 if it won — never 2).
+    expect(runLoopCalls).toBeLessThanOrEqual(1);
+  });
+
   test("survives an emoji at the reply truncation boundary (B5)", async () => {
     // The old code did body.slice(0, MAX_REPLY_CHARS), which on a UTF-16-
     // indexed string split surrogate pairs and produced invalid UTF-8.
