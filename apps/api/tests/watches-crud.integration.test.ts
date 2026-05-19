@@ -402,8 +402,75 @@ describe("GET /api/db/watches/:address/events", () => {
       headers: { "X-Auth-Token": token },
     });
     expect(owner.status).toBe(200);
-    const ownerBody = (await owner.json()) as { items: { signature: string }[] };
+    const ownerBody = (await owner.json()) as {
+      items: { signature: string; effects: Record<string, unknown>; payload?: unknown }[];
+    };
     expect(ownerBody.items.length).toBe(1);
     expect(ownerBody.items[0]!.signature).toBe("sig-leak");
+    // H3: raw payload (with adversarial `secret` field) must NOT appear in
+    // the response — only the projected `effects` block.
+    expect(ownerBody.items[0]!.payload).toBeUndefined();
+    expect(ownerBody.items[0]!.effects).toBeDefined();
+    expect(JSON.stringify(ownerBody.items[0]!.effects)).not.toContain("secret");
+    expect(JSON.stringify(ownerBody.items[0]!.effects)).not.toContain("should not leak");
+  });
+
+  test("H3: unrelated-party token transfers are stripped from the response", async () => {
+    await testDb.db.insert(watches).values({ address: ADDR_A, token });
+    await testDb.db.insert(watchEvents).values({
+      address: ADDR_A,
+      signature: "sig-projection",
+      type: "SWAP",
+      payload: {
+        signature: "sig-projection",
+        source: "JUPITER",
+        feePayer: ADDR_B, // someone else paid
+        fee: 5000,
+        tokenTransfers: [
+          // Transfer between two unrelated parties — must NOT appear
+          {
+            fromUserAccount: ADDR_B,
+            toUserAccount: "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9",
+            mint: "So11111111111111111111111111111111111111112",
+            tokenAmount: 999,
+          },
+          // Transfer involving the watched address
+          {
+            fromUserAccount: ADDR_B,
+            toUserAccount: ADDR_A,
+            mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+            tokenAmount: 250,
+          },
+        ],
+        accountData: [
+          { account: "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9", nativeBalanceChange: -777 },
+          { account: ADDR_A, nativeBalanceChange: 100 },
+        ],
+      },
+    });
+
+    const r = await app.request(`/api/db/watches/${ADDR_A}/events`, {
+      headers: { "X-Auth-Token": token },
+    });
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as {
+      items: {
+        effects: {
+          feePayerIsAddress: boolean;
+          feeLamports: number | null;
+          nativeBalanceChange: number | null;
+          tokenTransfers: Array<{ counterparty: string; mint: string; direction: string }>;
+        };
+      }[];
+    };
+
+    const e = body.items[0]!.effects;
+    expect(e.feePayerIsAddress).toBe(false);
+    expect(e.feeLamports).toBeNull();
+    expect(e.nativeBalanceChange).toBe(100);
+    expect(e.tokenTransfers).toHaveLength(1);
+    expect(e.tokenTransfers[0]!.counterparty).toBe(ADDR_B);
+    // Unrelated party's address must not appear anywhere in the response
+    expect(JSON.stringify(body)).not.toContain("5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9");
   });
 });

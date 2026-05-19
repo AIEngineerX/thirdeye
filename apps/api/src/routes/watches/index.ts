@@ -184,5 +184,101 @@ watchesRoutes.get("/:address/events", async (c) => {
     .where(eq(watchEvents.address, address))
     .orderBy(sql`${watchEvents.receivedAt} DESC`)
     .limit(limit);
-  return c.json({ address, items: rows });
+
+  // Project payload at read time. The stored jsonb contains the raw
+  // HeliusInboundEvent — fee payer (possibly someone else), full account
+  // lists, token transfers between unrelated parties. Without this
+  // projection, the response leaks enhanced-tx detail about every party
+  // in each transaction the watched address participated in.
+  const items = rows.map((r) => ({
+    id: r.id,
+    signature: r.signature,
+    type: r.type,
+    receivedAt: r.receivedAt,
+    effects: projectWatchEventForAddress(r.payload, address),
+  }));
+
+  return c.json({ address, items });
 });
+
+// Exported for unit tests.
+export function projectWatchEventForAddress(
+  payload: unknown,
+  address: string,
+): {
+  source: string | null;
+  description: string | null;
+  timestamp: number | null;
+  slot: number | null;
+  feePayerIsAddress: boolean;
+  feeLamports: number | null;
+  nativeBalanceChange: number | null;
+  tokenTransfers: Array<{
+    mint: string | null;
+    amount: number | null;
+    direction: "in" | "out";
+    counterparty: string | null;
+  }>;
+} {
+  const p = (payload ?? {}) as {
+    source?: unknown;
+    description?: unknown;
+    timestamp?: unknown;
+    slot?: unknown;
+    feePayer?: unknown;
+    fee?: unknown;
+    tokenTransfers?: Array<{
+      fromUserAccount?: unknown;
+      toUserAccount?: unknown;
+      tokenAmount?: unknown;
+      mint?: unknown;
+    }>;
+    accountData?: Array<{ account?: unknown; nativeBalanceChange?: unknown }>;
+  };
+
+  const feePayerIsAddress = p.feePayer === address;
+  // Only surface the fee when the watched address paid it. Otherwise it's
+  // someone else's fee and not relevant.
+  const feeLamports = feePayerIsAddress && typeof p.fee === "number" ? p.fee : null;
+
+  const nativeBalanceChange = (() => {
+    if (!Array.isArray(p.accountData)) return null;
+    for (const ad of p.accountData) {
+      if (ad?.account === address && typeof ad.nativeBalanceChange === "number") {
+        return ad.nativeBalanceChange;
+      }
+    }
+    return null;
+  })();
+
+  const tokenTransfers: Array<{
+    mint: string | null;
+    amount: number | null;
+    direction: "in" | "out";
+    counterparty: string | null;
+  }> = [];
+  if (Array.isArray(p.tokenTransfers)) {
+    for (const t of p.tokenTransfers) {
+      const from = typeof t?.fromUserAccount === "string" ? t.fromUserAccount : null;
+      const to = typeof t?.toUserAccount === "string" ? t.toUserAccount : null;
+      if (from !== address && to !== address) continue; // unrelated
+      tokenTransfers.push({
+        mint: typeof t?.mint === "string" ? t.mint : null,
+        amount: typeof t?.tokenAmount === "number" ? t.tokenAmount : null,
+        direction: to === address ? "in" : "out",
+        counterparty: to === address ? from : to,
+      });
+    }
+  }
+
+  return {
+    source: typeof p.source === "string" ? p.source : null,
+    description: typeof p.description === "string" ? p.description : null,
+    timestamp: typeof p.timestamp === "number" ? p.timestamp : null,
+    slot: typeof p.slot === "number" ? p.slot : null,
+    feePayerIsAddress,
+    feeLamports,
+    nativeBalanceChange,
+    tokenTransfers,
+  };
+}
