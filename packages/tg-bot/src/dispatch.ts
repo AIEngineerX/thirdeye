@@ -3,7 +3,7 @@ import type { ToolContext } from "@thirdeye/agent";
 import { type DbClient, agentRuns } from "@thirdeye/db";
 import { eq, sql } from "drizzle-orm";
 import type { TgMessage } from "./telegram";
-import { truncateUtf16Safe } from "./text";
+import { sanitizePromptForStorage, truncateUtf16Safe } from "./text";
 
 // Hard-coded constants — see spec for rationale on why these aren't env vars.
 const ESTIMATED_COST_PER_RUN_USD = 0.05;
@@ -86,7 +86,11 @@ export async function dispatch(msg: TgMessage, ctx: DispatchContext): Promise<vo
     metadata: {
       telegram_msg_id: msg.message_id,
       telegram_user_id: msg.from?.id,
-      prompt: truncateUtf16Safe(msg.text, 200),
+      // M5: sanitize control/bidi/zero-width chars before persisting.
+      // A future Phase 6c worker re-injecting these prompts into agent
+      // context would otherwise carry adversarial control sequences across
+      // a trust boundary (semantic prompt injection).
+      prompt: sanitizePromptForStorage(truncateUtf16Safe(msg.text, 200)),
     },
   });
 

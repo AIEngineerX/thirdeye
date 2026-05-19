@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { truncateUtf16Safe } from "../src/text";
+import { sanitizePromptForStorage, truncateUtf16Safe } from "../src/text";
 
 describe("truncateUtf16Safe", () => {
   test("returns input unchanged when under limit", () => {
@@ -58,5 +58,43 @@ describe("truncateUtf16Safe", () => {
     const out = truncateUtf16Safe(fire.repeat(5), 7);
     expect(out).toBe(fire.repeat(3));
     expect(out.length).toBe(6);
+  });
+});
+
+describe("sanitizePromptForStorage (M5)", () => {
+  test("preserves ordinary text, tabs, and newlines", () => {
+    const s = "check VJSDW6S74YXR4rRR9P4xwhMvLZJQMhrUb8XMFirUsy1\n\there";
+    expect(sanitizePromptForStorage(s)).toBe(s);
+  });
+
+  test("strips C0 control characters except tab and newline", () => {
+    expect(sanitizePromptForStorage("a\x00b\x07c")).toBe("abc");
+    expect(sanitizePromptForStorage("ESC=\x1B[31mred\x1B[0m")).toBe("ESC=[31mred[0m");
+    expect(sanitizePromptForStorage("DEL\x7Fhere")).toBe("DELhere");
+  });
+
+  test("strips C1 control characters", () => {
+    expect(sanitizePromptForStorage("a\x80b\x9Fc")).toBe("abc");
+  });
+
+  test("strips zero-width characters that hide content visually", () => {
+    // U+200B ZERO WIDTH SPACE between two visible chars
+    expect(sanitizePromptForStorage("a​b")).toBe("ab");
+    expect(sanitizePromptForStorage("a‌‍﻿b")).toBe("ab");
+  });
+
+  test("strips bidi override/isolate marks (homograph attack vector)", () => {
+    // U+202E RIGHT-TO-LEFT OVERRIDE
+    expect(sanitizePromptForStorage("safe‮dangerous")).toBe("safedangerous");
+    expect(sanitizePromptForStorage("‪‫‬‭‮x⁦⁧⁨⁩")).toBe("x");
+  });
+
+  test("preserves emoji codepoints", () => {
+    const fire = "\u{1F525}";
+    expect(sanitizePromptForStorage(`hot ${fire}`)).toBe(`hot ${fire}`);
+  });
+
+  test("empty input → empty output", () => {
+    expect(sanitizePromptForStorage("")).toBe("");
   });
 });
