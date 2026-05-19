@@ -91,7 +91,12 @@ export async function finalizeBudget(
       toolCallsMade: result.toolCallsMade,
       inputTokens: result.usage.inputTokens,
       outputTokens: result.usage.outputTokens,
-      cachedInputTokens: result.usage.cacheReadTokens + result.usage.cacheCreationTokens,
+      // Split the two cache categories — they have ~12x different per-token
+      // rates, so summing them into one column destroyed audit-trail accuracy
+      // (cost_usd itself is computed by computeCost with the proper splits
+      // before this row write, so the daily-budget gate is unaffected).
+      cachedInputTokens: result.usage.cacheReadTokens,
+      cacheCreationTokens: result.usage.cacheCreationTokens,
       costUsd: String(result.costUsd),
       endedAt: new Date(),
       errorMessage: result.errorMessage ?? null,

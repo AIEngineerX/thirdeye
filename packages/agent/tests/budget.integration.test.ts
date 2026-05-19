@@ -113,4 +113,49 @@ d("acquireBudget multi-process race", () => {
     }>;
     expect(rows[0]?.status).toBe("skipped_budget");
   }, 10_000);
+
+  test("finalizeBudget splits cache_read and cache_creation into separate columns (B6)", async () => {
+    const { acquireBudget, finalizeBudget } = await import("../src/budget");
+    const r = await acquireBudget({
+      db: conn.db,
+      kind: "discovery",
+      model: "claude-haiku-4-5-20251001",
+      estimatedCostUsd: 0.05,
+      dailyCapUsd: 25,
+    });
+    expect(r.admitted).toBe(true);
+
+    await finalizeBudget(conn.db, r.runId, {
+      status: "success",
+      finalText: "",
+      toolCallsMade: 3,
+      usage: {
+        inputTokens: 1000,
+        outputTokens: 500,
+        cacheReadTokens: 5000,
+        cacheCreationTokens: 10000,
+      },
+      costUsd: 0.012,
+      errorMessage: null,
+    });
+
+    const rows = (await conn.sql`
+      SELECT cached_input_tokens, cache_creation_tokens, input_tokens, output_tokens, cost_usd::text AS cost_usd
+      FROM agent_runs WHERE id = ${r.runId}
+    `) as Array<{
+      cached_input_tokens: number;
+      cache_creation_tokens: number;
+      input_tokens: number;
+      output_tokens: number;
+      cost_usd: string;
+    }>;
+    expect(rows[0]?.cached_input_tokens).toBe(5000);
+    expect(rows[0]?.cache_creation_tokens).toBe(10000);
+    expect(rows[0]?.input_tokens).toBe(1000);
+    expect(rows[0]?.output_tokens).toBe(500);
+    // Cost rebuilt from the columns + Anthropic's prompt-cache rate sheet
+    // must match the persisted cost_usd. Without the split, a downstream
+    // reconstruction would mis-cost the cache_creation portion by ~12x.
+    expect(Number(rows[0]?.cost_usd)).toBeCloseTo(0.012, 6);
+  }, 10_000);
 });

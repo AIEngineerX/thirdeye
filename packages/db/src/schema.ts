@@ -205,7 +205,13 @@ export const agentRuns = pgTable(
     toolCallsMade: integer("tool_calls_made").notNull().default(0),
     inputTokens: integer("input_tokens").notNull().default(0),
     outputTokens: integer("output_tokens").notNull().default(0),
+    // Cache-read tokens (cheap tier, ~$0.10/MTok). Older rows here may
+    // include cache-creation tokens summed in — they were not split until
+    // migration 0006.
     cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
+    // Cache-creation tokens (expensive tier, ~$1.25/MTok for Sonnet).
+    // Added in migration 0006 so audit-row cost reconstruction is accurate.
+    cacheCreationTokens: integer("cache_creation_tokens").notNull().default(0),
     costUsd: numeric("cost_usd").notNull().default("0"),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     endedAt: timestamp("ended_at", { withTimezone: true }),

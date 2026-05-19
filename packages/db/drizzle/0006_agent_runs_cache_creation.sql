@@ -1,0 +1,1 @@
+ALTER TABLE "agent_runs" ADD COLUMN "cache_creation_tokens" integer DEFAULT 0 NOT NULL;
