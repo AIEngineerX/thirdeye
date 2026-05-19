@@ -3,6 +3,7 @@ import type { ToolContext } from "@thirdeye/agent";
 import { type DbClient, agentRuns } from "@thirdeye/db";
 import { eq, sql } from "drizzle-orm";
 import type { TgMessage } from "./telegram";
+import { truncateUtf16Safe } from "./text";
 
 // Hard-coded constants — see spec for rationale on why these aren't env vars.
 const ESTIMATED_COST_PER_RUN_USD = 0.05;
@@ -85,7 +86,7 @@ export async function dispatch(msg: TgMessage, ctx: DispatchContext): Promise<vo
     metadata: {
       telegram_msg_id: msg.message_id,
       telegram_user_id: msg.from?.id,
-      prompt: msg.text.slice(0, 200),
+      prompt: truncateUtf16Safe(msg.text, 200),
     },
   });
 
@@ -123,7 +124,9 @@ export async function dispatch(msg: TgMessage, ctx: DispatchContext): Promise<vo
         ? result.finalText
         : `(agent produced no text — see agent_runs id=${budget.runId})`;
     const reply =
-      body.length > MAX_REPLY_CHARS ? body.slice(0, MAX_REPLY_CHARS) + TRUNCATION_SUFFIX : body;
+      body.length > MAX_REPLY_CHARS
+        ? truncateUtf16Safe(body, MAX_REPLY_CHARS) + TRUNCATION_SUFFIX
+        : body;
 
     try {
       await ctx.sendMessage(msg.chat.id, reply);

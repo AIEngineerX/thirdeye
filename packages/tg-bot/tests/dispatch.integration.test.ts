@@ -173,6 +173,89 @@ d("dispatch (integration)", () => {
     expect(sent[0]!.text.length).toBeLessThanOrEqual(4096);
     expect(sent[0]!.text.endsWith("…[truncated]")).toBe(true);
   });
+
+  test("survives an emoji at the prompt truncation boundary (B4)", async () => {
+    // 199 ASCII chars + 1 emoji (4-byte UTF-8 / 2 UTF-16 units) at code-unit
+    // position 200, then more text. The old .slice(0,200) split the surrogate
+    // pair and broke the jsonb INSERT into agent_runs.metadata with
+    // "invalid byte sequence for encoding UTF8". The fix stops at code-unit
+    // 199 rather than splitting the surrogate.
+    const head = "x".repeat(199);
+    const fire = "\u{1F525}";
+    const text = `${head}${fire}check VJSDW6S74YXR4rRR9P4xwhMvLZJQMhrUb8XMFirUsy1`;
+    await dispatch(msg({ message_id: 600, text }), ctx());
+
+    expect(sent.length).toBe(1);
+    expect(sent[0]!.text).toBe("test reply");
+
+    const runs = await conn.sql<
+      { status: string; metadata: { prompt: string; telegram_msg_id: number } }[]
+    >`SELECT status, metadata FROM agent_runs WHERE metadata->>'telegram_msg_id' = '600'`;
+    expect(runs.length).toBe(1);
+    expect(runs[0]!.status).toBe("success");
+    // The persisted prompt is bounded by the 200 UTF-16 unit budget; the
+    // emoji didn't fit so it was excluded rather than split.
+    expect(runs[0]!.metadata.prompt).toBe(head);
+  });
+
+  test("includes a boundary emoji when it fits in the prompt budget (B4)", async () => {
+    // 198 ASCII chars + emoji (2 UTF-16 units) = 200 units exactly. The
+    // emoji fits and is preserved as a full codepoint.
+    const head = "x".repeat(198);
+    const fire = "\u{1F525}";
+    const text = `${head}${fire}check VJSDW6S74YXR4rRR9P4xwhMvLZJQMhrUb8XMFirUsy1`;
+    await dispatch(msg({ message_id: 601, text }), ctx());
+
+    const runs = await conn.sql<
+      { status: string; metadata: { prompt: string } }[]
+    >`SELECT status, metadata FROM agent_runs WHERE metadata->>'telegram_msg_id' = '601'`;
+    expect(runs[0]!.status).toBe("success");
+    expect(runs[0]!.metadata.prompt).toBe(`${head}${fire}`);
+    expect(runs[0]!.metadata.prompt.length).toBe(200);
+  });
+
+  test("survives an emoji at the reply truncation boundary (B5)", async () => {
+    // The old code did body.slice(0, MAX_REPLY_CHARS), which on a UTF-16-
+    // indexed string split surrogate pairs and produced invalid UTF-8.
+    // Telegram returned 400 and the user got nothing.
+    //
+    // Verify the post-fix invariants for ANY emoji placement around the
+    // boundary: (a) total length ≤ 4096 UTF-16 units (Telegram's hard cap),
+    // (b) no lone surrogate at the end, (c) JSON.stringify never throws.
+    // MAX_REPLY_CHARS = 4096 - "…[truncated]".length = 4084.
+    const fire = "\u{1F525}";
+    const tail = "z".repeat(1000);
+    // Loop several head sizes that put the emoji in different positions
+    // relative to the 4084 budget — exclusive (4083+emoji=4085 > budget),
+    // inclusive (4082+emoji=4084 == budget), and just under (4081+emoji=4083).
+    for (const headLen of [4081, 4082, 4083]) {
+      const body = `${"y".repeat(headLen)}${fire}${tail}`;
+      const replyLoop = (async () => ({
+        status: "success" as const,
+        finalText: body,
+        usage: { inputTokens: 100, outputTokens: 50, cacheReadTokens: 0, cacheCreationTokens: 0 },
+        costUsd: 0.001,
+        toolCallsMade: 0,
+      })) as unknown as RunAgentLoopFn;
+
+      await conn.sql`TRUNCATE agent_runs RESTART IDENTITY CASCADE`;
+      sent.length = 0;
+      await dispatch(msg({ message_id: 700 + headLen }), ctx({ runAgentLoop: replyLoop }));
+
+      expect(sent.length).toBe(1);
+      const out = sent[0]!.text;
+      // (a) Telegram's hard cap
+      expect(out.length).toBeLessThanOrEqual(4096);
+      // (b) No lone high surrogate at the end (would be invalid UTF-8)
+      const lastCode = out.charCodeAt(out.length - 1);
+      const isLoneHighSurrogate = lastCode >= 0xd800 && lastCode <= 0xdbff;
+      expect(isLoneHighSurrogate).toBe(false);
+      // (c) JSON.stringify never throws
+      expect(() => JSON.stringify({ text: out })).not.toThrow();
+      // Suffix preserved
+      expect(out.endsWith("…[truncated]")).toBe(true);
+    }
+  });
 });
 
 d("cleanupOrphanRuns (integration)", () => {
