@@ -93,6 +93,19 @@ describe("computeTags", () => {
     expect(tags).toContain("FRESH_WALLET");
   });
 
+  test("FRESH_WALLET does NOT fire on zero-tx wallets (B3)", () => {
+    // tx-patterns.ts returns ageDays=0 / txCount=0 as the no-parseable-txs
+    // sentinel. An old wallet whose history Helius can't enhanced-parse
+    // would otherwise wrongly satisfy (0<14 && 0<20) and get tagged FRESH.
+    const tags = computeTags(makeInputs({ ageDays: 0, txCount: 0 }));
+    expect(tags).not.toContain("FRESH_WALLET");
+  });
+
+  test("FRESH_WALLET still fires for genuine fresh wallet at minimum txCount=1", () => {
+    const tags = computeTags(makeInputs({ ageDays: 1, txCount: 1 }));
+    expect(tags).toContain("FRESH_WALLET");
+  });
+
   test("BUNDLER when cluster.size >= 2 and funder is non-exchange", () => {
     const tags = computeTags({
       identity: cleanIdentity,

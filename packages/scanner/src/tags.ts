@@ -32,7 +32,11 @@ export function computeTags(inputs: TagInputs): Tag[] {
     tags.push("EXCHANGE");
   }
 
-  if (inputs.ageDays < FRESH_AGE_DAYS && inputs.txCount < FRESH_TX_COUNT) {
+  // Gate on positive txCount: tx-patterns.ts returns ageDays=0 / txCount=0
+  // as the no-parseable-txs sentinel. Without this guard, an OLD wallet whose
+  // history Helius can't parse would falsely fire FRESH_WALLET (0<14, 0<20)
+  // and tip the score/verdict toward FRESH.
+  if (inputs.txCount > 0 && inputs.ageDays < FRESH_AGE_DAYS && inputs.txCount < FRESH_TX_COUNT) {
     tags.push("FRESH_WALLET");
   }
 
