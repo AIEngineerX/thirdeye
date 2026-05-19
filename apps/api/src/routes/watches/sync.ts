@@ -11,7 +11,7 @@
 // All errors are logged and re-thrown so the caller (route handler) can
 // roll back the local DB write if Helius rejects.
 
-import { type DbClient, heliusWebhooks, watches } from "@thirdeye/db";
+import { type DbExecutor, heliusWebhooks, watches } from "@thirdeye/db";
 import { createWebhook, deleteWebhook, getWebhook, updateWebhook } from "@thirdeye/helius";
 import { eq, sql } from "drizzle-orm";
 
@@ -21,7 +21,9 @@ export interface SyncOptions {
   authHeader: string;
 }
 
-export async function syncHeliusWebhook(db: DbClient, opts: SyncOptions): Promise<void> {
+// Accepts either the top-level DbClient or a transaction handle so callers
+// can run sync inside a tx for atomic rollback of accompanying writes.
+export async function syncHeliusWebhook(db: DbExecutor, opts: SyncOptions): Promise<void> {
   const distinct = await db.execute<{ address: string }>(sql`
     SELECT DISTINCT address FROM watches ORDER BY address
   `);

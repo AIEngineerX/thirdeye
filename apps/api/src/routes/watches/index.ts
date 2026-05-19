@@ -82,27 +82,28 @@ watchesRoutes.post("/", async (c) => {
   if (sync instanceof Response) return sync;
 
   const db = c.get("db");
-  // Insert each (token, address) pair; ON CONFLICT on the (token, address)
-  // pseudo-uniqueness — we don't have that constraint declared so use NOT
-  // EXISTS guard instead.
-  for (const address of addresses as string[]) {
-    await db.execute(sql`
-      INSERT INTO watches (address, label, token)
-      SELECT ${address}::text, ${label}::text, ${token}::text
-      WHERE NOT EXISTS (
-        SELECT 1 FROM watches WHERE token = ${token} AND address = ${address}
-      )
-    `);
-  }
-
+  // Wrap inserts + sync in one transaction so a sync failure rolls back the
+  // inserts atomically. The prior code used a manual catch-and-delete loop
+  // that could itself fail mid-loop and leave inconsistent state.
+  // The error message returned to the caller is intentionally generic —
+  // forwarding String(e) can leak Helius URLs containing api-key fragments
+  // if Bun's fetch error format ever includes them.
   try {
-    await syncHeliusWebhook(db, sync);
+    await db.transaction(async (tx) => {
+      for (const address of addresses as string[]) {
+        await tx.execute(sql`
+          INSERT INTO watches (address, label, token)
+          SELECT ${address}::text, ${label}::text, ${token}::text
+          WHERE NOT EXISTS (
+            SELECT 1 FROM watches WHERE token = ${token} AND address = ${address}
+          )
+        `);
+      }
+      await syncHeliusWebhook(tx, sync);
+    });
   } catch (e) {
-    console.error("[watches.add] sync failed — rolling back inserts", e);
-    for (const address of addresses as string[]) {
-      await db.delete(watches).where(and(eq(watches.token, token), eq(watches.address, address)));
-    }
-    return c.json({ error: "helius_sync_failed", message: String(e) }, 502);
+    console.error("[watches.add] insert+sync failed — tx rolled back", e);
+    return c.json({ error: "helius_sync_failed" }, 502);
   }
 
   return c.json({ added: addresses.length, label }, 200);
@@ -119,15 +120,18 @@ watchesRoutes.delete("/:address", async (c) => {
   if (sync instanceof Response) return sync;
 
   const db = c.get("db");
-  await db.delete(watches).where(and(eq(watches.token, token), eq(watches.address, address)));
-
-  // Sync after delete — if this was the last user watching this address it
-  // gets pruned from the Helius set.
+  // Wrap delete + sync in one tx so a sync failure rolls back the local
+  // delete — otherwise the watch is gone from our DB but Helius still pushes
+  // events for it, leaving orphaned watch_events with no parent watches row.
+  // Generic error message (no String(e)) to avoid leaking api-key fragments.
   try {
-    await syncHeliusWebhook(db, sync);
+    await db.transaction(async (tx) => {
+      await tx.delete(watches).where(and(eq(watches.token, token), eq(watches.address, address)));
+      await syncHeliusWebhook(tx, sync);
+    });
   } catch (e) {
-    console.error("[watches.delete] sync failed — local row already removed", e);
-    return c.json({ error: "helius_sync_failed", message: String(e) }, 502);
+    console.error("[watches.delete] sync failed — tx rolled back", e);
+    return c.json({ error: "helius_sync_failed" }, 502);
   }
   return c.json({ removed: 1 });
 });

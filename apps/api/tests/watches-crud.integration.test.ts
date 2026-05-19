@@ -151,12 +151,32 @@ describe("POST /api/db/watches", () => {
       body: JSON.stringify({ addresses: [ADDR_A] }),
     });
     expect(r.status).toBe(502);
-    const body = (await r.json()) as { error: string };
+    const body = (await r.json()) as { error: string; message?: string };
     expect(body.error).toBe("helius_sync_failed");
+    // Body must NOT include any String(e) leak (could contain api-key URL
+    // fragments if Bun's fetch error format ever included them) — H4.
+    expect(body.message).toBeUndefined();
 
     // Local rollback: no watches row left behind.
     const rows = await testDb.db.select().from(watches);
     expect(rows).toHaveLength(0);
+  });
+
+  test("multi-address rollback is atomic (B2)", async () => {
+    // The old manual catch-and-delete loop could itself fail mid-loop and
+    // leave inconsistent state. With the tx wrapper, all-or-nothing.
+    nextCreateBehavior = "fail";
+    const r = await app.request("/api/db/watches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Auth-Token": token },
+      body: JSON.stringify({ addresses: [ADDR_A, ADDR_B] }),
+    });
+    expect(r.status).toBe(502);
+    const rows = await testDb.db.select().from(watches);
+    expect(rows).toHaveLength(0);
+    // heliusWebhooks also untouched
+    const wh = await testDb.db.select().from(heliusWebhooks);
+    expect(wh).toHaveLength(0);
   });
 
   test("multi-address single request: all rows persisted, one sync call", async () => {
