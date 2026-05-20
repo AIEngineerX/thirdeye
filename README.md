@@ -214,11 +214,25 @@ After manual SQL, also delete the corresponding row from `drizzle.__drizzle_migr
 
 ### Monitoring (current state)
 
-- `/health` endpoint with DB ping (200/503)
-- HTTP request logging via `hono/logger` middleware (stdout)
-- `X-ThirdEye-Cache` and `X-ThirdEye-Proxy-Duration-Ms` response headers on all proxy routes
+What ships in the box:
 
-Not yet shipped (gaps you should fill before public-instance traffic): structured JSON logging (pino), Prometheus/OTEL metrics, external alerting on `/health` failures and on rate-limit-bypass anomalies. The CLAUDE.md design doc flags pino as a v2 enhancement.
+- `/health` endpoint with DB ping (200/503). Liveness probe target.
+- HTTP request logging via `hono/logger` middleware (stdout, includes path + status + latency).
+- `X-ThirdEye-Cache: HIT|MISS` and `X-ThirdEye-Proxy-Duration-Ms` response headers on all proxy routes.
+- `agent_runs` audit table with per-run `cost_usd`, `input_tokens`, `output_tokens`, `cached_input_tokens`, `cache_creation_tokens`, status, model — full Anthropic-cost reconstruction.
+- `auth_tokens.rate_bucket` jsonb persists per-token + per-token-BYOK counters under `PUBLIC_INSTANCE_MODE` — readable as a time-series for abuse detection.
+- `console.error`/`console.warn` lines at every catch site (rate-limit hits, scanner failures, watch sync failures, dispatch handler crashes, intel-bus malformed payloads, helius upstream errors, tg-bot polling 409 + getUpdates exponential backoff, fatal MCP errors).
+
+Operator deploy checklist (gaps you must fill before public-instance traffic):
+
+| Gap | Mitigation |
+|---|---|
+| No structured JSON logging | Pipe stdout through a JSON formatter at the deploy layer (Railway, Datadog agent, vector.dev). Pino integration is a v2 enhancement. |
+| No metrics endpoint | The `agent_runs` and `auth_tokens.rate_bucket` columns are the canonical sources of truth — run scheduled SQL queries against them. Prometheus/OTEL exporters are a v2 enhancement. |
+| No alerting on `/health` failures | Wire your platform's uptime monitor (UptimeRobot / Pingdom / Railway healthchecks) to `GET /health` with alert-on-5xx. |
+| No alerting on rate-limit-bypass anomalies | Watch for sustained `auth_issue_rate_limited` log lines or `*_byok` bucket spikes via SQL: `SELECT token, rate_bucket FROM auth_tokens WHERE (rate_bucket->>'scan_token_byok')::jsonb->>'count' > '100';` |
+| No alerting on agent daily-cost overshoot | The cap itself is enforced via Postgres advisory lock so cost cannot exceed `AGENT_DAILY_COST_USD_CAP`. Add a daily SQL check for `SUM(cost_usd) WHERE started_at > now() - interval '1 day'` and alert at >80% of cap. |
+| No reverse-proxy in front of api | REQUIRED if you set `PUBLIC_INSTANCE_MODE=true`. The proxy must (a) set `X-Forwarded-For` with the real client IP and (b) strip any client-supplied `X-Forwarded-For`. Without (b), the H2 per-IP rate limit on `/api/db/auth` is bypassable by header spoofing. |
 
 ## Contributing
 

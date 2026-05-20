@@ -134,10 +134,21 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<LoopResul
           content: JSON.stringify(out),
         });
       } catch (e) {
+        // Mirror of mcp-server F2: raw e.message can carry DB hostnames,
+        // postgres column names, or library-assert internals. The LLM
+        // sees this in its context and may echo it into a natural-language
+        // reply (tg-bot path, future hosted MCP). Log full server-side;
+        // hand the LLM a curated message that names the tool but nothing
+        // else.
+        console.error(`[agent-loop] tool ${tu.name} failed`, e);
         toolResults.push({
           type: "tool_result",
           tool_use_id: tu.id,
-          content: JSON.stringify({ error: e instanceof Error ? e.message : String(e) }),
+          content: JSON.stringify({
+            error: "tool_error",
+            tool: tu.name,
+            message: `${tu.name} failed — see server logs`,
+          }),
           is_error: true,
         });
       }

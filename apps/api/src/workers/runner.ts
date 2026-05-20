@@ -3,6 +3,7 @@ import { DexScreenerSource, type PriceSource } from "@thirdeye/prices";
 import { type Runner, run } from "graphile-worker";
 import type { Sql } from "postgres";
 import { initIntelBus } from "../lib/intel-bus";
+import { cleanupTables } from "./cleanup-tables";
 import { enrichWallet } from "./enrich-wallet";
 import { refreshAggregates } from "./refresh-aggregates";
 import { refreshTokens } from "./tokens-refresh";
@@ -22,6 +23,7 @@ const CRONTAB = `
 * * * * * refresh-aggregates ?fill=1m
 * * * * * tokens-refresh ?fill=1m
 0 * * * * enrich-wallet ?fill=1h
+*/15 * * * * cleanup-tables ?fill=15m
 `.trim();
 
 export async function startWorker(opts: RunnerOptions): Promise<Runner> {
@@ -45,6 +47,14 @@ export async function startWorker(opts: RunnerOptions): Promise<Runner> {
           serverKey: opts.serverHeliusKey,
           smartMoneyMinSol: opts.smartMoneyMinSol,
         });
+      },
+      "cleanup-tables": async () => {
+        const stats = await cleanupTables(opts.db);
+        if (stats.ssesTicketsDeleted > 0 || stats.authIssueRateBucketsDeleted > 0) {
+          console.log(
+            `[cleanup-tables] sse_tickets=${stats.ssesTicketsDeleted} auth_issue=${stats.authIssueRateBucketsDeleted}`,
+          );
+        }
       },
     },
     crontab: CRONTAB,
