@@ -54,11 +54,7 @@ export async function tryAuthIssue(
     RETURNING count AS new_count, window_start
   `)) as unknown as BucketRow[];
 
-  const row = rows[0];
-  if (!row) {
-    // Should not happen — UPSERT always returns a row.
-    throw new Error("auth_issue_rate_buckets UPSERT returned no row");
-  }
+  const row = rows[0]!;
   const count = Number(row.new_count);
   const windowStart = new Date(row.window_start);
   const resetAt = new Date(windowStart.getTime() + windowSec * 1000);

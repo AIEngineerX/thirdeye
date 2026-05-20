@@ -11,7 +11,7 @@
 // reads the log.
 
 import { type DbClient, sseTickets } from "@thirdeye/db";
-import { and, eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 export const TICKET_TTL_MS = 30_000;
 
@@ -58,6 +58,3 @@ export async function pruneExpiredTickets(db: DbClient): Promise<number> {
   `)) as unknown as { count?: number };
   return result.count ?? 0;
 }
-
-// Re-exports kept for callers that want to query directly.
-export { sseTickets, and, eq };

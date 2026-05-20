@@ -71,12 +71,9 @@ watchesRoutes.post("/", async (c) => {
   }
   const label = typeof body?.label === "string" ? body.label : null;
 
-  // Caller is authenticated by requireAuth middleware which ran before us;
-  // it doesn't currently hand the token down via c.set, so re-read header.
-  const token = c.req.header("X-Auth-Token");
-  if (!token) {
-    return c.json({ error: "missing_token" }, 401);
-  }
+  // requireAuth middleware already validated this header; re-read because
+  // the middleware doesn't hand it down via c.set.
+  const token = c.req.header("X-Auth-Token") as string;
 
   const sync = resolveWebhookSync(c, true);
   if (sync instanceof Response) return sync;
@@ -90,7 +87,7 @@ watchesRoutes.post("/", async (c) => {
   // if Bun's fetch error format ever includes them.
   try {
     await db.transaction(async (tx) => {
-      for (const address of addresses as string[]) {
+      for (const address of addresses) {
         await tx.execute(sql`
           INSERT INTO watches (address, label, token)
           SELECT ${address}::text, ${label}::text, ${token}::text
@@ -114,8 +111,7 @@ watchesRoutes.delete("/:address", async (c) => {
   if (!isValidSolanaAddress(address)) {
     return c.json({ error: "invalid_address" }, 400);
   }
-  const token = c.req.header("X-Auth-Token");
-  if (!token) return c.json({ error: "missing_token" }, 401);
+  const token = c.req.header("X-Auth-Token") as string;
   const sync = resolveWebhookSync(c, false);
   if (sync instanceof Response) return sync;
 
@@ -137,8 +133,7 @@ watchesRoutes.delete("/:address", async (c) => {
 });
 
 watchesRoutes.get("/", async (c) => {
-  const token = c.req.header("X-Auth-Token");
-  if (!token) return c.json({ error: "missing_token" }, 401);
+  const token = c.req.header("X-Auth-Token") as string;
   const db = c.get("db");
   const rows = await db
     .select({ address: watches.address, label: watches.label, createdAt: watches.createdAt })
@@ -153,8 +148,7 @@ watchesRoutes.get("/:address/events", async (c) => {
   if (!isValidSolanaAddress(address)) {
     return c.json({ error: "invalid_address" }, 400);
   }
-  const token = c.req.header("X-Auth-Token");
-  if (!token) return c.json({ error: "missing_token" }, 401);
+  const token = c.req.header("X-Auth-Token") as string;
   const limit = clampInt(c.req.query("limit"), 50, 1, 200);
   const db = c.get("db");
 

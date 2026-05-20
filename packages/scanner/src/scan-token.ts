@@ -179,8 +179,6 @@ export async function* scanToken(opts: ScanTokenOptions): AsyncGenerator<ScanTok
   yield { event: "result", data: result };
 }
 
-// ── helpers ─────────────────────────────────────────────────────────────────
-
 function parseSupply(raw: string): bigint {
   try {
     return BigInt(raw);

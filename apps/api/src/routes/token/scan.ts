@@ -18,7 +18,7 @@ tokenScan.get("/:mint/scan", async (c) => {
     return c.json({ error: "invalid_mint", message: "Mint is not a valid base58 address" }, 400);
   }
   const force = c.req.query("force") === "true";
-  const userKey = c.req.header("X-User-Helius-Key") ?? undefined;
+  const userKey = c.req.header("X-User-Helius-Key");
 
   return streamSSE(c, async (stream) => {
     const db = c.get("db");

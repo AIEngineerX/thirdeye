@@ -61,33 +61,29 @@ async function isDuplicate(db: DbClient, messageId: number): Promise<boolean> {
 }
 
 export async function dispatch(msg: TgMessage, ctx: DispatchContext): Promise<void> {
-  // 1. Chat-lock
   if (msg.chat.id !== ctx.allowedChatId) {
     console.log(`[tg-bot] ignored msg from chat=${msg.chat.id} user=${msg.from?.id ?? "?"}`);
     return;
   }
 
-  // 2. Text-only
   if (!msg.text) return;
 
-  // 3. Dedup (handles Railway redeploy replay — see spec H4)
+  // Dedup handles Railway redeploy replay — see spec H4.
   if (await isDuplicate(ctx.db, msg.message_id)) {
     console.log(`[tg-bot] skipping replayed update msg_id=${msg.message_id}`);
     return;
   }
 
-  // 4. Typing indicator (best-effort)
   try {
     await ctx.sendChatAction(msg.chat.id);
   } catch (e) {
     console.warn("[tg-bot] sendChatAction failed (non-fatal)", e);
   }
 
-  // 5. Budget gate. acquireBudget INSERTs the running row; if a concurrent
-  // dispatch with the same telegram_msg_id beat us through the dedup check,
-  // the partial-unique index (migration 0009) makes this INSERT fail with
-  // a unique-violation. Catch and treat as "already handled" — the other
-  // dispatch will produce the reply.
+  // acquireBudget INSERTs the running row; if a concurrent dispatch with the
+  // same telegram_msg_id beat us through the dedup check, the partial-unique
+  // index (migration 0009) makes this INSERT fail with a unique-violation.
+  // Catch and treat as "already handled" — the other dispatch will reply.
   const model = resolveModel("cheap");
   let budget: Awaited<ReturnType<typeof acquireBudget>>;
   try {
@@ -127,7 +123,6 @@ export async function dispatch(msg: TgMessage, ctx: DispatchContext): Promise<vo
     return;
   }
 
-  // 6. Agent run
   try {
     const result = await ctx.runAgentLoop({
       kind: "tg_query",
@@ -146,11 +141,8 @@ export async function dispatch(msg: TgMessage, ctx: DispatchContext): Promise<vo
 
     await finalizeBudget(ctx.db, budget.runId, result);
 
-    // 7. Format + send
     const body =
-      result.finalText.length > 0
-        ? result.finalText
-        : `(agent produced no text — see agent_runs id=${budget.runId})`;
+      result.finalText.length > 0 ? result.finalText : `(no text — agent_run ${budget.runId})`;
     const reply =
       body.length > MAX_REPLY_CHARS
         ? truncateUtf16Safe(body, MAX_REPLY_CHARS) + TRUNCATION_SUFFIX
@@ -179,7 +171,7 @@ export async function dispatch(msg: TgMessage, ctx: DispatchContext): Promise<vo
       console.error("[tg-bot] finalize-on-error failed", finalizeErr);
     }
     try {
-      await ctx.sendMessage(msg.chat.id, "⚠️ Something went wrong. Check logs.");
+      await ctx.sendMessage(msg.chat.id, "Run failed — see server logs.");
     } catch (sendErr) {
       console.error("[tg-bot] sendMessage (error reply) failed", sendErr);
     }

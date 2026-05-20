@@ -75,8 +75,6 @@ export async function resolvePriorTags(
     .from(wallets)
     .where(inArray(wallets.address, addresses));
   const map = new Map<string, string[]>();
-  for (const r of rows) {
-    map.set(r.address, (r.tags as string[]) ?? []);
-  }
+  for (const r of rows) map.set(r.address, r.tags);
   return map;
 }

@@ -39,7 +39,7 @@ export async function acquireBudget(opts: AcquireBudgetOptions): Promise<Acquire
     const wouldBe = total + opts.estimatedCostUsd;
 
     if (wouldBe > opts.dailyCapUsd) {
-      const inserted = await tx
+      const [row] = await tx
         .insert(agentRuns)
         .values({
           kind: opts.kind,
@@ -49,16 +49,14 @@ export async function acquireBudget(opts: AcquireBudgetOptions): Promise<Acquire
           endedAt: new Date(),
         })
         .returning({ id: agentRuns.id });
-      const row = inserted[0];
-      if (!row) throw new Error("insert returning produced no row");
-      return { runId: row.id, admitted: false };
+      return { runId: row!.id, admitted: false };
     }
 
     // Reserve the estimated cost on the running row. Without this, a
     // concurrent acquire that wins the lock after this commit would see
     // the running row's default cost_usd=0 and miscount available budget.
     // finalizeBudget overwrites with the actual post-run cost.
-    const inserted = await tx
+    const [row] = await tx
       .insert(agentRuns)
       .values({
         kind: opts.kind,
@@ -68,9 +66,7 @@ export async function acquireBudget(opts: AcquireBudgetOptions): Promise<Acquire
         metadata: opts.metadata ?? {},
       })
       .returning({ id: agentRuns.id });
-    const row = inserted[0];
-    if (!row) throw new Error("insert returning produced no row");
-    return { runId: row.id, admitted: true };
+    return { runId: row!.id, admitted: true };
   });
 }
 

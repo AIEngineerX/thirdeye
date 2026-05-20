@@ -18,7 +18,7 @@ walletCheck.get("/:addr/check", async (c) => {
     return c.json({ error: "invalid_address", message: "Address is not valid base58" }, 400);
   }
   const force = c.req.query("force") === "true";
-  const userKey = c.req.header("X-User-Helius-Key") ?? undefined;
+  const userKey = c.req.header("X-User-Helius-Key");
 
   return streamSSE(c, async (stream) => {
     const db = c.get("db");

@@ -43,9 +43,8 @@ export function buildCluster(inputs: ClusterInputs): Cluster {
   };
 }
 
-// Coefficient of variation of mean tx amount across cluster wallets.
-// Returns null if fewer than 3 wallets in the cluster have ≥ 5 tx samples each
-// (insufficient data to draw a reliable signal).
+// Returns null if fewer than 3 wallets have ≥ 5 tx samples — insufficient
+// for a stable signal.
 export function computeCov(amountsByWallet: Map<string, number[]>): number | null {
   const meansPerWallet: number[] = [];
   for (const amounts of amountsByWallet.values()) {

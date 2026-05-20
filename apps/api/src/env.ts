@@ -40,10 +40,6 @@ function intStrict(name: string, raw: string): number {
   return n;
 }
 
-function requiredInt(name: string): number {
-  return intStrict(name, required(name));
-}
-
 function optionalInt(name: string, fallback: number): number {
   const v = process.env[name];
   if (v === undefined) return fallback;
@@ -54,16 +50,6 @@ function optionalIntUndef(name: string): number | undefined {
   const v = process.env[name];
   if (v === undefined || v.trim().length === 0) return undefined;
   return intStrict(name, v);
-}
-
-// Same shape as optionalInt but the parsed value must satisfy >= min and
-// <= max — useful for thresholds that have no meaningful "off" value.
-function optionalIntInRange(name: string, fallback: number, min: number, max: number): number {
-  const n = optionalInt(name, fallback);
-  if (n < min || n > max) {
-    throw new Error(`${name}=${n} is out of range [${min}, ${max}]`);
-  }
-  return n;
 }
 
 // Re-exported for tests.
@@ -154,10 +140,6 @@ export const env = {
   // parse + throw makes misconfiguration loud and immediate.
   TG_ALLOWED_CHAT_ID: optionalIntUndef("TG_ALLOWED_CHAT_ID"),
 } as const;
-
-// Re-export the range helper so callers that need bespoke ranges can use it
-// (currently no callers; here for future tuning thresholds).
-export { optionalIntInRange };
 
 // Read fresh so secrets can be hot-rotated without restart.
 export function publicBaseUrl(): string | undefined {

@@ -16,7 +16,7 @@
 //   - Subscription methods (proxy is HTTP-only; clients use Helius LaserStream
 //     for websockets)
 export const RPC_ALLOW_LIST: ReadonlySet<string> = new Set([
-  // ---- Standard Solana read RPC ----
+  // Standard Solana read RPC
   "getAccountInfo",
   "getBalance",
   "getBlock",
@@ -66,7 +66,7 @@ export const RPC_ALLOW_LIST: ReadonlySet<string> = new Set([
   "getVoteAccounts",
   "isBlockhashValid",
   "minimumLedgerSlot",
-  // ---- Helius DAS (Digital Asset Standard) read extensions ----
+  // Helius DAS read extensions
   "getAsset",
   "getAssetBatch",
   "getAssetProof",
@@ -79,7 +79,7 @@ export const RPC_ALLOW_LIST: ReadonlySet<string> = new Set([
   "getSignaturesForAsset",
   "getNftEditions",
   "getTokenAccounts",
-  // ---- Helius enhanced RPC ----
+  // Helius enhanced RPC
   "getPriorityFeeEstimate",
 ]);
 

@@ -150,7 +150,7 @@ d("dispatch (integration)", () => {
     }) as unknown as RunAgentLoopFn;
     await dispatch(msg({ message_id: 300 }), ctx({ runAgentLoop: throwingLoop }));
     expect(sent.length).toBe(1);
-    expect(sent[0]!.text).toMatch(/went wrong|error/i);
+    expect(sent[0]!.text).toMatch(/failed|error/i);
     const runs = await conn.sql<{ status: string; error_message: string | null }[]>`
       SELECT status, error_message FROM agent_runs WHERE metadata->>'telegram_msg_id' = '300'
     `;

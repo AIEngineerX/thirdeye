@@ -13,9 +13,7 @@ export interface TraceInputs {
   resolveFundedBy: FundedByResolver;
 }
 
-// Recursively trace the chain from `startAddress` upward through `funded-by`
-// until a terminal funder (exchange/launchpad), null funder (unfunded/genesis),
-// or `maxHops` depth is reached.
+// Cycle-guarded via Set<address> so a funder loop terminates.
 export async function traceFundingChain(inputs: TraceInputs): Promise<FundingHop[]> {
   const chain: FundingHop[] = [];
   let cursor: string = inputs.startAddress;
