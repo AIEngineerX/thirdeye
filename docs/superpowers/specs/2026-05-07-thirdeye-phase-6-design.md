@@ -594,19 +594,20 @@ Self-host parity preserved: when env `ANTHROPIC_API_KEY` is set, BYOK is optiona
 | 6b | `packages/agent` + cost controls + Anthropic SDK + prompt caching | 6.0 | **8-11d** | **SHIPPED 2026-05-09.** Tool-use loop, BYOK threading through worker tasks (no request-scoped headers), pricing table, token counting across loop iterations, prompt caching wiring, advisory-lock budget gate, integration test harness |
 | **6b.5** | `@thirdeye/mcp-server` — MCP transport over the agent tool registry | 6b | 2-3d | Distribution play. Stdio transport, local-only v1. Claim the open Solana-forensics-MCP slot before someone else does. HTTP/SSE + npm publish deferred to v1.1. |
 | **6b.6** | `@thirdeye/tg-bot` — Telegram bot embedded in the api process | 6b | 4-5d | Single-user lock by chat ID, NL with agent backend, reactive only v1. Deployed to Railway. Push notifications + summarizeTokenScanForLLM helper deferred to v1.1. |
-| 6c | Discovery loop (hourly cron + briefs) | 6.0, 6a, 6b | 4-6d | Up from 3-5d. Includes early-buyers query with caps and filter pass |
+| 6c | Discovery loop (hourly cron + briefs) | 6.0, 6a, 6b | 4-6d | Up from 3-5d. Includes early-buyers query with caps and filter pass. Plan drafted 2026-05-20 (`plans/2026-05-20-phase-6c-discovery-loop.md`); review surfaced 4 blockers + 10 high — NOT yet started. |
 | 6d | Anomaly detector + `wallet_baselines` materialization | 6.0, 6b | 4-6d | Up from 3-5d. Median+MAD baseline computation, cold-start handling, dedup |
 | 6e | Morning brief generator | 6c, 6d | 2-3d | Composes prior loop outputs |
-| 6f | `apps/web` Next 16 foundation + layout + auth + EventSource hook | none, parallel with 6.0/6c-e | 3-4d | Geist, shadcn customized, OKLCH tokens, CORS update |
-| 6g | Dashboard page (six widgets) | 6c, 6d, 6e, 6f | **7-10d** | Up from 5-7d. SSE consumers + RSC boundaries + Framer choreography + taste compliance review |
-| 6h | Wallet + Token detail pages | 6f | 4-5d | Mostly rendering existing endpoints |
-| 6i | Settings page (BYOK + budget + schedule) | 6f | 2-3d | |
+| **6f-min** | **SHIPPED 2026-05-20** `apps/web` — Next 15 (not 16) + Tailwind 3.4 (not 4) + IBM Plex (not Geist), **no shadcn** (10 hand-rolled components), OKLCH palette, 5 pages: landing, /wallet/[addr] + /token/[mint] SSE-streamed, /intel feed, /settings BYOK. Includes a subset of 6h (detail pages) + 6i (settings) within the same MVP push. Commit `3853f40`. See `plans/2026-05-20-phase-6f-minimal-dashboard.md`. |
+| 6f-full | Foundation layer remaining work — moved into 6g | 6f-min | — | Subsumed: the foundation shipped as part of 6f-min. |
+| 6g | Dashboard page (six widgets) | 6c, 6d, 6e, 6f-min | **7-10d** | SSE consumers + RSC boundaries + taste compliance review. The minimal dashboard already covers wallet/token detail + intel feed; 6g adds heatmap, hot-tokens, watches CRUD UI, discovered queue, anomaly tail, aggregates pulse. |
+| 6h | Wallet + Token detail pages | 6f-min | shipped as part of 6f-min | Detail pages exist; 6h becomes "extend detail with watches toggle, history strip, related-wallets graph" if pursued. |
+| 6i | Settings page (BYOK + budget + schedule) | 6f-min | partial | BYOK + test-connection shipped in 6f-min. Remaining: budget controls, brief schedule, theme toggle (deferred). |
 | 6j | Cluster expander on-demand SSE | 6.0, 6b, 6h | 3-4d | Last agent loop, isolated |
 | 6k | Polish, harden, README, docker-compose, integration tests | all | 4-6d | Up from 3-5d. Loading + error states, end-to-end tests |
 
-**Total: 46-66 working days.** Eight to thirteen calendar weeks for solo work, faster if 6f starts in parallel with 6.0/6c-e (frontend builds against stubbed endpoints).
+**Total estimate revised:** original 46-66 days; ~22 days shipped through 6b.6 + 6f-min (2-3 days actual for 6f-min vs the 13-18 days the spec originally budgeted for 6f+6g+6h+6i combined — because the subset deliberately skips heatmap + watches UI + discovered queue + Framer animations + taste compliance review). **~24-44 working days remain.**
 
-PR strategy: every sub-phase ships as one PR with passing tests. 6.0 is non-skippable; 6a, 6f can start day one.
+PR strategy: every sub-phase ships as one commit (PRs not used — solo dogfooder per [[project_goal]]). 6.0 is non-skippable; 6a, 6f-min can start day one.
 
 ## 6. Risks (rev2 — promoted from review)
 

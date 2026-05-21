@@ -87,6 +87,19 @@ TICKET=$(curl -s -X POST http://localhost:3001/api/db/intel/feed/ticket \
 curl -N "http://localhost:3001/api/db/intel/feed?ticket=$TICKET"
 ```
 
+## Use from the web dashboard
+
+Phase 6f-minimal ships [`apps/web`](apps/web) — a Next.js client-side dashboard with five pages: landing (paste a wallet or mint), `/wallet/[addr]` and `/token/[mint]` with SSE-streamed scan results, `/intel` live event feed, `/settings` for BYOK key entry. Forensics-terminal aesthetic — IBM Plex Mono/Sans, deep-navy + amber palette, the full 32-44 char address rendered as the visual anchor of every detail page.
+
+```bash
+# Two terminals — api on :3001, web on :3000.
+bun run dev                            # terminal 1 (api)
+cd apps/web && bun run dev             # terminal 2 (web)
+# → http://localhost:3000
+```
+
+Next dev rewrites `/api/*` to the api so the browser sees same-origin requests (no CORS preflight in dev). Set `NEXT_PUBLIC_API_BASE_URL` if your api lives elsewhere.
+
 ## Use from Claude Desktop (MCP)
 
 Phase 6b.5 ships [`@thirdeye/mcp-server`](packages/mcp-server/README.md) — a Model Context Protocol server that exposes the six forensics tools above (`checkWallet`, `scanToken`, `getClusterSiblings`, `getFunderClusters`, `getHotTokens`, `getWatchlist`) to any MCP client. Point Claude Desktop's `claude_desktop_config.json` at `packages/mcp-server/src/bin.ts` and the tools light up natively. See [`packages/mcp-server/README.md`](packages/mcp-server/README.md) for the working config snippet.
@@ -97,7 +110,7 @@ Phase 6b.6 ships [`@thirdeye/tg-bot`](packages/tg-bot/README.md) — a single-us
 
 ## Stack
 
-Bun · Hono · Drizzle · Postgres 16 · `graphile-worker` (cron + watch-sync) · Next.js 16 (Phase 6) · Helius RPC (REST + JSON-RPC + Webhooks)
+Bun · Hono · Drizzle · Postgres 16 · `graphile-worker` (cron + watch-sync) · Next.js 15 + Tailwind 3.4 + React 19 (web dashboard) · Helius RPC (REST + JSON-RPC + Webhooks)
 
 Two services, one Postgres. No Redis, no message broker, no separate cache server. Self-host with `docker compose up`. Use the public instance for free with rate limits, or set `X-User-Helius-Key` to bypass them with your own Helius key.
 

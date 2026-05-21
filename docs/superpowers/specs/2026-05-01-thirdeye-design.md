@@ -12,6 +12,8 @@ license: MIT
 Open-source Solana wallet & token forensics — bundle/sybil detection, funding-chain tracing, cluster analysis.
 
 > **Note (2026-05-09):** The "AI Assistant" originally listed as a v2 deferral has been pulled into v1 as the Phase 6 agent brain (discovery, anomaly, brief, MCP transport). For current Phase 6+ direction read the Phase 6 design spec; the historical record below stays intact.
+>
+> **Note (2026-05-20):** Phase 6f-minimal shipped — a Next 15 + Tailwind 3.4 web dashboard with five pages (landing, /wallet/[addr], /token/[mint], /intel feed, /settings BYOK) implementing the core forensics surface in the browser. Forensics-terminal aesthetic (IBM Plex, OKLCH amber/crimson/mint, oversized address banner). The "Heatmap" visualization and the dashboard widgets layer (originally Phase 6g) remain deferred. See `docs/superpowers/plans/2026-05-20-phase-6f-minimal-dashboard.md` for what shipped and what was deliberately scoped out.
 
 ---
 

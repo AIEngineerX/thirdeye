@@ -17,25 +17,30 @@ cp .env.example .env
 bun install
 docker compose up -d postgres
 bun run migrate
-bun run dev
+bun run dev                            # api on :3001
+
+# Optional: web dashboard (separate terminal)
+cd apps/web && bun run dev             # web on :3000
 ```
 
-The API is now at `http://localhost:3001`.
+The API listens on `http://localhost:3001`. The web dashboard at `http://localhost:3000` proxies `/api/*` to the api via Next rewrites — no CORS preflight fires in dev.
 
 ## Before opening a PR
 
 ```bash
-bun run lint        # biome check
-bun run typecheck   # tsc --noEmit
-bun test            # bun:test against real Postgres (must be running)
+bun run lint            # biome check (root + apps/web)
+bun run typecheck       # runs both api and web typecheck
+bun run typecheck:api   # just the bun + node side
+bun run typecheck:web   # just apps/web (Next + React)
+bun test                # bun:test against real Postgres (must be running)
 ```
 
-CI runs the same four commands; PRs that fail any will be blocked.
+CI runs the same commands; PRs that fail any will be blocked.
 
 ## Architecture
 
 - Canonical design spec: [`docs/superpowers/specs/2026-05-01-thirdeye-design.md`](docs/superpowers/specs/2026-05-01-thirdeye-design.md). Per-phase specs sit alongside it.
-- Stack: Bun + Hono + Drizzle + Postgres + graphile-worker + Next.js (Phase 6+).
+- Stack: Bun + Hono + Drizzle + Postgres 16 + graphile-worker + Next 15 + React 19 + Tailwind 3.4 (web dashboard, Phase 6f-min).
 
 When implementation diverges from a spec, either update the spec or change the implementation in the same PR — no silent drift.
 
