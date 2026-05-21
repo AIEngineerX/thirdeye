@@ -26,5 +26,6 @@
     "packages/**/tests/**/*",
     "packages/**/scripts/**/*",
     "packages/**/drizzle.config.ts"
-  ]
+  ],
+  "exclude": ["apps/web/**", "node_modules", "**/dist", "**/.next"]
 }

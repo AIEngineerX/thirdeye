@@ -5,9 +5,12 @@
   "type": "module",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "typecheck": "bun --bun tsc --noEmit -p tsconfig.json",
+    "typecheck": "bun --bun tsc --noEmit -p tsconfig.json && bun --bun tsc --noEmit -p apps/web/tsconfig.json",
+    "typecheck:api": "bun --bun tsc --noEmit -p tsconfig.json",
+    "typecheck:web": "bun --bun tsc --noEmit -p apps/web/tsconfig.json",
     "test": "bun test",
     "dev": "bun --hot run apps/api/src/index.ts",
+    "dev:web": "bun --cwd apps/web run dev",
     "migrate": "bun run packages/db/scripts/migrate.ts",
     "lint": "biome check .",
     "format": "biome format --write ."

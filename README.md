@@ -36,7 +36,8 @@ Every wallet has a *first funder* — the wallet that first sent it SOL. Group t
 | **6b** | `@thirdeye/agent` package — Anthropic SDK + tool-use loop + prompt caching + per-run/daily cost caps (advisory-lock budget gate) + `agent_runs` audit table + replay test harness | shipped |
 | **6b.5** | `@thirdeye/mcp-server` — Model Context Protocol stdio transport over the agent tool registry; the six forensics tools become callable from Claude Desktop / Cursor / any MCP client | shipped |
 | **6b.6** | `@thirdeye/tg-bot` — Single-user Telegram bot embedded in the api process; six forensics tools accessible via natural-language chat, deployed to Railway alongside the api | shipped |
-| **6** | Personal alpha terminal: Next.js 16 dashboard + agent brain (discovery loop, anomaly detector, cluster expander) — sub-phases 6c–6k remain | in progress — see [phase 6 spec](docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md) |
+| **6f-min** | `apps/web` — Next 15 dashboard MVP. Forensics-terminal aesthetic (IBM Plex Mono/Sans, OKLCH palette, sharp edges, address banner). Five pages: landing (single input + wallet/token toggle), `/wallet/[addr]` and `/token/[mint]` SSE-streamed scan results, `/intel` live event feed with ticket flow, `/settings` BYOK key entry with test-connection probe | shipped |
+| **6** | Personal alpha terminal — agent brain (discovery, anomaly, cluster expander), full dashboard widgets, polish — sub-phases 6c-e and 6g-k remain | in progress — see [phase 6 spec](docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md) |
 | 7+ | TG ingest, LaserStream migration, behavior embeddings, CLI surface, multi-provider Helius abstraction | deferred |
 
 The canonical design spec is [`docs/superpowers/specs/2026-05-01-thirdeye-design.md`](docs/superpowers/specs/2026-05-01-thirdeye-design.md). Per-phase specs live alongside it (e.g. Phase 5 alpha-extraction at [`docs/superpowers/specs/2026-05-06-thirdeye-phase-5-alpha-design.md`](docs/superpowers/specs/2026-05-06-thirdeye-phase-5-alpha-design.md)).
@@ -53,6 +54,11 @@ cp .env.example .env
 docker compose up -d --build
 bun run migrate         # apply schema once
 curl http://localhost:3001/health    # → {"ok":true,"db":"ok"}
+
+# Launch the web dashboard (separate terminal, separate port):
+cd apps/web
+bun install            # first time only
+bun run dev            # http://localhost:3000
 ```
 
 Issue an anonymous session token then probe a route:

@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Surfaces — deep navy, not pure black */
+    --bg-base: oklch(0.14 0.012 270);
+    --bg-card: oklch(0.18 0.015 270);
+    --bg-card-hover: oklch(0.21 0.018 270);
+    --bg-elevated: oklch(0.24 0.02 270);
+
+    /* Text — warm off-white, slight amber tint */
+    --text-primary: oklch(0.92 0.01 80);
+    --text-secondary: oklch(0.62 0.008 80);
+    --text-tertiary: oklch(0.42 0.006 80);
+
+    /* Hairline borders */
+    --border-subtle: oklch(0.25 0.012 270);
+    --border-emphasis: oklch(0.35 0.02 270);
+
+    /* Brand accent — the third eye */
+    --accent: oklch(0.78 0.16 70);
+    --accent-dim: oklch(0.55 0.1 70);
+    --accent-bg: oklch(0.78 0.16 70 / 0.08);
+
+    /* Severity */
+    --severity-clean: oklch(0.78 0.14 160);
+    --severity-low: oklch(0.62 0.008 80);
+    --severity-med: oklch(0.78 0.16 70);
+    --severity-high: oklch(0.62 0.2 25);
+  }
+
+  html,
+  body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-plex-sans), system-ui, sans-serif;
+    font-feature-settings: "tnum" 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .font-mono,
+  code,
+  pre {
+    font-family: var(--font-plex-mono), ui-monospace, "Cascadia Code", monospace;
+    font-feature-settings: "tnum" 1, "zero" 1;
+  }
+
+  /* Tabular numerals everywhere a number appears */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Hide focus outlines on click, keep them for keyboard nav */
+  :focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  ::selection {
+    background: var(--accent-bg);
+    color: var(--text-primary);
+  }
+}
+
+@layer components {
+  /* Cursor block — used on focused inputs to evoke terminal */
+  .cursor-blink::after {
+    content: "▍";
+    color: var(--accent);
+    animation: cursor-blink 1.2s steps(1) infinite;
+    margin-left: 1px;
+  }
+
+  /* Subtle scrollbar matching the theme */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--bg-base);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--border-emphasis);
+  }
+}
