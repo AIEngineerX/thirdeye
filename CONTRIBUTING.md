@@ -6,24 +6,26 @@ ThirdEye is open source under the MIT license. PRs welcome.
 
 - [Bun](https://bun.sh) ≥ 1.2
 - Docker + Docker Compose
-- A free [Helius](https://helius.dev) API key (only required from Phase 1 onward — Phase 0 has none of the proxy code yet)
+- A free [Helius API key](https://dashboard.helius.dev/api-keys) — required for any proxy / scanner / wallet / token route. Routes that don't touch Helius (`/health`, `/api/db/auth`, `/api/db/intel/*`) work without one.
 
 ## Local development
 
 ```bash
 git clone https://github.com/AIEngineerX/thirdeye
 cd thirdeye
-cp .env.example .env
+cp .env.example .env                   # set HELIUS_API_KEY=...
 bun install
-docker compose up -d postgres
-bun run migrate
-bun run dev                            # api on :3001
 
-# Optional: web dashboard (separate terminal)
-cd apps/web && bun run dev             # web on :3000
+docker compose up -d postgres          # database only (api runs locally with hot reload)
+bun run migrate
+
+bun run dev                            # terminal 1: api on :3001
+cd apps/web && bun run dev             # terminal 2: web on :3000
 ```
 
-The API listens on `http://localhost:3001`. The web dashboard at `http://localhost:3000` proxies `/api/*` to the api via Next rewrites — no CORS preflight fires in dev.
+The API listens on `http://localhost:3001`. The web dashboard at `http://localhost:3000` proxies `/api/*` via Next rewrites — no CORS preflight fires in dev.
+
+For an end-user run (everything in containers), see [`README.md`'s quickstart](README.md#quickstart) — Option A. **Don't run both Option A and Option B at once**; you'll get a port-3001 collision.
 
 ## Before opening a PR
 
