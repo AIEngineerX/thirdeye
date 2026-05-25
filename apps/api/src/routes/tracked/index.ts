@@ -27,7 +27,7 @@ trackedRoutes.post("/", async (c) => {
 
   // Best-effort ST quality snapshot — one call, only when configured. Never
   // fail the add if ST is down/rate-limited: the wallet still gets tracked.
-  let quality = null as Awaited<ReturnType<typeof snapshotWalletQuality>>;
+  let quality: Awaited<ReturnType<typeof snapshotWalletQuality>> = null;
   if (env.SOLANATRACKER_API_KEY) {
     try {
       quality = await snapshotWalletQuality(
@@ -36,7 +36,7 @@ trackedRoutes.post("/", async (c) => {
       );
     } catch (e) {
       if (!(e instanceof SolanaTrackerError)) throw e;
-      console.error(`[tracked.add ${address}] ST snapshot ${(e as SolanaTrackerError).status}: ${e.message}`);
+      console.error(`[tracked.add ${address}] ST snapshot ${e.status}: ${e.message}`);
     }
   }
 
@@ -53,6 +53,8 @@ trackedRoutes.post("/", async (c) => {
       identity: quality?.identity ?? null,
       pnlSyncedAt: quality ? new Date() : null,
     })
+    // Re-add updates label/source only; quality is owned by the snapshot-on-first-add
+    // (and a future refresh path), so we don't clobber it here.
     .onConflictDoUpdate({ target: trackedWallets.address, set: { label, source: "manual" } });
 
   // Best-effort webhook resync. A resync failure does NOT roll back the DB

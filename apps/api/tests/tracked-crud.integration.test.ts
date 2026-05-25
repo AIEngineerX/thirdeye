@@ -105,7 +105,7 @@ beforeEach(async () => {
   // TRUNCATE all tables that watches-crud truncates, plus tracked_wallets and
   // smart_trades (which has a FK-like dependency via tracked wallet addresses).
   await testDb.sql.unsafe(
-    "TRUNCATE auth_tokens, watches, watch_events, helius_webhooks, wallet_checks, wallets, token_scans, funders, intel_aggregates, tracked_wallets RESTART IDENTITY CASCADE;",
+    "TRUNCATE auth_tokens, watches, watch_events, helius_webhooks, wallet_checks, wallets, token_scans, funders, intel_aggregates, tracked_wallets, smart_trades RESTART IDENTITY CASCADE;",
   );
   const t = generateToken();
   await testDb.db.insert(authTokens).values({ token: t.token, expiresAt: t.expiresAt });
