@@ -1,9 +1,4 @@
-import type {
-  WalletPerformance,
-  WalletPnlSummary,
-  WalletPositions,
-  WalletTrades,
-} from "./types";
+import type { WalletPerformance, WalletPnlSummary, WalletPositions, WalletTrades } from "./types";
 
 const DEFAULT_BASE_URL = "https://data.solanatracker.io";
 const DEFAULT_TIMEOUT_MS = 15_000;

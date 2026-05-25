@@ -6,7 +6,8 @@ import { SolanaTrackerClient, SolanaTrackerError } from "../src";
 // CI without the secret stay green. When set, they exercise the live endpoints.
 const KEY = process.env.SOLANATRACKER_API_KEY;
 const d = KEY ? describe : describe.skip;
-if (!KEY) console.log("[skip] SOLANATRACKER_API_KEY not set — Solana Tracker integration tests skipped");
+if (!KEY)
+  console.log("[skip] SOLANATRACKER_API_KEY not set — Solana Tracker integration tests skipped");
 
 // A known high-volume wallet (top of the traders leaderboard at capture time).
 // We assert response *shape*, never specific values, so churn in its trading

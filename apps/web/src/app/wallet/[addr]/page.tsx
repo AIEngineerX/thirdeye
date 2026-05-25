@@ -1,6 +1,5 @@
 "use client";
 
-import { AddressBanner } from "@/components/AddressBanner";
 import { api } from "@/lib/api";
 import {
   fmtInt,
@@ -9,6 +8,7 @@ import {
   fmtUsd,
   fmtUsdSigned,
   isValidSolanaAddress,
+  shortAddr,
 } from "@/lib/format";
 import {
   SOL_MINT,
@@ -78,35 +78,39 @@ export default function WalletDetailPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-mono text-2xs uppercase tracking-[0.22em] text-tertiary">
+      {/* Compact header: identity + state, kept to a single band so the PnL
+          below is the first thing the eye lands on. */}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-mono text-2xs uppercase tracking-[0.22em] text-tertiary">
             wallet · trading performance
-          </h1>
-          <p className="mt-1 font-sans text-sm text-secondary">
-            {status === "loading" ? (
-              <span className="cursor-blink">loading PnL…</span>
-            ) : status === "error" ? (
-              <span className="text-high">{errMsg ?? "failed to load"}</span>
-            ) : (
-              <>
-                {fmtInt(s?.summary.counts.trades ?? 0)} trades ·{" "}
-                {fmtInt(s?.summary.counts.tokensTraded ?? 0)} tokens
-              </>
-            )}
-          </p>
+          </div>
+          <div className="mt-1.5 flex items-center gap-2">
+            <span className="select-all font-mono text-sm text-accent" title={addr}>
+              {shortAddr(addr, 6, 6)}
+            </span>
+            <CopyButton value={addr} />
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={load}
-          className="border border-border-emphasis px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-accent transition-colors hover:bg-accent-bg"
-        >
-          refresh
-        </button>
-      </div>
-
-      <div className="mb-6">
-        <AddressBanner address={addr} label="wallet address" />
+        <div className="flex items-center gap-4">
+          <span className="font-sans text-2xs text-tertiary">
+            {status === "loading" ? (
+              <span className="cursor-blink text-secondary">loading…</span>
+            ) : status === "done" && s ? (
+              <>
+                {fmtInt(s.summary.counts.trades)} trades · {fmtInt(s.summary.counts.tokensTraded)}{" "}
+                tokens
+              </>
+            ) : null}
+          </span>
+          <button
+            type="button"
+            onClick={load}
+            className="border border-border-emphasis px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-accent transition-colors hover:bg-accent-bg"
+          >
+            refresh
+          </button>
+        </div>
       </div>
 
       {status === "error" ? (
@@ -120,34 +124,44 @@ export default function WalletDetailPage() {
 
       {s ? (
         <>
-          {/* Headline PnL — the alpha. */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <StatCard
-              label="realized pnl"
-              value={fmtUsdSigned(s.summary.pnl.realized)}
-              tone={tone(s.summary.pnl.realized)}
-              big
-            />
-            <StatCard label="roi" value={fmtPct(s.summary.roi, 1)} tone={tone(s.summary.roi)} />
-            <StatCard label="win rate" value={fmtPct(s.analysis.winRate, 1)} />
-            <StatCard
-              label="tokens won / lost"
-              value={`${fmtInt(s.analysis.tokens.winning)} / ${fmtInt(s.analysis.tokens.losing)}`}
-            />
-          </div>
-
-          {/* The differentiator, in plain language — not a competitor's inflatable label. */}
-          {verified ? (
-            <p className="mt-3 font-mono text-2xs uppercase tracking-[0.18em] text-clean">
-              ✓ verified · wash &amp; manipulated trades excluded from these figures
-            </p>
-          ) : null}
+          {/* Hero: the PnL is the point of the page. */}
+          <section className="border border-border-subtle bg-card">
+            <div className="grid grid-cols-2 md:grid-cols-4">
+              <Stat
+                label="realized pnl"
+                value={fmtUsdSigned(s.summary.pnl.realized)}
+                tone={tone(s.summary.pnl.realized)}
+                hero
+                className="border-border-subtle border-b md:border-r md:border-b-0"
+              />
+              <Stat
+                label="roi"
+                value={fmtPct(s.summary.roi, 1)}
+                tone={tone(s.summary.roi)}
+                className="border-border-subtle border-b md:border-r md:border-b-0"
+              />
+              <Stat
+                label="win rate"
+                value={fmtPct(s.analysis.winRate, 1)}
+                className="border-border-subtle border-r border-b md:border-b-0"
+              />
+              <Stat
+                label="tokens won / lost"
+                value={`${fmtInt(s.analysis.tokens.winning)} / ${fmtInt(s.analysis.tokens.losing)}`}
+              />
+            </div>
+            {verified ? (
+              <div className="border-border-subtle border-t px-4 py-2.5 font-mono text-2xs uppercase tracking-[0.16em] text-clean">
+                ✓ verified · wash &amp; manipulated trades excluded from these figures
+              </div>
+            ) : null}
+          </section>
 
           <PositionsTable positions={topPositions} />
           <TradesTable trades={data?.trades.slice(0, 15) ?? []} />
         </>
       ) : status === "loading" ? (
-        <div className="border border-border-subtle bg-card px-4 py-12 text-center font-mono text-2xs uppercase tracking-[0.2em] text-tertiary">
+        <div className="border border-border-subtle bg-card px-4 py-16 text-center font-mono text-2xs uppercase tracking-[0.2em] text-tertiary">
           <span className="cursor-blink">querying solana tracker…</span>
         </div>
       ) : null}
@@ -165,24 +179,49 @@ const TONE_CLASS = {
   high: "text-high",
 } as const;
 
-function StatCard({
+function Stat({
   label,
   value,
   tone = "primary",
-  big = false,
+  hero = false,
+  className = "",
 }: {
   label: string;
   value: string;
   tone?: keyof typeof TONE_CLASS;
-  big?: boolean;
+  hero?: boolean;
+  className?: string;
 }) {
   return (
-    <div className="border border-border-subtle bg-card px-4 py-4">
+    <div className={`px-5 py-4 ${className}`}>
       <div className="font-mono text-2xs uppercase tracking-[0.18em] text-tertiary">{label}</div>
-      <div className={`mt-2 font-mono tabular ${big ? "text-2xl" : "text-lg"} ${TONE_CLASS[tone]}`}>
+      <div
+        className={`mt-2 font-mono tabular ${hero ? "text-3xl md:text-4xl" : "text-xl"} ${TONE_CLASS[tone]}`}
+      >
         {value}
       </div>
     </div>
+  );
+}
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(value);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        } catch {
+          /* clipboard unavailable (insecure context) — no-op */
+        }
+      }}
+      className="border border-border-subtle px-2 py-0.5 font-mono text-2xs uppercase tracking-[0.18em] text-tertiary transition-colors hover:text-accent"
+    >
+      {copied ? "copied" : "copy"}
+    </button>
   );
 }
 

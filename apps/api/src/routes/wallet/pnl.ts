@@ -38,11 +38,21 @@ walletPnl.get("/:addr/pnl", async (c) => {
     });
   } catch (e) {
     if (e instanceof SolanaTrackerError) {
-      // Pass through the meaningful statuses; collapse the rest to 502 so the
-      // client never sees a raw upstream 5xx it can't act on.
-      const status = e.status === 404 || e.status === 429 ? e.status : 502;
-      console.error(`[wallet-pnl ${addr}] solanatracker ${e.status}`, e.message);
-      return c.json({ error: "solanatracker_error", message: e.message }, status);
+      // Curate the client-facing message — the raw SolanaTrackerError carries
+      // the upstream URL + a slice of the upstream body, which is internal
+      // detail the browser shouldn't see (matches the Helius L3 sanitization).
+      // Full error stays in the server log.
+      console.error(`[wallet-pnl ${addr}] solanatracker ${e.status}: ${e.message}`);
+      if (e.status === 404) {
+        return c.json({ error: "not_found", message: "No trading history for this wallet" }, 404);
+      }
+      if (e.status === 429) {
+        return c.json(
+          { error: "rate_limited", message: "Upstream rate limit — try again shortly" },
+          429,
+        );
+      }
+      return c.json({ error: "upstream_error", message: "Could not load wallet data" }, 502);
     }
     throw e;
   }
