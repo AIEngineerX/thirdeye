@@ -40,6 +40,39 @@ export function fmtUsd(n: number | null): string {
   return `$${fmtNumber(n, 2)}`;
 }
 
+function compactUsd(abs: number): string {
+  if (abs >= 1e9) return `$${fmtNumber(abs / 1e9, 2)}B`;
+  if (abs >= 1e6) return `$${fmtNumber(abs / 1e6, 2)}M`;
+  if (abs >= 1e3) return `$${fmtNumber(abs / 1e3, 1)}K`;
+  return `$${fmtNumber(abs, 2)}`;
+}
+
+/** USD with K/M/B suffix for large values. Null → "—". e.g. "$40.96M". */
+export function fmtUsdCompact(n: number | null): string {
+  if (n === null || !Number.isFinite(n)) return "—";
+  return compactUsd(Math.abs(n));
+}
+
+/** Compact USD with an explicit +/− sign — for PnL. e.g. "+$40.96M", "−$1.2K". */
+export function fmtUsdSigned(n: number | null): string {
+  if (n === null || !Number.isFinite(n)) return "—";
+  const sign = n > 0 ? "+" : n < 0 ? "−" : "";
+  return `${sign}${compactUsd(Math.abs(n))}`;
+}
+
+/** Relative time from an epoch-millisecond timestamp: "12s ago", "4m ago". */
+export function fmtRelativeMs(ms: number, nowMs: number = Date.now()): string {
+  if (!Number.isFinite(ms)) return "—";
+  const seconds = Math.max(0, Math.floor((nowMs - ms) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 /** ISO8601 → "HH:MM:SS.mmm" local time. Used in the intel feed tail. */
 export function fmtClockMs(iso: string): string {
   const d = new Date(iso);

@@ -14,6 +14,7 @@
     "@thirdeye/prices": "workspace:*",
     "@thirdeye/scanner": "workspace:*",
     "@thirdeye/shared": "workspace:*",
+    "@thirdeye/solanatracker": "workspace:*",
     "hono": "^4.12.21",
     "drizzle-orm": "^0.45.2",
     "postgres": "^3.4.0",

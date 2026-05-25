@@ -22,7 +22,7 @@ import { heliusWebhook } from "./routes/helius-webhook";
 import { intelAggregatesRoutes, intelFeed, intelFundersRoutes } from "./routes/intel";
 import { tokenScan } from "./routes/token";
 import { tokensRoutes } from "./routes/tokens";
-import { walletCheck } from "./routes/wallet";
+import { walletCheck, walletPnl } from "./routes/wallet";
 import { watchesRoutes } from "./routes/watches";
 import { startWorker } from "./workers/runner";
 
@@ -114,6 +114,7 @@ const walletRouter = new Hono<{ Variables: Variables }>();
 walletRouter.use("*", requireAuth);
 walletRouter.use("*", walletCheckLimit);
 walletRouter.route("/", walletCheck);
+walletRouter.route("/", walletPnl);
 app.route("/api/wallet", walletRouter);
 
 const scanTokenLimit = rateLimit({

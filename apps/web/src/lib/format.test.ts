@@ -6,8 +6,11 @@ import {
   fmtNumber,
   fmtPct,
   fmtRelative,
+  fmtRelativeMs,
   fmtSol,
   fmtUsd,
+  fmtUsdCompact,
+  fmtUsdSigned,
   isValidSolanaAddress,
   shortAddr,
 } from "./format";
@@ -36,6 +39,31 @@ describe("format", () => {
     expect(fmtSol(-12.4)).toBe("−12.40 SOL");
     expect(fmtSol(0)).toBe("0.00 SOL");
     expect(fmtSol(null)).toBe("—");
+  });
+
+  test("fmtUsdCompact K/M/B suffixes, unsigned", () => {
+    expect(fmtUsdCompact(40_962_971.2)).toBe("$40.96M");
+    expect(fmtUsdCompact(1_500_000_000)).toBe("$1.50B");
+    expect(fmtUsdCompact(8121.04)).toBe("$8.1K");
+    expect(fmtUsdCompact(42.5)).toBe("$42.50");
+    expect(fmtUsdCompact(-8121.04)).toBe("$8.1K"); // compact is unsigned
+    expect(fmtUsdCompact(null)).toBe("—");
+  });
+
+  test("fmtUsdSigned adds +/− on compact USD", () => {
+    expect(fmtUsdSigned(40_962_971.2)).toBe("+$40.96M");
+    expect(fmtUsdSigned(-1234)).toBe("−$1.2K");
+    expect(fmtUsdSigned(0)).toBe("$0.00");
+    expect(fmtUsdSigned(null)).toBe("—");
+  });
+
+  test("fmtRelativeMs buckets from epoch ms", () => {
+    const now = 1_700_000_000_000;
+    expect(fmtRelativeMs(now - 5_000, now)).toBe("5s ago");
+    expect(fmtRelativeMs(now - 4 * 60_000, now)).toBe("4m ago");
+    expect(fmtRelativeMs(now - 3 * 3_600_000, now)).toBe("3h ago");
+    expect(fmtRelativeMs(now - 2 * 86_400_000, now)).toBe("2d ago");
+    expect(fmtRelativeMs(Number.NaN, now)).toBe("—");
   });
 
   test("fmtPct", () => {
