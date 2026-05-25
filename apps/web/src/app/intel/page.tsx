@@ -135,7 +135,7 @@ export default function IntelFeedPage() {
 
       {tab === "smart" ? (
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-          <SmartMoneyFeed frames={events} />
+          <SmartMoneyFeed frames={events.slice(-MAX_EVENTS)} />
           <Watchlist />
         </div>
       ) : (

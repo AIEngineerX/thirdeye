@@ -47,7 +47,7 @@ app.use(
     origin: env.CORS_ORIGIN,
     credentials: true,
     allowHeaders: ["Content-Type", "X-Auth-Token", "X-User-Helius-Key", "X-User-Anthropic-Key"],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
   }),
 );
 
