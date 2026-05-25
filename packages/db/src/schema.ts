@@ -213,6 +213,45 @@ export const tokens = pgTable(
   }),
 );
 
+// Curated smart-money watchlist with a quality snapshot captured from Solana
+// Tracker at add time. Distinct from `watches` (session-scoped, generic).
+export const trackedWallets = pgTable("tracked_wallets", {
+  address: text("address").primaryKey(),
+  label: text("label"),
+  source: text("source").notNull().default("manual"), // 'manual' | 'leaderboard'
+  winRate: numeric("win_rate"),
+  realizedPnlUsd: numeric("realized_pnl_usd"),
+  roi: numeric("roi"),
+  tokensTraded: integer("tokens_traded"),
+  identity: jsonb("identity"),
+  pnlSyncedAt: timestamp("pnl_synced_at", { withTimezone: true }),
+  addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Normalized swaps parsed from tracked wallets' Helius enhanced events. Source
+// of truth for confluence queries and the smart-money feed history.
+export const smartTrades = pgTable(
+  "smart_trades",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    wallet: text("wallet").notNull(),
+    mint: text("mint").notNull(),
+    symbol: text("symbol"),
+    side: text("side").notNull(), // 'buy' | 'sell'
+    solAmount: numeric("sol_amount"),
+    usdValue: numeric("usd_value"),
+    tokenAmount: numeric("token_amount"),
+    program: text("program"),
+    signature: text("signature").notNull(),
+    tradedAt: timestamp("traded_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    mintSideTimeIdx: index("smart_trades_mint_side_time_idx").on(t.mint, t.side, t.tradedAt.desc()),
+    tradedAtIdx: index("smart_trades_traded_at_idx").on(t.tradedAt.desc()),
+  }),
+);
+
 // Phase 6b — audit trail for every agent run plus source of truth for the
 // daily-budget cap. Sum of cost_usd over today (UTC) is what the advisory
 // lock at packages/agent/src/budget.ts reads + writes inside one tx guarded
