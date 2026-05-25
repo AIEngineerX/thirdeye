@@ -32,6 +32,32 @@ export type IntelEvent =
         description: string | null;
         timestamp: number | null;
       };
+    }
+  | {
+      event: "smartmoney:trade";
+      data: {
+        wallet: string;
+        label: string | null;
+        winRate: number | null;
+        side: "buy" | "sell";
+        mint: string;
+        symbol: string | null;
+        solAmount: number | null;
+        signature: string;
+        tradedAt: string; // ISO
+      };
+    }
+  | {
+      event: "smartmoney:confluence";
+      data: {
+        mint: string;
+        symbol: string | null;
+        wallets: string[];
+        count: number;
+        windowMin: number;
+        coFunded: boolean;
+        sharedFunder: string | null;
+      };
     };
 
 type Handler = (evt: IntelEvent) => void;
