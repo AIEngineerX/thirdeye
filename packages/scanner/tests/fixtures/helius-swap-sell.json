@@ -1,0 +1,18 @@
+{
+  "signature": "5xSellSig2222222222222222222222222222222222222222222222222222222",
+  "type": "SWAP",
+  "source": "PUMP_FUN",
+  "timestamp": 1779670800,
+  "fee": 5000,
+  "feePayer": "WaLLeT1111111111111111111111111111111111111",
+  "description": "WaLLeT swapped 1000000 TOKEN for 2.0 SOL",
+  "nativeTransfers": [
+    { "fromUserAccount": "PooL9999999999999999999999999999999999999999", "toUserAccount": "WaLLeT1111111111111111111111111111111111111", "amount": 2000000000 }
+  ],
+  "tokenTransfers": [
+    { "fromUserAccount": "WaLLeT1111111111111111111111111111111111111", "toUserAccount": "PooL9999999999999999999999999999999999999999", "mint": "MiNT2222222222222222222222222222222222222222", "tokenAmount": 1000000 }
+  ],
+  "accountData": [
+    { "account": "WaLLeT1111111111111111111111111111111111111", "nativeBalanceChange": 1999995000 }
+  ]
+}

@@ -12,4 +12,5 @@ export * from "./check-wallet";
 export * from "./semaphore";
 export * from "./risk";
 export * from "./scan-token";
+export * from "./parse-trade";
 export const PACKAGE_NAME = "@thirdeye/scanner" as const;
