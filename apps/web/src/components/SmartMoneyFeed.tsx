@@ -53,6 +53,7 @@ export function SmartMoneyFeed({ frames }: { frames: SseFrame[] }) {
   }
   return (
     <ul className="divide-y divide-border-subtle">
+      {/* index key is intentional: append-only reversed live tail, rows never reorder/remove */}
       {rows.map((r, i) =>
         r.kind === "confluence" ? (
           <li

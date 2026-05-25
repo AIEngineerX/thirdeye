@@ -64,8 +64,16 @@ export function Watchlist() {
   };
 
   const remove = async (a: string) => {
-    const r = await api(`/api/db/tracked/${a}`, { method: "DELETE" });
-    if (r.ok) await refresh();
+    try {
+      const r = await api(`/api/db/tracked/${a}`, { method: "DELETE" });
+      if (!r.ok) {
+        setErr("remove failed");
+        return;
+      }
+      await refresh();
+    } catch (e) {
+      setErr(String(e));
+    }
   };
 
   return (
