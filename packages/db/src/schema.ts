@@ -9,6 +9,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 
 // Anonymous session tokens — spec §7, §9
@@ -230,6 +231,8 @@ export const trackedWallets = pgTable("tracked_wallets", {
 
 // Normalized swaps parsed from tracked wallets' Helius enhanced events. Source
 // of truth for confluence queries and the smart-money feed history.
+// No FK from `wallet` -> tracked_wallets.address by design: feed history must
+// survive a wallet being untracked, so untracking never cascades trade rows.
 export const smartTrades = pgTable(
   "smart_trades",
   {
@@ -247,6 +250,7 @@ export const smartTrades = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
+    sigWalletUniq: unique("smart_trades_sig_wallet_uniq").on(t.signature, t.wallet),
     mintSideTimeIdx: index("smart_trades_mint_side_time_idx").on(t.mint, t.side, t.tradedAt.desc()),
     tradedAtIdx: index("smart_trades_traded_at_idx").on(t.tradedAt.desc()),
   }),

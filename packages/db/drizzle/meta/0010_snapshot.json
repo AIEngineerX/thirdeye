@@ -1,5 +1,5 @@
 {
-  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "id": "d8b67e96-47d4-4857-a739-1b4b428ce7bd",
   "prevId": "9b401c46-6159-4aff-b8a6-858b85da2617",
   "version": "7",
   "dialect": "postgresql",
@@ -113,9 +113,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "agent_runs_kind_started_at_idx": {
           "name": "agent_runs_kind_started_at_idx",
@@ -134,9 +134,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -277,9 +277,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -500,9 +500,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "smart_trades_traded_at_idx": {
           "name": "smart_trades_traded_at_idx",
@@ -515,9 +515,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -695,9 +695,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -780,9 +780,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -927,24 +927,24 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "wallet_checks_address_wallets_address_fk": {
           "name": "wallet_checks_address_wallets_address_fk",
           "tableFrom": "wallet_checks",
+          "tableTo": "wallets",
           "columnsFrom": [
             "address"
           ],
-          "tableTo": "wallets",
           "columnsTo": [
             "address"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1038,9 +1038,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "wallets_tags_idx": {
           "name": "wallets_tags_idx",
@@ -1053,9 +1053,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "gin",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -1125,9 +1125,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -1185,24 +1185,24 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "watches_token_auth_tokens_token_fk": {
           "name": "watches_token_auth_tokens_token_fk",
           "tableFrom": "watches",
+          "tableTo": "auth_tokens",
           "columnsFrom": [
             "token"
           ],
-          "tableTo": "auth_tokens",
           "columnsTo": [
             "token"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1214,10 +1214,10 @@
   },
   "enums": {},
   "schemas": {},
-  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
+  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},
