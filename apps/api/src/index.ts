@@ -23,6 +23,7 @@ import { intelAggregatesRoutes, intelFeed, intelFundersRoutes } from "./routes/i
 import { tokenScan } from "./routes/token";
 import { tokensRoutes } from "./routes/tokens";
 import { walletCheck, walletPnl } from "./routes/wallet";
+import { trackedRoutes } from "./routes/tracked";
 import { watchesRoutes } from "./routes/watches";
 import { startWorker } from "./workers/runner";
 
@@ -141,6 +142,11 @@ const watchesRouter = new Hono<{ Variables: Variables }>();
 watchesRouter.use("*", requireAuth);
 watchesRouter.route("/", watchesRoutes);
 app.route("/api/db/watches", watchesRouter);
+
+const trackedRouter = new Hono<{ Variables: Variables }>();
+trackedRouter.use("*", requireAuth);
+trackedRouter.route("/", trackedRoutes);
+app.route("/api/db/tracked", trackedRouter);
 
 // Phase 6a — token cache (read-only). Auth required since the contents
 // are populated by user-driven scans + the worker; no rate-limit because
