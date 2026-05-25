@@ -32,6 +32,7 @@ export function Watchlist() {
     setItems(body.items);
   };
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load once on mount
   useEffect(() => {
     refresh().catch((e) => setErr(String(e)));
   }, []);
@@ -111,9 +112,7 @@ export function Watchlist() {
               {w.label ?? shortAddr(w.address)}
             </span>
             {w.winRate !== null && (
-              <span className="font-mono text-2xs text-tertiary">
-                {Math.round(w.winRate)}% wr
-              </span>
+              <span className="font-mono text-2xs text-tertiary">{Math.round(w.winRate)}% wr</span>
             )}
             {w.realizedPnlUsd !== null && (
               <span

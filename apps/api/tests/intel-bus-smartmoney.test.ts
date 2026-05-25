@@ -1,5 +1,11 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { type IntelEvent, _resetIntelBus, initIntelBus, publish, subscribe } from "../src/lib/intel-bus";
+import {
+  type IntelEvent,
+  _resetIntelBus,
+  initIntelBus,
+  publish,
+  subscribe,
+} from "../src/lib/intel-bus";
 import { type TestDb, setupTestDb, waitFor } from "./setup";
 
 let testDb: TestDb;

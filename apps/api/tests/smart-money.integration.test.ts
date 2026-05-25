@@ -19,9 +19,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   // Global setup truncates wallets; also truncate smart_trades which setup.ts omits.
-  await testDb.sql.unsafe(
-    "TRUNCATE smart_trades, wallets RESTART IDENTITY CASCADE;",
-  );
+  await testDb.sql.unsafe("TRUNCATE smart_trades, wallets RESTART IDENTITY CASCADE;");
 });
 
 // Build a minimal ParsedTrade. Each call without overrides gets a unique
@@ -122,7 +120,7 @@ describe("areCoFunded", () => {
     await testDb.db.insert(wallets).values([
       { address: "WA1", firstFunder: "FUNDER_SHARED", fundedAt: null, tags: [] },
       { address: "WA2", firstFunder: "FUNDER_SHARED", fundedAt: null, tags: [] },
-      { address: "WA3", firstFunder: "FUNDER_OTHER",  fundedAt: null, tags: [] },
+      { address: "WA3", firstFunder: "FUNDER_OTHER", fundedAt: null, tags: [] },
     ]);
 
     const result = await areCoFunded(testDb.db, ["WA1", "WA2", "WA3"]);

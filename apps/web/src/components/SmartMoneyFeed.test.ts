@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { reduceSmartMoney, type SmartRow } from "./SmartMoneyFeed";
 import type { SseFrame } from "@/lib/sse";
+import { type SmartRow, reduceSmartMoney } from "./SmartMoneyFeed";
 
 const tradeFrame: SseFrame = {
   event: "smartmoney:trade",

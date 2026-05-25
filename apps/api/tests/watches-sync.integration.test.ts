@@ -239,9 +239,7 @@ describe("syncHeliusWebhook state machine", () => {
 
 describe("collectWatchedAddresses", () => {
   beforeEach(async () => {
-    await testDb.sql.unsafe(
-      "TRUNCATE tracked_wallets, smart_trades RESTART IDENTITY CASCADE;",
-    );
+    await testDb.sql.unsafe("TRUNCATE tracked_wallets, smart_trades RESTART IDENTITY CASCADE;");
   });
 
   test("collectWatchedAddresses unions watches and tracked_wallets, distinct + sorted", async () => {

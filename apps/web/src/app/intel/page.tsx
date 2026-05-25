@@ -106,29 +106,29 @@ export default function IntelFeedPage() {
             </button>
           </div>
           <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPaused((p) => !p)}
-            className={`border border-border-emphasis px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] transition-colors hover:bg-card-hover ${
-              paused ? "text-med" : "text-tertiary"
-            }`}
-          >
-            {paused ? "resume" : "pause"}
-          </button>
-          <button
-            type="button"
-            onClick={reconnect}
-            className="border border-border-emphasis px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-tertiary transition-colors hover:bg-card-hover"
-          >
-            reconnect
-          </button>
-          <button
-            type="button"
-            onClick={() => setEntries([])}
-            className="border border-border-emphasis px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-tertiary transition-colors hover:bg-card-hover"
-          >
-            clear
-          </button>
+            <button
+              type="button"
+              onClick={() => setPaused((p) => !p)}
+              className={`border border-border-emphasis px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] transition-colors hover:bg-card-hover ${
+                paused ? "text-med" : "text-tertiary"
+              }`}
+            >
+              {paused ? "resume" : "pause"}
+            </button>
+            <button
+              type="button"
+              onClick={reconnect}
+              className="border border-border-emphasis px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-tertiary transition-colors hover:bg-card-hover"
+            >
+              reconnect
+            </button>
+            <button
+              type="button"
+              onClick={() => setEntries([])}
+              className="border border-border-emphasis px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-tertiary transition-colors hover:bg-card-hover"
+            >
+              clear
+            </button>
           </div>
         </div>
       </header>

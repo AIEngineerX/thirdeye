@@ -99,7 +99,9 @@ function solAmountFor(e: HeliusEvent, wallet: string): number | null {
     // lamports (~$0.001). Fine for alpha signals; revisit before PnL accounting.
     const fee = typeof e.fee === "number" ? e.fee : 0;
     const gross = Math.abs(ad.nativeBalanceChange) - fee;
-    return gross > 0 ? gross / LAMPORTS_PER_SOL : Math.abs(ad.nativeBalanceChange) / LAMPORTS_PER_SOL;
+    return gross > 0
+      ? gross / LAMPORTS_PER_SOL
+      : Math.abs(ad.nativeBalanceChange) / LAMPORTS_PER_SOL;
   }
   let lamports = 0;
   for (const t of e.nativeTransfers ?? []) {

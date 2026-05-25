@@ -1,7 +1,7 @@
-import { and, count, desc, inArray, isNotNull, sql } from "drizzle-orm";
 import type { DbClient } from "@thirdeye/db";
 import { wallets } from "@thirdeye/db";
 import type { ParsedTrade } from "@thirdeye/scanner";
+import { and, count, desc, inArray, isNotNull, sql } from "drizzle-orm";
 
 // Insert a parsed trade. Returns true if a row was inserted, false if the
 // (signature, wallet) pair already existed (Helius retries the same event for

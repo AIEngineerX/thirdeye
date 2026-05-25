@@ -199,7 +199,11 @@ describe("smart-money webhook ingest", () => {
       timestamp: nowSec,
       feePayer: WALLET_B,
       nativeTransfers: [
-        { fromUserAccount: WALLET_B, toUserAccount: "PooL9999999999999999999999999999999999999999", amount: 1500000000 },
+        {
+          fromUserAccount: WALLET_B,
+          toUserAccount: "PooL9999999999999999999999999999999999999999",
+          amount: 1500000000,
+        },
       ],
       tokenTransfers: [
         {

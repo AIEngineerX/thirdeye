@@ -192,10 +192,15 @@ async function resolveTracked(
   const out = new Map<string, { label: string | null; winRate: number | null }>();
   if (candidates.length === 0) return out;
   const rows = await db
-    .select({ address: trackedWallets.address, label: trackedWallets.label, winRate: trackedWallets.winRate })
+    .select({
+      address: trackedWallets.address,
+      label: trackedWallets.label,
+      winRate: trackedWallets.winRate,
+    })
     .from(trackedWallets)
     .where(inArray(trackedWallets.address, candidates));
-  for (const r of rows) out.set(r.address, { label: r.label, winRate: r.winRate === null ? null : Number(r.winRate) });
+  for (const r of rows)
+    out.set(r.address, { label: r.label, winRate: r.winRate === null ? null : Number(r.winRate) });
   return out;
 }
 

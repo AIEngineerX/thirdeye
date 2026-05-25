@@ -22,8 +22,8 @@ import { heliusWebhook } from "./routes/helius-webhook";
 import { intelAggregatesRoutes, intelFeed, intelFundersRoutes } from "./routes/intel";
 import { tokenScan } from "./routes/token";
 import { tokensRoutes } from "./routes/tokens";
-import { walletCheck, walletPnl } from "./routes/wallet";
 import { trackedRoutes } from "./routes/tracked";
+import { walletCheck, walletPnl } from "./routes/wallet";
 import { watchesRoutes } from "./routes/watches";
 import { startWorker } from "./workers/runner";
 

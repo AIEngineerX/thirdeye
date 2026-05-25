@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
+import { parseWalletTrade } from "../src/parse-trade";
 import buyFixture from "./fixtures/helius-swap-buy.json";
 import sellFixture from "./fixtures/helius-swap-sell.json";
-import { parseWalletTrade } from "../src/parse-trade";
 
 const WALLET = "WaLLeT1111111111111111111111111111111111111";
 const MINT = "MiNT2222222222222222222222222222222222222222";
@@ -45,7 +45,12 @@ test("returns null when only a quote-mint transfer is present (USDC swap)", () =
       signature: "x",
       timestamp: 1,
       tokenTransfers: [
-        { fromUserAccount: WALLET, toUserAccount: "Pool", mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", tokenAmount: 100 },
+        {
+          fromUserAccount: WALLET,
+          toUserAccount: "Pool",
+          mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+          tokenAmount: 100,
+        },
       ],
     },
     WALLET,
