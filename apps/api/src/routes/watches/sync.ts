@@ -21,13 +21,22 @@ export interface SyncOptions {
   authHeader: string;
 }
 
+// Distinct addresses Helius must watch = union of session watches and the
+// curated smart-money list. Sorted for stable diffs in logs/tests.
+export async function collectWatchedAddresses(db: DbExecutor): Promise<string[]> {
+  const rows = await db.execute<{ address: string }>(sql`
+    SELECT address FROM watches
+    UNION
+    SELECT address FROM tracked_wallets
+    ORDER BY address
+  `);
+  return (rows as unknown as { address: string }[]).map((r) => r.address);
+}
+
 // Accepts either the top-level DbClient or a transaction handle so callers
 // can run sync inside a tx for atomic rollback of accompanying writes.
 export async function syncHeliusWebhook(db: DbExecutor, opts: SyncOptions): Promise<void> {
-  const distinct = await db.execute<{ address: string }>(sql`
-    SELECT DISTINCT address FROM watches ORDER BY address
-  `);
-  const addresses = (distinct as unknown as { address: string }[]).map((r) => r.address);
+  const addresses = await collectWatchedAddresses(db);
 
   const existing = await db.select().from(heliusWebhooks).where(eq(heliusWebhooks.id, 1));
   const row = existing[0] ?? null;

@@ -12,7 +12,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { heliusWebhooks, watches } from "@thirdeye/db";
 import { eq } from "drizzle-orm";
-import { syncHeliusWebhook } from "../src/routes/watches/sync";
+import { collectWatchedAddresses, syncHeliusWebhook } from "../src/routes/watches/sync";
 import { type TestDb, setupTestDb } from "./setup";
 
 interface FakeWebhook {
@@ -234,5 +234,24 @@ describe("syncHeliusWebhook state machine", () => {
     await syncHeliusWebhook(testDb.db, OPTS);
     const created = [...fakeStore.values()][0]!;
     expect(created.accountAddresses).toEqual([ADDR_A]); // not duplicated
+  });
+});
+
+describe("collectWatchedAddresses", () => {
+  beforeEach(async () => {
+    await testDb.sql.unsafe(
+      "TRUNCATE tracked_wallets, smart_trades RESTART IDENTITY CASCADE;",
+    );
+  });
+
+  test("collectWatchedAddresses unions watches and tracked_wallets, distinct + sorted", async () => {
+    await testDb.sql.unsafe(`INSERT INTO tracked_wallets (address) VALUES ('AAA'), ('CCC')`);
+    const tok = await seedToken();
+    await testDb.db.insert(watches).values([
+      { address: "BBB", token: tok },
+      { address: "AAA", token: tok }, // overlaps a tracked wallet
+    ]);
+    const addrs = await collectWatchedAddresses(testDb.db);
+    expect(addrs).toEqual(["AAA", "BBB", "CCC"]);
   });
 });
