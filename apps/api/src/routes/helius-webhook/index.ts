@@ -11,6 +11,12 @@
 //   4. Publish a watch:event to the intel-bus so connected SSE clients on
 //      /api/db/intel/feed see it live.
 //
+// In addition, when a matched address is a TRACKED smart-money wallet, the
+// event is parsed into a swap, persisted to smart_trades, and published as a
+// smartmoney:trade; a buy that brings >=2 distinct tracked wallets onto the
+// same mint within CONFLUENCE_WINDOW_MIN also publishes a smartmoney:confluence.
+// The watch path and the smart-money path are independent (separate try/catch).
+//
 // Helius retries with exponential backoff for 24h on non-200 responses, so
 // we always 200 OK after parsing — even if downstream persistence partially
 // fails. Per-event errors are logged but don't fail the batch.
@@ -38,6 +44,7 @@ function constantTimeEqual(a: string, b: string): boolean {
   return timingSafeEqual(ab, bb);
 }
 
+// minutes — how long two tracked buys count as confluence; tunable.
 const CONFLUENCE_WINDOW_MIN = 30;
 
 type Variables = { db: DbClient };
@@ -87,9 +94,12 @@ heliusWebhook.post("/", async (c) => {
     if (involved.length === 0) continue;
 
     for (const address of involved) {
-      try {
-        // Generic watch:event path — only for addresses in watches table.
-        if (watchedSet.has(address)) {
+      // Generic watch:event path — only for addresses in watches table.
+      // Isolated from the smart-money path: a transient failure here (e.g. a
+      // DB error) must not starve the smart-money path for a wallet that is in
+      // BOTH watches and tracked_wallets.
+      if (watchedSet.has(address)) {
+        try {
           await db.insert(watchEvents).values({
             address,
             signature: evt.signature,
@@ -108,56 +118,57 @@ heliusWebhook.post("/", async (c) => {
             },
           });
           persisted++;
+        } catch (e) {
+          console.error(`[helius-webhook] persist ${address}/${evt.signature} failed`, e);
         }
+      }
 
-        // Smart-money path — only for tracked wallets.
-        const meta = trackedMeta.get(address);
-        if (meta) {
-          try {
-            const trade = parseWalletTrade(evt, address);
-            if (trade) {
-              const inserted = await persistTrade(db, trade, null);
-              if (inserted) {
-                await publish({
-                  event: "smartmoney:trade",
-                  data: {
-                    wallet: address,
-                    label: meta.label,
-                    winRate: meta.winRate,
-                    side: trade.side,
-                    mint: trade.mint,
-                    symbol: null,
-                    solAmount: trade.solAmount,
-                    signature: trade.signature,
-                    tradedAt: trade.tradedAt.toISOString(),
-                  },
-                });
-                if (trade.side === "buy") {
-                  const conf = await detectBuyConfluence(db, trade.mint, CONFLUENCE_WINDOW_MIN);
-                  if (conf.count >= 2) {
-                    const cf = await areCoFunded(db, conf.wallets);
-                    await publish({
-                      event: "smartmoney:confluence",
-                      data: {
-                        mint: conf.mint,
-                        symbol: null,
-                        wallets: conf.wallets,
-                        count: conf.count,
-                        windowMin: conf.windowMin,
-                        coFunded: cf.coFunded,
-                        sharedFunder: cf.sharedFunder,
-                      },
-                    });
-                  }
+      // Smart-money path — only for tracked wallets. Runs independently of the
+      // watch path above; its own try/catch keeps a failure here from leaking.
+      const meta = trackedMeta.get(address);
+      if (meta) {
+        try {
+          const trade = parseWalletTrade(evt, address);
+          if (trade) {
+            const inserted = await persistTrade(db, trade, null);
+            if (inserted) {
+              await publish({
+                event: "smartmoney:trade",
+                data: {
+                  wallet: address,
+                  label: meta.label,
+                  winRate: meta.winRate,
+                  side: trade.side,
+                  mint: trade.mint,
+                  symbol: null,
+                  solAmount: trade.solAmount,
+                  signature: trade.signature,
+                  tradedAt: trade.tradedAt.toISOString(),
+                },
+              });
+              if (trade.side === "buy") {
+                const conf = await detectBuyConfluence(db, trade.mint, CONFLUENCE_WINDOW_MIN);
+                if (conf.count >= 2) {
+                  const cf = await areCoFunded(db, conf.wallets);
+                  await publish({
+                    event: "smartmoney:confluence",
+                    data: {
+                      mint: conf.mint,
+                      symbol: null,
+                      wallets: conf.wallets,
+                      count: conf.count,
+                      windowMin: conf.windowMin,
+                      coFunded: cf.coFunded,
+                      sharedFunder: cf.sharedFunder,
+                    },
+                  });
                 }
               }
             }
-          } catch (e) {
-            console.error(`[helius-webhook] smart-money ${address}/${evt.signature} failed`, e);
           }
+        } catch (e) {
+          console.error(`[helius-webhook] smart-money ${address}/${evt.signature} failed`, e);
         }
-      } catch (e) {
-        console.error(`[helius-webhook] persist ${address}/${evt.signature} failed`, e);
       }
     }
   }
