@@ -104,6 +104,9 @@ export const env = {
   PUBLIC_INSTANCE_MODE: optional("PUBLIC_INSTANCE_MODE", "false") === "true",
 
   HELIUS_API_KEY: optionalUndef("HELIUS_API_KEY"),
+  // Solana Tracker Data API — alpha-data spine (PnL, trends, leaderboard,
+  // trades). Server-side only; no BYOK header (single-tenant personal tool).
+  SOLANATRACKER_API_KEY: optionalUndef("SOLANATRACKER_API_KEY"),
   HELIUS_PROXY_LIMIT: optionalInt("HELIUS_PROXY_LIMIT", 600),
   HELIUS_PROXY_WINDOW_SEC: optionalInt("HELIUS_PROXY_WINDOW_SEC", 3600),
   WALLET_CHECK_LIMIT: optionalInt("WALLET_CHECK_LIMIT", 120),
@@ -121,24 +124,6 @@ export const env = {
   // H2 — per-IP issuance limit on POST /api/db/auth under PUBLIC mode.
   // Defaults: 10 issuances per IP per hour. Operator can tighten/loosen.
   AUTH_ISSUE_LIMIT_PER_HOUR: optionalInt("AUTH_ISSUE_LIMIT_PER_HOUR", 10),
-
-  // Phase 6b — agent engine
-  ANTHROPIC_API_KEY: optionalUndef("ANTHROPIC_API_KEY"),
-  AGENT_DAILY_COST_USD_CAP: optionalInt("AGENT_DAILY_COST_USD_CAP", 25),
-  AGENT_MAX_TOOL_CALLS_PER_RUN: optionalInt("AGENT_MAX_TOOL_CALLS_PER_RUN", 20),
-  AGENT_MAX_INPUT_TOKENS_PER_RUN: optionalInt("AGENT_MAX_INPUT_TOKENS_PER_RUN", 200000),
-  AGENT_CHEAP_MODEL: optionalUndef("AGENT_CHEAP_MODEL"),
-  AGENT_REASONING_MODEL: optionalUndef("AGENT_REASONING_MODEL"),
-
-  // Phase 6b.6 — Telegram bot (embedded in this process; both vars must
-  // be set for the bot to start, otherwise startBot() returns immediately)
-  TG_BOT_TOKEN: optionalUndef("TG_BOT_TOKEN"),
-  // H5: was `Number()` which silently produced NaN on malformed input;
-  // NaN !== anything (including itself) so the chat-allowlist comparison
-  // would silently block every chat — safe by accident, but a future
-  // refactor flipping the sense would silently allow every chat. Strict
-  // parse + throw makes misconfiguration loud and immediate.
-  TG_ALLOWED_CHAT_ID: optionalIntUndef("TG_ALLOWED_CHAT_ID"),
 } as const;
 
 // Read fresh so secrets can be hot-rotated without restart.
