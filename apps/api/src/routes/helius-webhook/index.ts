@@ -16,12 +16,14 @@
 // fails. Per-event errors are logged but don't fail the batch.
 
 import { timingSafeEqual } from "node:crypto";
-import { type DbClient, watchEvents, watches } from "@thirdeye/db";
+import { type DbClient, trackedWallets, watchEvents, watches } from "@thirdeye/db";
 import type { HeliusInboundEvent } from "@thirdeye/helius";
+import { parseWalletTrade } from "@thirdeye/scanner";
 import { inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { heliusWebhookAuth } from "../../env";
 import { publish } from "../../lib/intel-bus";
+import { areCoFunded, detectBuyConfluence, persistTrade } from "../../lib/smart-money";
 
 // Constant-time string compare. Plain !== short-circuits on the first
 // differing byte, which lets a network attacker oracle the secret one
@@ -35,6 +37,8 @@ function constantTimeEqual(a: string, b: string): boolean {
   if (ab.length !== bb.length) return false;
   return timingSafeEqual(ab, bb);
 }
+
+const CONFLUENCE_WINDOW_MIN = 30;
 
 type Variables = { db: DbClient };
 
@@ -65,35 +69,93 @@ heliusWebhook.post("/", async (c) => {
   for (const list of involvedByEvent) for (const a of list) candidateAddresses.add(a);
 
   const db = c.get("db");
-  const watchedSet = await resolveWatched(db, [...candidateAddresses]);
+  const candidates = [...candidateAddresses];
+  const [watchedSet, trackedMeta] = await Promise.all([
+    resolveWatched(db, candidates),
+    resolveTracked(db, candidates),
+  ]);
+  // Union: care about any address that is watched OR tracked smart-money.
+  // Tracked-only wallets (not in `watches`) would otherwise be silently
+  // dropped before the smart-money path could run — this closes that gap.
+  const careAbout = new Set<string>([...watchedSet, ...trackedMeta.keys()]);
 
   let persisted = 0;
   for (let i = 0; i < events.length; i++) {
     const evt = events[i]!;
     if (!evt.signature) continue;
-    const involved = involvedByEvent[i]!.filter((a) => watchedSet.has(a));
+    const involved = involvedByEvent[i]!.filter((a) => careAbout.has(a));
     if (involved.length === 0) continue;
 
     for (const address of involved) {
       try {
-        await db.insert(watchEvents).values({
-          address,
-          signature: evt.signature,
-          type: evt.type ?? null,
-          payload: evt as unknown as Record<string, unknown>,
-        });
-        await publish({
-          event: "watch:event",
-          data: {
+        // Generic watch:event path — only for addresses in watches table.
+        if (watchedSet.has(address)) {
+          await db.insert(watchEvents).values({
             address,
             signature: evt.signature,
             type: evt.type ?? null,
-            source: evt.source ?? null,
-            description: evt.description ?? null,
-            timestamp: evt.timestamp ?? null,
-          },
-        });
-        persisted++;
+            payload: evt as unknown as Record<string, unknown>,
+          });
+          await publish({
+            event: "watch:event",
+            data: {
+              address,
+              signature: evt.signature,
+              type: evt.type ?? null,
+              source: evt.source ?? null,
+              description: evt.description ?? null,
+              timestamp: evt.timestamp ?? null,
+            },
+          });
+          persisted++;
+        }
+
+        // Smart-money path — only for tracked wallets.
+        const meta = trackedMeta.get(address);
+        if (meta) {
+          try {
+            const trade = parseWalletTrade(evt, address);
+            if (trade) {
+              const inserted = await persistTrade(db, trade, null);
+              if (inserted) {
+                await publish({
+                  event: "smartmoney:trade",
+                  data: {
+                    wallet: address,
+                    label: meta.label,
+                    winRate: meta.winRate,
+                    side: trade.side,
+                    mint: trade.mint,
+                    symbol: null,
+                    solAmount: trade.solAmount,
+                    signature: trade.signature,
+                    tradedAt: trade.tradedAt.toISOString(),
+                  },
+                });
+                if (trade.side === "buy") {
+                  const conf = await detectBuyConfluence(db, trade.mint, CONFLUENCE_WINDOW_MIN);
+                  if (conf.count >= 2) {
+                    const cf = await areCoFunded(db, conf.wallets);
+                    await publish({
+                      event: "smartmoney:confluence",
+                      data: {
+                        mint: conf.mint,
+                        symbol: null,
+                        wallets: conf.wallets,
+                        count: conf.count,
+                        windowMin: conf.windowMin,
+                        coFunded: cf.coFunded,
+                        sharedFunder: cf.sharedFunder,
+                      },
+                    });
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.error(`[helius-webhook] smart-money ${address}/${evt.signature} failed`, e);
+          }
+        }
       } catch (e) {
         console.error(`[helius-webhook] persist ${address}/${evt.signature} failed`, e);
       }
@@ -110,6 +172,20 @@ async function resolveWatched(db: DbClient, candidates: string[]): Promise<Set<s
     .from(watches)
     .where(inArray(watches.address, candidates));
   return new Set(rows.map((r) => r.address));
+}
+
+async function resolveTracked(
+  db: DbClient,
+  candidates: string[],
+): Promise<Map<string, { label: string | null; winRate: number | null }>> {
+  const out = new Map<string, { label: string | null; winRate: number | null }>();
+  if (candidates.length === 0) return out;
+  const rows = await db
+    .select({ address: trackedWallets.address, label: trackedWallets.label, winRate: trackedWallets.winRate })
+    .from(trackedWallets)
+    .where(inArray(trackedWallets.address, candidates));
+  for (const r of rows) out.set(r.address, { label: r.label, winRate: r.winRate === null ? null : Number(r.winRate) });
+  return out;
 }
 
 function collectInvolvedAddresses(evt: HeliusInboundEvent): string[] {
