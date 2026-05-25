@@ -1,5 +1,8 @@
 "use client";
 
+import { SmartMoneyFeed } from "@/components/SmartMoneyFeed";
+import { tagLabel } from "@/components/WalletClassGlyph";
+import { Watchlist } from "@/components/Watchlist";
 import { useSse } from "@/hooks/useSse";
 import { fmtClockMs, shortAddr } from "@/lib/format";
 import type { SseFrame } from "@/lib/sse";
@@ -16,6 +19,7 @@ interface FeedEntry {
 }
 
 export default function IntelFeedPage() {
+  const [tab, setTab] = useState<"smart" | "all">("smart");
   const [paused, setPaused] = useState(false);
   const [entries, setEntries] = useState<FeedEntry[]>([]);
   // reconnectKey lets the user manually reset the connection (e.g. after a
@@ -84,7 +88,24 @@ export default function IntelFeedPage() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => setTab("smart")}
+              className={`px-2 py-1 font-mono text-2xs uppercase ${tab === "smart" ? "text-brand" : "text-tertiary"}`}
+            >
+              smart money
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("all")}
+              className={`px-2 py-1 font-mono text-2xs uppercase ${tab === "all" ? "text-brand" : "text-tertiary"}`}
+            >
+              all intel
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setPaused((p) => !p)}
@@ -92,14 +113,14 @@ export default function IntelFeedPage() {
               paused ? "text-med" : "text-tertiary"
             }`}
           >
-            {paused ? "▶ resume" : "❚❚ pause"}
+            {paused ? "resume" : "pause"}
           </button>
           <button
             type="button"
             onClick={reconnect}
             className="border border-border-emphasis px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-tertiary transition-colors hover:bg-card-hover"
           >
-            ↻ reconnect
+            reconnect
           </button>
           <button
             type="button"
@@ -108,49 +129,59 @@ export default function IntelFeedPage() {
           >
             clear
           </button>
+          </div>
         </div>
       </header>
 
-      <div className="mb-4 flex flex-wrap gap-x-6 gap-y-1 font-mono text-2xs uppercase tracking-[0.16em] text-tertiary">
-        <span>received: {entries.length}</span>
-        {Object.entries(counts)
-          .sort(([, a], [, b]) => b - a)
-          .map(([kind, n]) => (
-            <span key={kind}>
-              {kind}: <span className="tabular text-secondary">{n}</span>
-            </span>
-          ))}
-      </div>
-
-      {status === "error" && error ? (
-        <section className="mb-4 border border-high/60 bg-high/10 p-4">
-          <header className="mb-2 font-mono text-2xs uppercase tracking-[0.22em] text-high">
-            ▸ stream failed
-          </header>
-          <p className="font-sans text-sm text-primary">{error.message}</p>
-          <button
-            type="button"
-            onClick={reconnect}
-            className="mt-3 border border-high/60 px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-high hover:bg-high/20"
-          >
-            retry
-          </button>
-        </section>
-      ) : null}
-
-      <section className="border border-border-subtle">
-        {entries.length === 0 ? (
-          <div className="border-b border-border-subtle px-4 py-6 text-center font-mono text-2xs uppercase tracking-[0.18em] text-tertiary">
-            ▸ awaiting activity… run a scan to see events appear here
+      {tab === "smart" ? (
+        <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+          <SmartMoneyFeed frames={events} />
+          <Watchlist />
+        </div>
+      ) : (
+        <>
+          <div className="mb-4 flex flex-wrap gap-x-6 gap-y-1 font-mono text-2xs uppercase tracking-[0.16em] text-tertiary">
+            <span>received: {entries.length}</span>
+            {Object.entries(counts)
+              .sort(([, a], [, b]) => b - a)
+              .map(([kind, n]) => (
+                <span key={kind}>
+                  {kind}: <span className="tabular text-secondary">{n}</span>
+                </span>
+              ))}
           </div>
-        ) : (
-          <ol>
-            {entries.map((entry) => (
-              <FeedRow key={entry.id} entry={entry} />
-            ))}
-          </ol>
-        )}
-      </section>
+
+          {status === "error" && error ? (
+            <section className="mb-4 border border-high/60 bg-high/10 p-4">
+              <header className="mb-2 font-mono text-2xs uppercase tracking-[0.22em] text-high">
+                ▸ stream failed
+              </header>
+              <p className="font-sans text-sm text-primary">{error.message}</p>
+              <button
+                type="button"
+                onClick={reconnect}
+                className="mt-3 border border-high/60 px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-high hover:bg-high/20"
+              >
+                retry
+              </button>
+            </section>
+          ) : null}
+
+          <section className="border border-border-subtle">
+            {entries.length === 0 ? (
+              <div className="border-b border-border-subtle px-4 py-6 text-center font-mono text-2xs uppercase tracking-[0.18em] text-tertiary">
+                ▸ awaiting activity… run a scan to see events appear here
+              </div>
+            ) : (
+              <ol>
+                {entries.map((entry) => (
+                  <FeedRow key={entry.id} entry={entry} />
+                ))}
+              </ol>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }
@@ -217,7 +248,7 @@ function describeEvent(event: string, data: unknown): React.ReactNode {
           <span className={`text-2xs uppercase tracking-[0.18em] ${tone}`}>{verdict}</span>
           <span className="ml-auto tabular text-2xs text-tertiary">
             risk {risk ?? "—"}
-            {sybil ? " · ▲ sybil" : ""}
+            {sybil ? " · bundle detected" : ""}
           </span>
         </span>
       );
@@ -274,7 +305,7 @@ function describeEvent(event: string, data: unknown): React.ReactNode {
     }
     case "tag:applied": {
       const address = typeof d.address === "string" ? d.address : "";
-      const tag = typeof d.tag === "string" ? d.tag : "?";
+      const tag = typeof d.tag === "string" ? tagLabel(d.tag) : "?";
       return (
         <span className="flex items-baseline gap-3">
           <Link
