@@ -16,6 +16,7 @@ export interface ParsedTrade {
   mint: string;
   side: "buy" | "sell";
   tokenAmount: number;
+  // Unsigned magnitude in SOL (never negative); `side` carries the direction.
   solAmount: number | null;
   program: string | null;
   signature: string;
@@ -37,6 +38,9 @@ interface HeliusAccountData {
   account?: string;
   nativeBalanceChange?: number;
 }
+// Local adapter for the Helius enhanced-tx *stream* shape (as stored in
+// watch_events.payload). Intentionally distinct from ParsedTx in tx-patterns.ts,
+// which drops tokenTransfers/accountData/fee — don't try to merge the two.
 interface HeliusEvent {
   signature?: string;
   source?: string;
@@ -83,12 +87,16 @@ export function parseWalletTrade(raw: unknown, wallet: string): ParsedTrade | nu
   };
 }
 
-// SOL moved by the wallet. Prefer the wallet's nativeBalanceChange (minus the
-// fee it paid); fall back to summing native transfers to/from the wallet.
-// Returns null if neither is present (e.g. WSOL-only route).
+// SOL moved by the wallet, as an unsigned magnitude (never negative — the
+// caller's `side` carries direction). Prefer the wallet's nativeBalanceChange
+// (minus the fee it paid); fall back to summing native transfers to/from the
+// wallet. Returns null if neither is present (e.g. WSOL-only route).
 function solAmountFor(e: HeliusEvent, wallet: string): number | null {
   const ad = (e.accountData ?? []).find((a) => a.account === wallet);
   if (ad && typeof ad.nativeBalanceChange === "number") {
+    // On a sell, nativeBalanceChange is already net-of-fee (the fee-payer is the
+    // same wallet), so subtracting fee again underreports SOL received by ~5000
+    // lamports (~$0.001). Fine for alpha signals; revisit before PnL accounting.
     const fee = typeof e.fee === "number" ? e.fee : 0;
     const gross = Math.abs(ad.nativeBalanceChange) - fee;
     return gross > 0 ? gross / LAMPORTS_PER_SOL : Math.abs(ad.nativeBalanceChange) / LAMPORTS_PER_SOL;

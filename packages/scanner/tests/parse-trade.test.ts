@@ -38,3 +38,17 @@ test("returns null for an event with no token transfers (plain SOL move)", () =>
   );
   expect(t).toBeNull();
 });
+
+test("returns null when only a quote-mint transfer is present (USDC swap)", () => {
+  const t = parseWalletTrade(
+    {
+      signature: "x",
+      timestamp: 1,
+      tokenTransfers: [
+        { fromUserAccount: WALLET, toUserAccount: "Pool", mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", tokenAmount: 100 },
+      ],
+    },
+    WALLET,
+  );
+  expect(t).toBeNull();
+});
