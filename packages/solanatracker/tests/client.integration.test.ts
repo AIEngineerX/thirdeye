@@ -16,7 +16,11 @@ const WALLET = "3BqGnroVXCWqBT6LstcLi9qZcDuTB7GuDKHrf8gJnvng";
 const TIMEOUT = 30_000;
 
 d("SolanaTrackerClient — live Data API", () => {
-  const client = new SolanaTrackerClient({ apiKey: KEY as string });
+  // Fallback key so constructing here never throws during describe-body
+  // evaluation when the suite is skipped (no SOLANATRACKER_API_KEY). Some bun
+  // versions evaluate `describe.skip` callbacks to collect tests; the dummy key
+  // is never used because every test below is skipped without a real key.
+  const client = new SolanaTrackerClient({ apiKey: KEY ?? "skipped-no-key" });
 
   test(
     "walletPnl returns a typed PnL summary",
