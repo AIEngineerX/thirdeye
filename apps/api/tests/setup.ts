@@ -15,7 +15,7 @@ export async function setupTestDb(): Promise<TestDb> {
   const { db, sql } = createDb(url);
 
   await sql.unsafe(`
-    TRUNCATE auth_tokens, wallet_checks, wallets, token_scans, funders, intel_aggregates, intel_events, tokens RESTART IDENTITY CASCADE;
+    TRUNCATE auth_tokens, wallet_checks, wallets, token_scans, funders, intel_aggregates, intel_events, tokens, tracked_wallets, smart_trades RESTART IDENTITY CASCADE;
   `);
 
   await initIntelBus(sql);

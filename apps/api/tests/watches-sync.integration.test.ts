@@ -105,7 +105,7 @@ beforeEach(async () => {
   fakeStore.clear();
   callLog.length = 0;
   await testDb.sql.unsafe(
-    "TRUNCATE auth_tokens, watches, watch_events, helius_webhooks RESTART IDENTITY CASCADE;",
+    "TRUNCATE auth_tokens, watches, watch_events, helius_webhooks, tracked_wallets RESTART IDENTITY CASCADE;",
   );
 });
 
