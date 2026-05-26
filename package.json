@@ -10,7 +10,7 @@
     "typecheck:web": "bun --bun tsc --noEmit -p apps/web/tsconfig.json",
     "test": "bun test",
     "dev": "bun --hot run apps/api/src/index.ts",
-    "dev:web": "bun --cwd apps/web run dev",
+    "dev:web": "node -e \"const { spawnSync } = require('node:child_process'); const { join } = require('node:path'); const web = join(process.cwd(), 'apps/web'); const next = join(web, 'node_modules/.bin', process.platform === 'win32' ? 'next.exe' : 'next'); const r = spawnSync(next, ['dev', '-p', '3000'], { cwd: web, stdio: 'inherit' }); process.exit(r.status ?? 1);\"",
     "migrate": "bun run packages/db/scripts/migrate.ts",
     "lint": "biome check .",
     "format": "biome format --write ."
@@ -22,6 +22,7 @@
   },
   "overrides": {
     "esbuild": "^0.25.0",
-    "hono": "^4.12.21"
+    "hono": "^4.12.21",
+    "postcss": "^8.5.10"
   }
 }
