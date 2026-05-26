@@ -16,8 +16,8 @@ beforeAll(async () => {
   testDb = await setupTestDb();
 });
 
-afterAll(() => {
-  testDb.cleanup();
+afterAll(async () => {
+  await testDb.cleanup();
   // env.ts is evaluated at module load, so we can't change limits mid-run
   // — restore PUBLIC_INSTANCE_MODE so other tests see the original value.
   if (ORIGINAL_MODE === undefined) process.env.PUBLIC_INSTANCE_MODE = undefined;

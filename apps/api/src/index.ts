@@ -162,11 +162,12 @@ const intelFeedRouter = new Hono<{ Variables: Variables }>();
 intelFeedRouter.route("/", intelFeed);
 app.route("/api/db/intel", intelFeedRouter);
 
-await initIntelBus(pgSql);
-
-// Background worker — only when this file is the entrypoint, never under tests
-// (tests import `{ app }` and would otherwise spin up cron + DB schema install).
+// Intel-bus + background worker — only when this file is the entrypoint, never
+// under tests. Tests import `{ app }` and own the intel-bus lifecycle via
+// setupTestDb(); initializing a second bus here (the bus is a process-wide
+// singleton) caused cross-file contention + a leaked pgSql connection per run.
 if (import.meta.main) {
+  await initIntelBus(pgSql);
   startWorker({
     connectionString: env.DATABASE_URL,
     db,

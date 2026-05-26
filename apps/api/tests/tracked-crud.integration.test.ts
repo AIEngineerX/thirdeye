@@ -89,10 +89,10 @@ beforeAll(async () => {
   process.env.HELIUS_WEBHOOK_AUTH = "tracked-crud-secret";
 });
 
-afterAll(() => {
+afterAll(async () => {
   globalThis.fetch = originalFetch;
   server.stop(true);
-  testDb.cleanup();
+  await testDb.cleanup();
   process.env.HELIUS_API_KEY = ORIGINAL_ENV.HELIUS_API_KEY;
   process.env.PUBLIC_BASE_URL = ORIGINAL_ENV.PUBLIC_BASE_URL;
   process.env.HELIUS_WEBHOOK_AUTH = ORIGINAL_ENV.HELIUS_WEBHOOK_AUTH;

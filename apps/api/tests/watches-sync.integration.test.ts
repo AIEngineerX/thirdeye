@@ -95,10 +95,10 @@ beforeAll(async () => {
   }) as typeof globalThis.fetch;
 });
 
-afterAll(() => {
+afterAll(async () => {
   globalThis.fetch = originalFetch;
   server.stop(true);
-  testDb.cleanup();
+  await testDb.cleanup();
 });
 
 beforeEach(async () => {
