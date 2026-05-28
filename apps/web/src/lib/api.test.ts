@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { createApiClient, getDashboard } from "./api";
-import type { DashboardBundle } from "./api-types";
+import { createApiClient, getDashboard, listCandidates, promoteCandidate } from "./api";
+import type { CandidateRow, DashboardBundle } from "./api-types";
 import { type SessionStorageLike, createAuthClient } from "./auth";
 import { createByokStore } from "./byok";
 
@@ -207,5 +207,114 @@ describe("getDashboard", () => {
     expect(apiCalls).toHaveLength(1);
     expect(apiCalls[0]!.url).toBe("/api/db/dashboard");
     expect(apiCalls[0]!.headers["x-auth-token"]).toBe("tok-dash");
+  });
+});
+
+describe("listCandidates", () => {
+  let sessStorage: MemStorage;
+  let localStorage: MemStorage;
+  const now = () => Date.parse("2026-05-20T12:00:00Z");
+
+  beforeEach(() => {
+    sessStorage = memStorage();
+    localStorage = memStorage();
+  });
+
+  function build(authResponses: Response[], apiResponses: Response[]) {
+    const authFetch = harness(authResponses);
+    const apiFetch = harness(apiResponses);
+    const auth = createAuthClient({
+      storage: sessStorage,
+      fetchImpl: authFetch.fetchImpl,
+      apiBase: "",
+      now,
+    });
+    const byok = createByokStore(localStorage);
+    const client = createApiClient({ auth, byok, fetchImpl: apiFetch.fetchImpl });
+    return { client, apiCalls: apiFetch.calls };
+  }
+
+  test("returns items and hits /api/db/candidates without options", async () => {
+    const rows: CandidateRow[] = [
+      {
+        address: "CandAddr1111111111111111111111111111111111",
+        handle: "@alpha",
+        displayName: "Alpha Trader",
+        twitterHandle: "alpha",
+        source: "fomo_seed",
+        srcPnlAll: 42000,
+        srcWinRate: 0.72,
+        earlyRate: 0.55,
+        buysObserved: 30,
+        tokensTraded: 18,
+        promoted: false,
+      },
+    ];
+    const { client, apiCalls } = build(
+      [json({ token: "tok-cand", expiresAt: "2026-05-27T12:00:00Z" })],
+      [json({ items: rows })],
+    );
+    const result = await listCandidates({}, client);
+    expect(result).toEqual(rows);
+    expect(apiCalls).toHaveLength(1);
+    expect(apiCalls[0]!.url).toBe("/api/db/candidates");
+    expect(apiCalls[0]!.headers["x-auth-token"]).toBe("tok-cand");
+  });
+
+  test("appends query params when options are provided", async () => {
+    const { client, apiCalls } = build(
+      [json({ token: "tok-q", expiresAt: "2026-05-27T12:00:00Z" })],
+      [json({ items: [] })],
+    );
+    await listCandidates({ limit: 15, includePromoted: false, source: "fomo_seed" }, client);
+    expect(apiCalls[0]!.url).toBe(
+      "/api/db/candidates?limit=15&includePromoted=false&source=fomo_seed",
+    );
+  });
+});
+
+describe("promoteCandidate", () => {
+  let sessStorage: MemStorage;
+  let localStorage: MemStorage;
+  const now = () => Date.parse("2026-05-20T12:00:00Z");
+
+  beforeEach(() => {
+    sessStorage = memStorage();
+    localStorage = memStorage();
+  });
+
+  function build(authResponses: Response[], apiResponses: Response[]) {
+    const authFetch = harness(authResponses);
+    const apiFetch = harness(apiResponses);
+    const auth = createAuthClient({
+      storage: sessStorage,
+      fetchImpl: authFetch.fetchImpl,
+      apiBase: "",
+      now,
+    });
+    const byok = createByokStore(localStorage);
+    const client = createApiClient({ auth, byok, fetchImpl: apiFetch.fetchImpl });
+    return { client, apiCalls: apiFetch.calls };
+  }
+
+  test("POSTs to /api/db/candidates/:address/promote and resolves on 200", async () => {
+    const addr = "PromAddr1111111111111111111111111111111111";
+    const { client, apiCalls } = build(
+      [json({ token: "tok-promo", expiresAt: "2026-05-27T12:00:00Z" })],
+      [json({ promoted: addr })],
+    );
+    await expect(promoteCandidate(addr, client)).resolves.toBeUndefined();
+    expect(apiCalls).toHaveLength(1);
+    expect(apiCalls[0]!.url).toBe(`/api/db/candidates/${addr}/promote`);
+    expect(apiCalls[0]!.headers["x-auth-token"]).toBe("tok-promo");
+  });
+
+  test("throws on non-ok response", async () => {
+    const addr = "PromAddr1111111111111111111111111111111111";
+    const { client } = build(
+      [json({ token: "tok-err", expiresAt: "2026-05-27T12:00:00Z" })],
+      [json({ error: "not_a_candidate" }, 404)],
+    );
+    await expect(promoteCandidate(addr, client)).rejects.toThrow("promote 404");
   });
 });

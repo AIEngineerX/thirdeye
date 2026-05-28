@@ -203,6 +203,21 @@ export interface DashboardBundle {
   top_traders: DashboardTrader[];
 }
 
+/** Candidate wallet row returned by `GET /api/db/candidates`. */
+export interface CandidateRow {
+  address: string;
+  handle: string | null;
+  displayName: string | null;
+  twitterHandle: string | null;
+  source: string;
+  srcPnlAll: number | null;
+  srcWinRate: number | null;
+  earlyRate: number | null;
+  buysObserved: number | null;
+  tokensTraded: number | null;
+  promoted: boolean;
+}
+
 /** Intel-bus events delivered over `/api/db/intel/feed`. */
 export type IntelEvent =
   | { event: "scan:start"; data: { mint: string; symbol: string | null } }

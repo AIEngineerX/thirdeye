@@ -6,7 +6,7 @@
  * still held a stale token.
  */
 
-import type { DashboardBundle } from "./api-types";
+import type { CandidateRow, DashboardBundle } from "./api-types";
 import { type AuthClient, getAuthClient } from "./auth";
 import { type ByokStore, getByokStore } from "./byok";
 
@@ -87,4 +87,28 @@ export async function getDashboard(client?: ApiClient): Promise<DashboardBundle>
   const res = await c.fetch("/api/db/dashboard");
   if (!res.ok) throw new Error(`dashboard ${res.status}`);
   return (await res.json()) as DashboardBundle;
+}
+
+/** Fetch candidate wallets from `GET /api/db/candidates`. */
+export async function listCandidates(
+  opts: { limit?: number; includePromoted?: boolean; source?: string } = {},
+  client?: ApiClient,
+): Promise<CandidateRow[]> {
+  const c = client ?? getApiClient();
+  const params = new URLSearchParams();
+  if (opts.limit !== undefined) params.set("limit", String(opts.limit));
+  if (opts.includePromoted !== undefined)
+    params.set("includePromoted", String(opts.includePromoted));
+  if (opts.source !== undefined) params.set("source", opts.source);
+  const qs = params.toString();
+  const res = await c.fetch(`/api/db/candidates${qs ? `?${qs}` : ""}`);
+  if (!res.ok) throw new Error(`candidates ${res.status}`);
+  return ((await res.json()) as { items: CandidateRow[] }).items;
+}
+
+/** Promote a candidate wallet via `POST /api/db/candidates/:address/promote`. */
+export async function promoteCandidate(address: string, client?: ApiClient): Promise<void> {
+  const c = client ?? getApiClient();
+  const res = await c.fetch(`/api/db/candidates/${address}/promote`, { method: "POST" });
+  if (!res.ok) throw new Error(`promote ${res.status}`);
 }
