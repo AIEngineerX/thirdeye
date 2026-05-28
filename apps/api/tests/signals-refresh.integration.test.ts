@@ -82,6 +82,23 @@ describe("refreshSignals", () => {
     expect(stats.selected).toBe(1); // M4 (closed) never selected
   });
 
+  test("preserves last-known current_mc when the price source omits the mint", async () => {
+    await t.sql`
+      INSERT INTO signals (mint, wallet_count, wallets, trust, call_mc, first_buy_at, detected_at)
+      VALUES ('MKEEP',2,'["W1","W2"]'::jsonb,'independent',1000, now(), now())`;
+    // First tick: source has a quote -> current_mc set.
+    await refreshSignals(t.db, {
+      source: fixedSource({ MKEEP: 5000 }),
+      hitMultiplier: 2,
+      closeAfterHours: 48,
+    });
+    // Second tick: source omits MKEEP entirely -> current_mc must NOT be nulled.
+    await refreshSignals(t.db, { source: fixedSource({}), hitMultiplier: 2, closeAfterHours: 48 });
+    const rows = await t.sql`SELECT current_mc, ath_mc FROM signals WHERE mint='MKEEP'`;
+    expect(Number(rows[0]!.current_mc)).toBe(5000); // preserved, not nulled
+    expect(Number(rows[0]!.ath_mc)).toBe(5000); // ath also intact
+  });
+
   test("closing a hit signal credits its wallets' signal_winrate", async () => {
     await t.sql`INSERT INTO tracked_wallets (address, label) VALUES ('W1','one'),('W2','two')`;
     // One past CLOSED hit + one about-to-close hit, both naming W1/W2.

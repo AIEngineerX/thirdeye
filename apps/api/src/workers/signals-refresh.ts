@@ -98,7 +98,7 @@ export async function refreshSignals(
 
       await db.execute(sql`
         UPDATE signals SET
-          current_mc = ${currentMc},
+          current_mc = ${currentMc !== null ? currentMc : sql`current_mc`},
           ath_mc = ${outcome.athMc},
           ath_multiplier = ${outcome.athMultiplier},
           safe_ath_multiplier = ${outcome.safeAthMultiplier},

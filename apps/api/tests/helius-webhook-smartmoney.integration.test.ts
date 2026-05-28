@@ -318,6 +318,77 @@ describe("smart-money webhook ingest", () => {
     unsub();
   });
 
+  test("co-funded confluence is suppressed: closed audit row, no smartmoney:signal", async () => {
+    const WALLET_A = FIXTURE_WALLET;
+    const WALLET_B = "WaLLeT2222222222222222222222222222222222222";
+
+    await testDb.db.insert(trackedWallets).values([
+      { address: WALLET_A, label: "A" },
+      { address: WALLET_B, label: "B" },
+    ]);
+    // Both wallets funded by the SAME address -> areCoFunded returns true.
+    await testDb.sql`
+      INSERT INTO wallets (address, first_funder)
+      VALUES (${WALLET_A}, 'SHAREDFUNDER1111111111111111111111111111111'),
+             (${WALLET_B}, 'SHAREDFUNDER1111111111111111111111111111111')`;
+
+    const seen: IntelEvent[] = [];
+    const unsub = subscribe((e) => seen.push(e));
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const evtA = { ...buyFixture, timestamp: nowSec };
+    const evtB = {
+      ...buyFixture,
+      signature: "5xBuySig33333333333333333333333333333333333333333333333333333333",
+      timestamp: nowSec,
+      feePayer: WALLET_B,
+      nativeTransfers: [
+        {
+          fromUserAccount: WALLET_B,
+          toUserAccount: "PooL9999999999999999999999999999999999999999",
+          amount: 1500000000,
+        },
+      ],
+      tokenTransfers: [
+        {
+          fromUserAccount: "PooL9999999999999999999999999999999999999999",
+          toUserAccount: WALLET_B,
+          mint: FIXTURE_MINT,
+          tokenAmount: 1000000,
+        },
+      ],
+      accountData: [{ account: WALLET_B, nativeBalanceChange: -1500005000 }],
+    };
+
+    await app.request("/api/helius-webhook", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify([evtA]),
+    });
+    await waitFor(() => seen.filter((e) => e.event === "smartmoney:trade").length === 1);
+    await app.request("/api/helius-webhook", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify([evtB]),
+    });
+    await waitFor(() => seen.filter((e) => e.event === "smartmoney:confluence").length === 1);
+    // Let any (erroneous) signal event arrive before asserting its absence.
+    await new Promise((r) => setTimeout(r, 100));
+
+    const confEvts = seen.filter((e) => e.event === "smartmoney:confluence");
+    expect(confEvts).toHaveLength(1);
+    expect((confEvts[0]!.data as { coFunded: boolean }).coFunded).toBe(true);
+
+    expect(seen.filter((e) => e.event === "smartmoney:signal")).toHaveLength(0);
+
+    const rows = await testDb.sql`SELECT trust, status FROM signals WHERE mint = ${FIXTURE_MINT}`;
+    expect(rows.length).toBe(1);
+    expect(rows[0]!.trust).toBe("co_funded");
+    expect(rows[0]!.status).toBe("closed");
+
+    unsub();
+  });
+
   test("non-swap event for tracked wallet: no smart_trades row (parseWalletTrade returns null)", async () => {
     await testDb.db.insert(trackedWallets).values({ address: FIXTURE_WALLET, label: null });
 

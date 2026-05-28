@@ -289,6 +289,9 @@ export const signals = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
+    // NOTE: the partial unique index `signals_open_mint_uniq` (UNIQUE (mint)
+    // WHERE status='open') that the ON CONFLICT upsert depends on lives only in
+    // migration 0011_signals.sql — Drizzle's index() can't model a WHERE clause.
     statusDetectedIdx: index("signals_status_detected_idx").on(t.status, t.detectedAt.desc()),
     mintIdx: index("signals_mint_idx").on(t.mint),
   }),
