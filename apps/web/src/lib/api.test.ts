@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { createApiClient } from "./api";
+import { createApiClient, getDashboard } from "./api";
+import type { DashboardBundle } from "./api-types";
 import { type SessionStorageLike, createAuthClient } from "./auth";
 import { createByokStore } from "./byok";
 
@@ -154,5 +155,57 @@ describe("api wrapper", () => {
     expect(apiCalls[0]!.headers["content-type"]).toBe("application/json");
     expect(apiCalls[0]!.headers["x-custom"]).toBe("yes");
     expect(apiCalls[0]!.headers["x-auth-token"]).toBe("t");
+  });
+});
+
+describe("getDashboard", () => {
+  let sessStorage: MemStorage;
+  let localStorage: MemStorage;
+  const now = () => Date.parse("2026-05-20T12:00:00Z");
+
+  beforeEach(() => {
+    sessStorage = memStorage();
+    localStorage = memStorage();
+  });
+
+  function build(authResponses: Response[], apiResponses: Response[]) {
+    const authFetch = harness(authResponses);
+    const apiFetch = harness(apiResponses);
+    const auth = createAuthClient({
+      storage: sessStorage,
+      fetchImpl: authFetch.fetchImpl,
+      apiBase: "",
+      now,
+    });
+    const byok = createByokStore(localStorage);
+    const client = createApiClient({ auth, byok, fetchImpl: apiFetch.fetchImpl });
+    return { client, apiCalls: apiFetch.calls };
+  }
+
+  test("resolves to parsed DashboardBundle and hits /api/db/dashboard with auth header", async () => {
+    const bundle: DashboardBundle = {
+      generated_at: "2026-05-28T00:00:00Z",
+      stats: {
+        total_signals: 10,
+        hits: 4,
+        hit_rate: 0.4,
+        avg_multiplier: 2.5,
+        best_multiplier: 5.1,
+        best_multiplier_symbol: "BONK",
+        open_signals: 3,
+      },
+      live_signals: [],
+      trending: [],
+      top_traders: [],
+    };
+    const { client, apiCalls } = build(
+      [json({ token: "tok-dash", expiresAt: "2026-05-27T12:00:00Z" })],
+      [json(bundle)],
+    );
+    const result = await getDashboard(client);
+    expect(result).toEqual(bundle);
+    expect(apiCalls).toHaveLength(1);
+    expect(apiCalls[0]!.url).toBe("/api/db/dashboard");
+    expect(apiCalls[0]!.headers["x-auth-token"]).toBe("tok-dash");
   });
 });

@@ -153,6 +153,56 @@ export interface TokenScanResult {
   scannedAt: string;
 }
 
+/** Dashboard bundle returned by `GET /api/db/dashboard`. */
+export interface DashboardStats {
+  total_signals: number;
+  hits: number;
+  hit_rate: number;
+  avg_multiplier: number | null;
+  best_multiplier: number | null;
+  best_multiplier_symbol: string | null;
+  open_signals: number;
+}
+export interface DashboardSignal {
+  id: number;
+  mint: string;
+  symbol: string | null;
+  wallet_count: number;
+  trust: string;
+  call_mc: number | null;
+  current_mc: number | null;
+  ath_multiplier: number | null;
+  safe_ath_multiplier: number | null;
+  is_hit: boolean;
+  status: string;
+  detected_at: string;
+}
+export interface DashboardTrending {
+  mint: string;
+  symbol: string | null;
+  name: string | null;
+  mc_usd: number | null;
+  price_usd: number | null;
+  mc_24h_pct: number | null;
+  liquidity_usd: number | null;
+}
+export interface DashboardTrader {
+  address: string;
+  label: string | null;
+  signal_wins: number;
+  signal_signals: number;
+  signal_winrate: number | null;
+  realized_pnl_usd: number | null;
+  win_rate: number | null;
+}
+export interface DashboardBundle {
+  generated_at: string;
+  stats: DashboardStats;
+  live_signals: DashboardSignal[];
+  trending: DashboardTrending[];
+  top_traders: DashboardTrader[];
+}
+
 /** Intel-bus events delivered over `/api/db/intel/feed`. */
 export type IntelEvent =
   | { event: "scan:start"; data: { mint: string; symbol: string | null } }

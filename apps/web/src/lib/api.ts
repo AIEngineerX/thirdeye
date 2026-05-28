@@ -6,6 +6,7 @@
  * still held a stale token.
  */
 
+import type { DashboardBundle } from "./api-types";
 import { type AuthClient, getAuthClient } from "./auth";
 import { type ByokStore, getByokStore } from "./byok";
 
@@ -78,4 +79,12 @@ export function getApiClient(): ApiClient {
 /** Convenience wrapper for non-reactive callers. */
 export async function api(path: string, init: RequestInit = {}): Promise<Response> {
   return getApiClient().fetch(path, init);
+}
+
+/** Fetch the dashboard bundle from `GET /api/db/dashboard`. */
+export async function getDashboard(client?: ApiClient): Promise<DashboardBundle> {
+  const c = client ?? getApiClient();
+  const res = await c.fetch("/api/db/dashboard");
+  if (!res.ok) throw new Error(`dashboard ${res.status}`);
+  return (await res.json()) as DashboardBundle;
 }
