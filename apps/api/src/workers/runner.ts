@@ -2,10 +2,12 @@ import type { DbClient } from "@thirdeye/db";
 import { DexScreenerSource, type PriceSource } from "@thirdeye/prices";
 import { type Runner, run } from "graphile-worker";
 import type { Sql } from "postgres";
+import { signalHitMultiplier } from "../env";
 import { initIntelBus } from "../lib/intel-bus";
 import { cleanupTables } from "./cleanup-tables";
 import { enrichWallet } from "./enrich-wallet";
 import { refreshAggregates } from "./refresh-aggregates";
+import { refreshSignals } from "./signals-refresh";
 import { refreshTokens } from "./tokens-refresh";
 
 export interface RunnerOptions {
@@ -22,6 +24,7 @@ export interface RunnerOptions {
 const CRONTAB = `
 * * * * * refresh-aggregates ?fill=1m
 * * * * * tokens-refresh ?fill=1m
+* * * * * signals-refresh ?fill=1m
 0 * * * * enrich-wallet ?fill=1h
 */15 * * * * cleanup-tables ?fill=15m
 `.trim();
@@ -46,6 +49,13 @@ export async function startWorker(opts: RunnerOptions): Promise<Runner> {
         await enrichWallet(opts.db, {
           serverKey: opts.serverHeliusKey,
           smartMoneyMinSol: opts.smartMoneyMinSol,
+        });
+      },
+      "signals-refresh": async () => {
+        await refreshSignals(opts.db, {
+          source: priceSource,
+          hitMultiplier: signalHitMultiplier(),
+          closeAfterHours: 48,
         });
       },
       "cleanup-tables": async () => {

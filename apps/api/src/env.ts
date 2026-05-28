@@ -140,3 +140,9 @@ export function heliusWebhookAuth(): string | undefined {
   const trimmed = v.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 }
+
+export function signalHitMultiplier(): number {
+  const raw = process.env.SIGNAL_HIT_MULTIPLIER;
+  const n = raw ? Number(raw) : 2;
+  return Number.isFinite(n) && n > 1 ? n : 2;
+}
