@@ -81,4 +81,29 @@ describe("refreshSignals", () => {
     expect(stats.closed).toBe(1);
     expect(stats.selected).toBe(1); // M4 (closed) never selected
   });
+
+  test("closing a hit signal credits its wallets' signal_winrate", async () => {
+    await t.sql`INSERT INTO tracked_wallets (address, label) VALUES ('W1','one'),('W2','two')`;
+    // One past CLOSED hit + one about-to-close hit, both naming W1/W2.
+    await t.sql`
+      INSERT INTO signals (mint, wallet_count, wallets, trust, call_mc, ath_mc, is_hit, first_buy_at, detected_at, status)
+      VALUES ('PAST',2,'["W1","W2"]'::jsonb,'independent',1000,3000,true,
+              now() - interval '60 hours', now() - interval '60 hours','closed')`;
+    await t.sql`
+      INSERT INTO signals (mint, wallet_count, wallets, trust, call_mc, first_buy_at, detected_at, status)
+      VALUES ('NOW',2,'["W1","W2"]'::jsonb,'independent',1000,
+              now() - interval '50 hours', now() - interval '50 hours','open')`;
+
+    await refreshSignals(t.db, {
+      source: fixedSource({ NOW: 4000 }),
+      hitMultiplier: 2,
+      closeAfterHours: 48,
+    });
+
+    const w =
+      await t.sql`SELECT signal_signals, signal_wins, signal_winrate FROM tracked_wallets WHERE address='W1'`;
+    expect(Number(w[0]!.signal_signals)).toBe(2); // PAST + NOW, both closed independent
+    expect(Number(w[0]!.signal_wins)).toBe(2); // both hit
+    expect(Number(w[0]!.signal_winrate)).toBeCloseTo(1.0, 4);
+  });
 });
