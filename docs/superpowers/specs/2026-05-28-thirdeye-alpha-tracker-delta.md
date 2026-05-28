@@ -20,9 +20,10 @@ ThirdEye keeps the edge the product class lacks: an **independence / trust gate*
 
 **In scope (this delta):**
 1. Signal-outcome tracking — a `signals` table, call/safe snapshots, a worker that follows MC and records hits.
-2. Curated wallet universe — a `candidate_wallets` pool seeded from a public fomo.family leaderboard snapshot (~17k wallets) plus the Solana Tracker PnL leaderboard; manual promotion to `tracked_wallets`.
+2. Curated wallet universe — a `candidate_wallets` pool seeded from a captured fomo.family tracked-trader corpus (the ~220 wallets with real buy history; see §6) plus the Solana Tracker PnL leaderboard; manual promotion to `tracked_wallets`.
 3. Dashboard bundle API — a single cached `GET /api/db/dashboard` payload, with live deltas over the existing intel SSE stream.
 4. UI rework — homepage becomes a live dashboard; new signal card; a `/leaderboard` page; a site-wide copy de-cruft pass.
+5. Offline backtest & calibration (Phase 0, pre-launch) — replay a captured tracked-trader buy history through the confluence + outcome engine to tune the hit threshold and window and to generate real-shape test fixtures, before any live ingestion. See §6A.
 
 **Out of scope (follow-ups, noted not built):**
 - Telegram channel-call ingestion and a channel leaderboard.
@@ -150,7 +151,7 @@ signals-refresh worker  (graphile-worker crontab, every 1 min)
 
 ## 6. Curated wallet universe
 
-- **One-time seed import.** A script ingests a fomo.family wallet-leaderboard snapshot (~17k wallets: handle, display name, twitter, pnl_7d/all, win_rate, rank) into `candidate_wallets` with `source='fomo_seed'`. This pool is reference/candidate data only — the PnL figures are a point-in-time snapshot and are **never displayed as live**.
+- **One-time seed import.** A script ingests a captured fomo.family tracked-trader corpus — ~220 wallets that have real, recent buy history (~70k buy/sell events over ~5 weeks: wallet, handle, token, side, `amount_usd`, `market_cap_usd`-at-buy, `block_time`) — into `candidate_wallets` with `source='fomo_seed'`. Candidates are ranked by **observed behavior** computed from the corpus (early-entry rate = share of buys under a low-MC threshold, confluence-participation count, buy/sell cadence), not by a stale directory PnL figure. This pool is offline reference/candidate data only — the figures are a point-in-time snapshot and are **never displayed as live**; live quality always comes from the Solana Tracker snapshot taken at promotion.
 - **Live candidates.** A throttled job pulls the Solana Tracker PnL leaderboard (`/v2/pnl/leaderboard/top`) into `candidate_wallets` with `source='st_leaderboard'`.
 - **Promotion.** The dashboard surfaces a "Suggested wallets" panel ranking candidates by snapshot PnL. Promoting a candidate:
   1. calls Solana Tracker for a fresh quality snapshot (win-rate, realized PnL, ROI, tokens-traded),
@@ -158,6 +159,23 @@ signals-refresh worker  (graphile-worker crontab, every 1 min)
   3. adds the address to the Helius webhook address set (`watches/sync` union), and
   4. sets `candidate_wallets.promoted = true`.
 - **Cost guard.** Only promoted wallets are webhook-subscribed and parsed into `smart_trades`. The ~17k candidate pool is dormant data — we never subscribe the whole set (Helius wallet-count caps + credit cost).
+
+## 6A. Offline backtest & calibration (Phase 0, pre-launch)
+
+Before any live webhook fires, the confluence + outcome engine is validated and tuned against a captured tracked-trader buy corpus (~70k buy/sell events, ~220 wallets, ~5,225 tokens, ~5 weeks). This is an **offline, developer-only harness** — not a shipped product surface, not a live data source.
+
+**Why it exists.** The engine has two free parameters — the confluence window and the hit multiplier (`HIT_THRESHOLD`, default 2×). Picking them blind is guesswork. The corpus contains measurable ground truth: each buy carries `market_cap_usd`-at-buy (a real `call_mc`), and a per-token MC time-series (concentration snapshots) plus the live price source give the subsequent ATH.
+
+**What it does.**
+1. Load the corpus into a scratch schema (mirrors `smart_trades`: wallet, mint, side, `amount_usd`, `market_cap_usd`, `block_time`).
+2. Run the **exact** `detectBuyConfluence` + co-funded trust logic over it in `block_time` order, emitting the same `signals` rows the live path would.
+3. Resolve each signal's outcome: `ath_mc` from the captured MC time-series where present (~26% of confluence tokens directly), backfilled from DexScreener/Solana Tracker historical for the rest; compute `ath_multiplier` and `is_hit`.
+4. Report hit-rate, multiplier distribution, and signal volume across a grid of (window, threshold) values; pick the defaults that the spec ships with.
+5. Freeze a small slice as **real-shape JSON fixtures** for the unit tests (CLAUDE.md-compliant: recorded real behavior, not hand-written mocks).
+
+**Empirically grounded.** The corpus already shows the signal is there to find: **1,221 distinct ≥2-wallet / 15-min confluence events**, graded from 690 two-wallet up to multi-wallet clusters of 10–20, several firing at sub-$75k market cap (genuine early entries). This is enough to calibrate against.
+
+**Boundary.** The harness lives under a dev-only path (e.g. `scripts/backtest/`), never ships in the API or web bundle, and reads a local snapshot — it makes no external calls except the same DexScreener/ST clients the product already uses for historical price backfill.
 
 ## 7. Dashboard bundle API
 
@@ -230,6 +248,7 @@ Reframe to a terse alpha-terminal voice. Forensics (cluster / funding / sybil pa
 2. **Call MC precision.** Market cap exactly at `first_buy_at` is not cheaply retrievable; we snapshot at *detection* (seconds later) and document it. The `safe_*` base is the conservative figure shown by default, so the headline number is never optimistic.
 3. **Seed staleness.** The fomo snapshot PnL is a point-in-time capture; it is treated as candidate ranking only and re-verified via ST on promotion. No snapshot number is ever rendered as a live stat.
 4. **Bundle ↔ SSE lag.** The cached bundle may trail a just-fired signal by ≤15s on initial paint; the SSE delta closes the gap. Acceptable for single-user use.
+5. **Backtest corpus is not our universe.** The §6A corpus is a captured snapshot of someone else's curated trader set over one ~5-week window. It *calibrates* the engine and proves signal exists, but the defaults it produces won't perfectly transfer to ThirdEye's own (different, evolving) tracked set or to other market regimes. Treat the tuned threshold/window as a starting point re-validated against live signals after launch — not a guarantee of live hit-rate. The corpus is also point-in-time; outcomes for tokens still moving at capture time are truncated, slightly understating tails.
 
 ## 11. Relationship to existing docs
 
