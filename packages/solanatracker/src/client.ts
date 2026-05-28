@@ -1,4 +1,10 @@
-import type { WalletPerformance, WalletPnlSummary, WalletPositions, WalletTrades } from "./types";
+import type {
+  Leaderboard,
+  WalletPerformance,
+  WalletPnlSummary,
+  WalletPositions,
+  WalletTrades,
+} from "./types";
 
 const DEFAULT_BASE_URL = "https://data.solanatracker.io";
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -71,6 +77,11 @@ export class SolanaTrackerClient {
   walletTrades(wallet: string, cursor?: string): Promise<WalletTrades> {
     const q = cursor === undefined ? "" : `?cursor=${encodeURIComponent(cursor)}`;
     return this.get<WalletTrades>(`/wallet/${wallet}/trades${q}`);
+  }
+
+  /** Top traders by realized PnL (ST's strict-mode leaderboard). */
+  leaderboard(): Promise<Leaderboard> {
+    return this.get<Leaderboard>("/v2/pnl/leaderboard/top");
   }
 
   private async get<T>(path: string): Promise<T> {

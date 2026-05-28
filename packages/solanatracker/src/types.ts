@@ -132,3 +132,15 @@ export interface WalletTrades {
   nextCursor: string | null;
   hasNextPage: boolean;
 }
+
+export interface LeaderboardTrader {
+  wallet: string;
+  winRate: number | null;
+  period: { realized: number | null; roi: number | null; volume: number | null } | null;
+  counts: { tokensTraded: number | null } | null;
+  identity: string | null;
+}
+
+export interface Leaderboard {
+  traders: LeaderboardTrader[];
+}
