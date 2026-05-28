@@ -60,7 +60,7 @@ signals                              -- one row per promoted independent conflue
   mint            text not null
   symbol          text
   wallet_count    int  not null
-  wallets         text[] not null    -- the independent cohort that triggered it
+  wallets         jsonb not null     -- independent cohort; jsonb not text[] (postgres.js+Bun mis-binds text[] params)
   trust           text not null      -- 'independent' | 'co_funded'
   shared_funder   text               -- set when trust='co_funded'
   -- call snapshot (captured at detection):

@@ -80,7 +80,9 @@ LRU-cached pass-through. Every response carries `X-ThirdEye-Cache: HIT|MISS` and
 | `GET` | `/api/db/intel/funders/top-clustered` | Top funders by `cluster_count` (cross-token bundler view). |
 | `GET` | `/api/db/intel/funders/:addr/clusters` | Per-funder cluster history across all scanned tokens. |
 
-**Intel-bus event kinds (today):** `hello`, `ping`, `scan:start`, `scan:complete`, `check:start`, `check:complete`, `tag:applied`, `watch:event`.
+**Intel-bus event kinds (today):** `hello`, `ping`, `scan:start`, `scan:complete`, `check:start`, `check:complete`, `tag:applied`, `watch:event`, `smartmoney:trade`, `smartmoney:confluence`, `smartmoney:signal`, `smartmoney:outcome`.
+
+The `smartmoney:*` events ride the same feed: `trade` (a tracked wallet bought/sold), `confluence` (≥2 tracked wallets into one mint inside the window, with `coFunded` trust flag), `signal` (an independent confluence promoted to a tracked signal with a call-MC snapshot), and `outcome` (a worker tick updated an open signal's current/ATH multiple or closed it).
 
 **Phase 6 will add:** `watch:anomaly`, `discovery:new_candidate`, `discovery:rescored`, `agent:run_started`, `agent:run_finished`.
 
@@ -155,6 +157,12 @@ Both unset by default — `/api/db/watches` returns 503 until you set them.
 |---|---|
 | `PUBLIC_BASE_URL` | Where Helius pushes events. Use ngrok locally (`https://abc123.ngrok-free.app`). |
 | `HELIUS_WEBHOOK_AUTH` | Shared secret. Generate with `openssl rand -hex 32`. Set on the Helius webhook (we register on first /watches call) and validated on every inbound event. |
+
+### Signal engine
+
+| Var | Default | Purpose |
+|---|---|---|
+| `SIGNAL_HIT_MULTIPLIER` | `2` | A tracked signal counts as a "hit" once its ATH market cap reaches this multiple of the call-MC snapshot. The `signals-refresh` worker (graphile cron, every 60s) follows open signals' market cap via the free DexScreener source and closes them after 48h. |
 
 ### Agent (Phase 6b)
 

@@ -24,6 +24,8 @@ The codebase commits atomically (one phase = one or more discrete commits with p
 
 | Phase | Forward (in `packages/db/drizzle/`) | Manual reverse |
 |---|---|---|
+| 6f signal engine | `0011_signals.sql` | `DROP TABLE signals; ALTER TABLE tracked_wallets DROP COLUMN signal_winrate, DROP COLUMN signal_wins, DROP COLUMN signal_signals;` |
+| 6f smart-money feed | `0010_smart_money_feed.sql` | `DROP TABLE smart_trades; DROP TABLE tracked_wallets;` |
 | 6b.6 hardening | `0009_tg_msg_id_dedup.sql` | `DROP INDEX agent_runs_tg_msg_id_dedup_uidx;` |
 | 6b.6 hardening | `0008_sse_tickets.sql` | `DROP TABLE sse_tickets;` |
 | 6b.6 hardening | `0007_auth_issue_rate_buckets.sql` | `DROP TABLE auth_issue_rate_buckets;` |
@@ -58,7 +60,8 @@ Postgres data persists in the named volume (`thirdeye-pg-data`).
 | Proxy response headers | `X-ThirdEye-Cache: HIT\|MISS` + `X-ThirdEye-Proxy-Duration-Ms` on every Helius proxy response. |
 | `agent_runs` audit table | Per-run `cost_usd`, `input_tokens`, `output_tokens`, `cached_input_tokens`, `cache_creation_tokens`, status, model. Full Anthropic-cost reconstruction. |
 | `auth_tokens.rate_bucket` | jsonb per-token + per-token-BYOK counters under `PUBLIC_INSTANCE_MODE`. Readable as a time-series for abuse detection. |
-| Error logging | `console.error`/`console.warn` at every catch site — rate-limit hits, scanner failures, watch sync failures, dispatch handler crashes, intel-bus malformed payloads, Helius upstream errors, tg-bot polling 409s, MCP fatal errors. |
+| Error logging | `console.error`/`console.warn` at every catch site — rate-limit hits, scanner failures, watch sync failures, intel-bus malformed payloads, Helius upstream errors, signals-refresh price-fetch / per-row / attribution failures. |
+| `signals-refresh` worker log | Per-tick `[signals-refresh] selected=… updated=… closed=… errored=…` line, emitted only when signals close or errors occur (quiet on idle ticks). |
 
 ---
 
