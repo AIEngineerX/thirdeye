@@ -210,7 +210,7 @@ export function Watchlist() {
               )}
               {w.realizedPnlUsd !== null && (
                 <span
-                  className={`font-mono text-2xs ${w.realizedPnlUsd >= 0 ? "text-mint" : "text-high"}`}
+                  className={`font-mono text-2xs ${w.realizedPnlUsd >= 0 ? "text-clean" : "text-high"}`}
                 >
                   ${Math.round(w.realizedPnlUsd).toLocaleString()}
                 </span>

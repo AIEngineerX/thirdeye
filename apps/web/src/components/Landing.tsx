@@ -36,11 +36,8 @@ export function Landing({ initialMode = "wallet" }: LandingProps) {
     <div className="mx-auto flex max-w-3xl flex-col px-6 py-20">
       <header className="mb-12">
         <h1 className="font-sans text-5xl font-semibold tracking-tight text-primary">
-          Solana wallet & token forensics
+          Inspect a wallet or token
         </h1>
-        <p className="mt-3 font-mono text-sm tracking-wider text-tertiary">
-          ⌖ the eye that sees what the other two cannot.
-        </p>
       </header>
 
       <section className="border border-border-emphasis bg-card">
@@ -79,7 +76,7 @@ export function Landing({ initialMode = "wallet" }: LandingProps) {
             </p>
           ) : (
             <p className="font-mono text-2xs uppercase tracking-[0.16em] text-tertiary">
-              ▸ press enter or click investigate. byok keys configured in
+              ▸ press enter to load. byok keys in
               <a href="/settings" className="ml-1 text-accent hover:underline">
                 /settings
               </a>

@@ -170,7 +170,7 @@ export default function IntelFeedPage() {
           <section className="border border-border-subtle">
             {entries.length === 0 ? (
               <div className="border-b border-border-subtle px-4 py-6 text-center font-mono text-2xs uppercase tracking-[0.18em] text-tertiary">
-                ▸ awaiting activity… run a scan to see events appear here
+                ▸ no events yet
               </div>
             ) : (
               <ol>

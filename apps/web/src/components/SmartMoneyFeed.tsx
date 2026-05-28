@@ -162,7 +162,7 @@ export function SmartMoneyFeed({ frames }: { frames: SseFrame[] }) {
               {r.count} tracked wallets bought · {r.windowMin}m
             </span>
             <span
-              className={`ml-auto font-mono text-2xs ${r.coFunded ? "text-high" : "text-mint"}`}
+              className={`ml-auto font-mono text-2xs ${r.coFunded ? "text-high" : "text-clean"}`}
             >
               {r.coFunded ? `⚠ co-funded (${shortAddr(r.sharedFunder ?? "")})` : "independent"}
             </span>
@@ -174,7 +174,7 @@ export function SmartMoneyFeed({ frames }: { frames: SseFrame[] }) {
           >
             {/* trust chip */}
             <span
-              className={`font-mono text-2xs uppercase tracking-widest ${r.trust === "co_funded" ? "text-high" : "text-mint"}`}
+              className={`font-mono text-2xs uppercase tracking-widest ${r.trust === "co_funded" ? "text-high" : "text-clean"}`}
             >
               {r.trust === "co_funded" ? "⚠ co-funded" : "indep"}
             </span>
@@ -195,7 +195,7 @@ export function SmartMoneyFeed({ frames }: { frames: SseFrame[] }) {
             )}
             {/* HIT badge */}
             <span
-              className={`font-mono text-2xs uppercase ${r.isHit ? "text-mint" : "text-high/50"}`}
+              className={`font-mono text-2xs uppercase ${r.isHit ? "text-clean" : "text-high/50"}`}
             >
               {r.isHit ? "HIT" : "miss"}
             </span>
@@ -205,7 +205,7 @@ export function SmartMoneyFeed({ frames }: { frames: SseFrame[] }) {
         ) : (
           <li key={`t-${r.signature}`} className="flex items-center gap-3 px-3 py-2">
             <span
-              className={`font-mono text-2xs uppercase ${r.side === "buy" ? "text-mint" : "text-high"}`}
+              className={`font-mono text-2xs uppercase ${r.side === "buy" ? "text-clean" : "text-high"}`}
             >
               {r.side}
             </span>
