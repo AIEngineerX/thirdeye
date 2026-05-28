@@ -330,6 +330,32 @@ export const agentRuns = pgTable(
   }),
 );
 
+// Dormant candidate pool (spec §6). Never webhook-subscribed; promotion copies
+// a row into tracked_wallets. Behavior columns computed from the seed corpus.
+export const candidateWallets = pgTable(
+  "candidate_wallets",
+  {
+    address: text("address").primaryKey(),
+    handle: text("handle"),
+    displayName: text("display_name"),
+    twitterHandle: text("twitter_handle"),
+    source: text("source").notNull(),
+    srcPnl7d: numeric("src_pnl_7d"),
+    srcPnlAll: numeric("src_pnl_all"),
+    srcWinRate: numeric("src_win_rate"),
+    srcRank: integer("src_rank"),
+    buysObserved: integer("buys_observed").notNull().default(0),
+    earlyBuys: integer("early_buys").notNull().default(0),
+    earlyRate: numeric("early_rate"),
+    tokensTraded: integer("tokens_traded").notNull().default(0),
+    promoted: boolean("promoted").notNull().default(false),
+    importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    rankIdx: index("candidate_wallets_rank_idx").on(t.promoted, t.earlyRate.desc(), t.srcPnlAll.desc()),
+  }),
+);
+
 // Migration 0009 adds a partial unique index on agent_runs that closes the
 // tg-bot dedup race (audit L4 / bug-scan L4). Two concurrent Telegram
 // updates with the same telegram_msg_id used to be able to both pass the
