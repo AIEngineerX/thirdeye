@@ -24,6 +24,7 @@ The codebase commits atomically (one phase = one or more discrete commits with p
 
 | Phase | Forward (in `packages/db/drizzle/`) | Manual reverse |
 |---|---|---|
+| 6f wallet universe | `0012_candidate_wallets.sql` | `DROP TABLE candidate_wallets;` |
 | 6f signal engine | `0011_signals.sql` | `DROP TABLE signals; ALTER TABLE tracked_wallets DROP COLUMN signal_winrate, DROP COLUMN signal_wins, DROP COLUMN signal_signals;` |
 | 6f smart-money feed | `0010_smart_money_feed.sql` | `DROP TABLE smart_trades; DROP TABLE tracked_wallets;` |
 | 6b.6 hardening | `0009_tg_msg_id_dedup.sql` | `DROP INDEX agent_runs_tg_msg_id_dedup_uidx;` |
