@@ -9,6 +9,7 @@ import { requireAuth } from "./middleware/auth";
 import { bodySizeLimit } from "./middleware/body-size";
 import { rateLimit } from "./middleware/rate-limit";
 import { authRoutes } from "./routes/auth";
+import { candidatesRoutes } from "./routes/candidates";
 import {
   balances,
   batchIdentity,
@@ -147,6 +148,11 @@ const trackedRouter = new Hono<{ Variables: Variables }>();
 trackedRouter.use("*", requireAuth);
 trackedRouter.route("/", trackedRoutes);
 app.route("/api/db/tracked", trackedRouter);
+
+const candidatesRouter = new Hono<{ Variables: Variables }>();
+candidatesRouter.use("*", requireAuth);
+candidatesRouter.route("/", candidatesRoutes);
+app.route("/api/db/candidates", candidatesRouter);
 
 // Phase 6a — token cache (read-only). Auth required since the contents
 // are populated by user-driven scans + the worker; no rate-limit because
