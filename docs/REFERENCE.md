@@ -12,14 +12,13 @@ curl -s -X POST http://localhost:3001/api/db/auth | jq -r .token
 
 The token is a 256-bit random string with a 7-day TTL (`auth_tokens.expires_at`). Under `PUBLIC_INSTANCE_MODE=true`, `POST /api/db/auth` is itself rate-limited per IP (`AUTH_ISSUE_LIMIT_PER_HOUR`, default 10/hr).
 
-The web dashboard, MCP server, and tg-bot all use this same token mechanism — the dashboard caches it in `sessionStorage`, the MCP/tg-bot processes use env vars directly.
+The web dashboard uses this same token mechanism — it caches the token in `sessionStorage`.
 
 ## BYOK headers
 
 | Header | Purpose | Behavior |
 |---|---|---|
 | `X-User-Helius-Key` | Override server's `HELIUS_API_KEY` for this request | Bypasses Helius proxy rate limits on `/api/helius/*` and `/api/helius-rpc`; bypasses scan-token rate limit on `/api/token/:mint/scan`. **Wallet check** still rate-limited regardless. |
-| `X-User-Anthropic-Key` | Override server's `ANTHROPIC_API_KEY` for agent calls | Used by future browser-originated agent endpoints. Not consumed by current routes. |
 
 Server code never branches on which key source is in use.
 
@@ -83,8 +82,6 @@ LRU-cached pass-through. Every response carries `X-ThirdEye-Cache: HIT|MISS` and
 **Intel-bus event kinds (today):** `hello`, `ping`, `scan:start`, `scan:complete`, `check:start`, `check:complete`, `tag:applied`, `watch:event`, `smartmoney:trade`, `smartmoney:confluence`, `smartmoney:signal`, `smartmoney:outcome`.
 
 The `smartmoney:*` events ride the same feed: `trade` (a tracked wallet bought/sold), `confluence` (≥2 tracked wallets into one mint inside the window, with `coFunded` trust flag), `signal` (an independent confluence promoted to a tracked signal with a call-MC snapshot), and `outcome` (a worker tick updated an open signal's current/ATH multiple or closed it).
-
-**Phase 6 will add:** `watch:anomaly`, `discovery:new_candidate`, `discovery:rescored`, `agent:run_started`, `agent:run_finished`.
 
 ### Watches (Phase 5e)
 
@@ -163,32 +160,6 @@ Both unset by default — `/api/db/watches` returns 503 until you set them.
 | Var | Default | Purpose |
 |---|---|---|
 | `SIGNAL_HIT_MULTIPLIER` | `2` | A tracked signal counts as a "hit" once its ATH market cap reaches this multiple of the call-MC snapshot. The `signals-refresh` worker (graphile cron, every 60s) follows open signals' market cap via the free DexScreener source and closes them after 48h. |
-
-### Agent (Phase 6b)
-
-| Var | Default | Purpose |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | unset | Required for the agent paths (MCP, tg-bot, future discovery worker). |
-| `AGENT_DAILY_COST_USD_CAP` | `25` | Per-day USD cost ceiling across all agent_runs. Enforced via Postgres advisory lock. |
-| `AGENT_MAX_TOOL_CALLS_PER_RUN` | `20` | Per-run hard cap. |
-| `AGENT_MAX_INPUT_TOKENS_PER_RUN` | `200000` | Per-run cumulative input token cap. |
-| `AGENT_CHEAP_MODEL` | `claude-haiku-4-5-20251001` | Override for cheap loops. |
-| `AGENT_REASONING_MODEL` | `claude-sonnet-4-6` | Override for cluster expander / morning brief. |
-
-### Telegram bot (Phase 6b.6)
-
-Both must be set or the bot self-disables. The api still serves normally.
-
-| Var | Purpose |
-|---|---|
-| `TG_BOT_TOKEN` | From [@BotFather](https://t.me/BotFather). Format `<bot_id>:<hash>`. |
-| `TG_ALLOWED_CHAT_ID` | Your numeric chat ID from [@userinfobot](https://t.me/userinfobot). The bot silently ignores every other chat. |
-
-### MCP server (Phase 6b.5)
-
-| Var | Default | Purpose |
-|---|---|---|
-| `MCP_MAX_TOOL_CALLS_PER_SESSION` | `200` | Per-process cap on tool dispatches. Counter resets on bin.ts restart. |
 
 ### Web dashboard (Phase 6f-min)
 

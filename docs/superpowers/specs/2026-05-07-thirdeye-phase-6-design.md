@@ -16,7 +16,7 @@ This spec supersedes the "Phase 6 frontend per original design" reference in the
 
 ## Reframe from prior planning
 
-The earlier roadmap treated Phase 6 as a Next.js frontend wrapping the Phase 1–5 modules and listed AI Assistant as a v2 deferral. After hands-on review of competitor surface (redacted-competitor in particular), and with the explicit reframe of ThirdEye as a personal tool rather than a marketed launch, three things change:
+The earlier roadmap treated Phase 6 as a Next.js frontend wrapping the Phase 1–5 modules and listed AI Assistant as a v2 deferral. After hands-on review of the competitor surface, and with the explicit reframe of ThirdEye as a personal tool rather than a marketed launch, three things change:
 
 1. **Hybrid positioning is locked.** Forensics stays the spine. An alpha-tracker layer (watchlist, discovered candidates) sits on top, consuming existing webhook + intel-bus plumbing.
 2. **Agent brain is pulled forward.** Three loops (discovery, anomaly detection, on-demand cluster expansion) are part of Phase 6, not deferred.

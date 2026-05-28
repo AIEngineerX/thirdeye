@@ -2,9 +2,9 @@
 
 > *The eye that sees what the other two cannot.*
 
-Open-source Solana wallet & token forensics. Paste a wallet address, get its funding chain, sibling cluster, behavioral tags, realized PnL, risk score. Paste a token mint, get its holder concentration grouped by first funder — bundles and sybil rings light up immediately. Self-hostable, MIT licensed.
+Open-source Solana wallet & token forensics — with smart-money alpha tracking on top. Paste a wallet address, get its funding chain, sibling cluster, behavioral tags, realized PnL, risk score. Paste a token mint, get its holder concentration grouped by first funder — bundles and sybil rings light up immediately. Curate a set of smart-money wallets and ThirdEye streams their trades, flags confluence (≥2 *independent* wallets into the same token), and scores each signal by the market-cap multiple it goes on to hit. Self-hostable, MIT licensed.
 
-Use it from a [browser dashboard](#1-browser-dashboard-recommended), from [Claude Desktop via MCP](#2-claude-desktop-mcp), from [a Telegram bot](#3-telegram-bot), or [from the raw HTTP API](#4-raw-http-api).
+Use it from a [browser dashboard](#1-browser-dashboard-recommended) or [the raw HTTP API](#2-raw-http-api).
 
 ---
 
@@ -81,19 +81,11 @@ curl -N http://localhost:3001/api/token/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyT
 
 ### 1. Browser dashboard (recommended)
 
-`apps/web` — Next.js + Tailwind dashboard with five pages: landing (paste a wallet or mint), `/wallet/[addr]` and `/token/[mint]` with SSE-streamed scan results, `/intel` live event feed, `/settings` BYOK keys. Forensics-terminal aesthetic — IBM Plex Mono/Sans, deep-navy + amber palette, the full base58 address rendered as the visual anchor of every detail page. See [`apps/web/README.md`](apps/web/README.md).
+`apps/web` — Next.js + Tailwind dashboard with five pages: landing (paste a wallet or mint), `/wallet/[addr]` and `/token/[mint]` with SSE-streamed scan results, `/intel` live event feed (with a smart-money tab: tracked-wallet trades + confluence + watchlist), `/settings` BYOK keys. Forensics-terminal aesthetic — IBM Plex Mono/Sans, deep-navy + amber palette, the full base58 address rendered as the visual anchor of every detail page. See [`apps/web/README.md`](apps/web/README.md).
 
-### 2. Claude Desktop (MCP)
+### 2. Raw HTTP API
 
-`@thirdeye/mcp-server` exposes the six forensics tools (`checkWallet`, `scanToken`, `getClusterSiblings`, `getFunderClusters`, `getHotTokens`, `getWatchlist`) to any MCP client. Point Claude Desktop's `claude_desktop_config.json` at `packages/mcp-server/src/bin.ts` and ask in natural language. See [`packages/mcp-server/README.md`](packages/mcp-server/README.md).
-
-### 3. Telegram bot
-
-`@thirdeye/tg-bot` — single-user Telegram bot embedded in the api process. Set `TG_BOT_TOKEN` + `TG_ALLOWED_CHAT_ID`, restart, chat with your bot. Same six tools via natural language. See [`packages/tg-bot/README.md`](packages/tg-bot/README.md).
-
-### 4. Raw HTTP API
-
-The dashboard, MCP server, and tg-bot are all thin clients on top of the same HTTP API. Full surface in [`docs/REFERENCE.md`](docs/REFERENCE.md) — health, auth, Helius proxy, wallet check, token scan, intel aggregates + feed, watches, tokens cache.
+The dashboard is a thin client on top of the same HTTP API. Full surface in [`docs/REFERENCE.md`](docs/REFERENCE.md) — health, auth, Helius proxy, wallet check, token scan, intel aggregates + feed, watches, tokens cache.
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:3001/api/db/auth | jq -r .token)
@@ -133,11 +125,11 @@ Tags emitted by the scanner — full table in [`docs/REFERENCE.md`](docs/REFEREN
 
 ## Stack
 
-Bun · Hono · Drizzle · Postgres 16 · `graphile-worker` (cron + watch-sync) · Next 15 + Tailwind 3.4 + React 19 (web dashboard) · Anthropic SDK (agent loops, MCP, tg-bot) · Helius RPC (REST + JSON-RPC + Webhooks).
+Bun · Hono · Drizzle · Postgres 16 · `graphile-worker` (cron + watch-sync + signal outcomes) · Next 15 + Tailwind 3.4 + React 19 (web dashboard) · Helius RPC (REST + JSON-RPC + Webhooks) · DexScreener (price/market-cap).
 
 Two services, one Postgres. No Redis, no message broker, no separate cache server. Self-host with `docker compose up`.
 
-BYOK transparent: set `X-User-Helius-Key` / `X-User-Anthropic-Key` to bypass server keys and rate limits. The server never branches on which key is in use.
+BYOK transparent: set `X-User-Helius-Key` to bypass the server's Helius key and rate limits. The server never branches on which key is in use.
 
 `PUBLIC_INSTANCE_MODE=true` enables anonymous-token rate limiting (for hosted deployments); default `false` runs unmetered (for self-host).
 
@@ -150,12 +142,11 @@ BYOK transparent: set `X-User-Helius-Key` / `X-User-Anthropic-Key` to bypass ser
 | 0 – 5e | v1 backend — auth, Helius proxy, Check Wallet, Scan Token, Intel analytics, alpha-extraction hardening (SMART_MONEY, cluster CoV, cross-token bundler view), webhook watches |
 | 6.0 | Intel-bus on Postgres LISTEN/NOTIFY (cross-process events) |
 | 6a | Tokens cache + DexScreener + hot-tokens API |
-| 6b | `@thirdeye/agent` — Anthropic SDK tool-use loop, prompt caching, advisory-lock budget gate, `agent_runs` audit table |
-| 6b.5 | `@thirdeye/mcp-server` — MCP transport |
-| 6b.6 | `@thirdeye/tg-bot` — Telegram bot |
 | 6f-min | `apps/web` — five-page web dashboard |
+| 6f | Smart-money feed — curated tracked wallets, live trade stream, confluence detection with a co-funded trust filter (`/intel` smart-money tab) |
+| signal engine | Signal-outcome tracking — independent confluence promoted to a tracked signal, market cap followed to its ATH multiple + hit/miss with a conservative "safe" replay, outcome-scored wallet attribution (backend: `signals` table + `signals-refresh` worker) |
 
-**In progress (Phase 6 remainder):** Discovery loop (`6c`), anomaly detector (`6d`), morning brief (`6e`), full dashboard widgets (`6g`), cluster expander (`6j`), polish (`6k`). See [`docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md`](docs/superpowers/specs/2026-05-07-thirdeye-phase-6-design.md).
+**Next:** wallet-universe acquisition (leaderboard-seeded candidate set) and the alpha dashboard UI (live signal cards, trending, outcome-scored leaderboard). See the [alpha-tracker delta spec](docs/superpowers/specs/2026-05-28-thirdeye-alpha-tracker-delta.md).
 
 **Deferred (v2+):** Telegram/Twitter signal ingest, LaserStream gRPC migration, behavior embeddings, CLI surface, multi-provider Helius abstraction.
 

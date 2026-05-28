@@ -65,7 +65,7 @@ Tag colors are differentiated so a wallet with multiple flags is readable at a g
 
 - **`apps/web/tsconfig.json` overrides the root tsconfig** in two ways. It sets `exactOptionalPropertyTypes: false` (the root has it on; React 19 / shadcn-style prop types don't survive the stricter check) and `types: []` (the root injects `@types/bun` globals like Bun's `fetch.preconnect` which conflict with browser DOM types).
 - **Test files are excluded from apps/web's tsc** because `bun:test` isn't in the type roots; the tests run via `bun test` directly which resolves them at runtime.
-- **No `@types/node` in this package** — when it was pinned, two `@types/node` versions coexisted in the workspace (apps/web's 22.x and bun-types' 25.x) which broke `packages/agent/tests/budget.integration.test.ts` ChildProcess types. Dropping it lets bun-types' dep win.
+- **No `@types/node` in this package** — when it was pinned, two `@types/node` versions coexisted in the workspace (apps/web's 22.x and bun-types' 25.x) which broke ChildProcess types in API integration tests. Dropping it lets bun-types' dep win.
 
 ## Component inventory
 
