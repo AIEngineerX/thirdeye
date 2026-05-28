@@ -1,9 +1,11 @@
 import type { DbClient } from "@thirdeye/db";
 import { DexScreenerSource, type PriceSource } from "@thirdeye/prices";
+import { SolanaTrackerClient } from "@thirdeye/solanatracker";
 import { type Runner, run } from "graphile-worker";
 import type { Sql } from "postgres";
 import { signalHitMultiplier } from "../env";
 import { initIntelBus } from "../lib/intel-bus";
+import { syncLeaderboardCandidates } from "../lib/wallet-universe";
 import { cleanupTables } from "./cleanup-tables";
 import { enrichWallet } from "./enrich-wallet";
 import { refreshAggregates } from "./refresh-aggregates";
@@ -15,6 +17,7 @@ export interface RunnerOptions {
   db: DbClient;
   sql: Sql;
   serverHeliusKey: string | undefined;
+  serverSolanaTrackerKey: string | undefined;
   smartMoneyMinSol: number;
   // Optional override — production injects DexScreenerSource. Tests can
   // wire a fake source without touching the network.
@@ -26,6 +29,7 @@ const CRONTAB = `
 * * * * * tokens-refresh ?fill=1m
 * * * * * signals-refresh ?fill=1m
 0 * * * * enrich-wallet ?fill=1h
+0 * * * * candidate-sync ?fill=1h
 */15 * * * * cleanup-tables ?fill=15m
 `.trim();
 
@@ -64,6 +68,14 @@ export async function startWorker(opts: RunnerOptions): Promise<Runner> {
             `[signals-refresh] selected=${stats.selected} updated=${stats.updated} closed=${stats.closed} errored=${stats.errored}`,
           );
         }
+      },
+      "candidate-sync": async () => {
+        if (!opts.serverSolanaTrackerKey) return;
+        const n = await syncLeaderboardCandidates(
+          opts.db,
+          new SolanaTrackerClient({ apiKey: opts.serverSolanaTrackerKey }),
+        );
+        if (n > 0) console.log(`[candidate-sync] upserted ${n} leaderboard candidates`);
       },
       "cleanup-tables": async () => {
         const stats = await cleanupTables(opts.db);

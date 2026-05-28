@@ -179,6 +179,7 @@ if (import.meta.main) {
     db,
     sql: pgSql,
     serverHeliusKey: env.HELIUS_API_KEY,
+    serverSolanaTrackerKey: env.SOLANATRACKER_API_KEY,
     smartMoneyMinSol: env.SMART_MONEY_MIN_SOL,
   })
     .then(() => console.log("[worker] graphile-worker started"))
