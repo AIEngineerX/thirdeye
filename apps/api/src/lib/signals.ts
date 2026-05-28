@@ -13,9 +13,8 @@ export interface PromoteArgs {
 // Upsert the single OPEN signal for a mint. First independent confluence
 // inserts with the call snapshot; later confluences on the still-open mint
 // update the wallet set/count only (the call snapshot is immutable — it is
-// the entry price we are scored against). Returns the signal id, or null if
-// the upsert hit no row (should not happen).
-export async function promoteOrUpdateSignal(db: DbClient, a: PromoteArgs): Promise<number | null> {
+// the entry price we are scored against). The upsert always returns its row.
+export async function promoteOrUpdateSignal(db: DbClient, a: PromoteArgs): Promise<number> {
   const walletsJson = JSON.stringify(a.wallets);
   const firstBuyIso = new Date(a.firstBuyAtMs).toISOString();
   const rows = await db.execute<{ id: number }>(sql`
@@ -32,8 +31,10 @@ export async function promoteOrUpdateSignal(db: DbClient, a: PromoteArgs): Promi
       symbol = COALESCE(EXCLUDED.symbol, signals.symbol)
     RETURNING id
   `);
-  const list = rows as unknown as { id: number }[];
-  return list.length > 0 ? list[0]!.id : null;
+  // postgres.js returns bigserial as a string; coerce so the declared
+  // number return type (and the smartmoney:signal event) is truthful.
+  const [row] = rows as unknown as { id: string }[];
+  return Number(row!.id);
 }
 
 export interface AuditArgs {

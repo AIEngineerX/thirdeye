@@ -26,7 +26,7 @@ export interface RefreshSignalsStats {
 }
 
 interface OpenRow {
-  id: number;
+  id: string; // postgres.js returns bigserial as a string
   mint: string;
   call_mc: string | null;
   safe_call_mc: string | null;
@@ -73,7 +73,7 @@ export async function refreshSignals(
 
   for (const r of open) {
     try {
-      const currentMc = mcByMint.has(r.mint) ? mcByMint.get(r.mint)! : null;
+      const currentMc = mcByMint.get(r.mint) ?? null;
       const callMc = r.call_mc !== null ? Number(r.call_mc) : null;
       const ageMin = Number(r.age_min);
 
@@ -115,7 +115,7 @@ export async function refreshSignals(
       await publish({
         event: "smartmoney:outcome",
         data: {
-          id: r.id,
+          id: Number(r.id),
           mint: r.mint,
           symbol: r.symbol,
           currentMc,

@@ -194,22 +194,20 @@ heliusWebhook.post("/", async (c) => {
                       callMc,
                       callPrice,
                     });
-                    if (id !== null) {
-                      await publish({
-                        event: "smartmoney:signal",
-                        data: {
-                          id,
-                          mint: conf.mint,
-                          symbol: null,
-                          walletCount: conf.count,
-                          wallets: conf.wallets,
-                          trust: "independent",
-                          sharedFunder: null,
-                          callMc,
-                          firstBuyAt: trade.tradedAt.toISOString(),
-                        },
-                      });
-                    }
+                    await publish({
+                      event: "smartmoney:signal",
+                      data: {
+                        id,
+                        mint: conf.mint,
+                        symbol: null,
+                        walletCount: conf.count,
+                        wallets: conf.wallets,
+                        trust: "independent",
+                        sharedFunder: null,
+                        callMc,
+                        firstBuyAt: trade.tradedAt.toISOString(),
+                      },
+                    });
                   }
                 }
               }

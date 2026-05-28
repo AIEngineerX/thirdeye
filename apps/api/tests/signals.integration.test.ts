@@ -21,7 +21,7 @@ describe("promoteOrUpdateSignal", () => {
       callMc: 75_000,
       callPrice: 0.0001,
     });
-    expect(id).not.toBeNull();
+    expect(id).toBeGreaterThan(0);
     const rows = await t.sql`SELECT * FROM signals WHERE mint = 'Mint111'`;
     expect(rows.length).toBe(1);
     expect(rows[0]!.trust).toBe("independent");
@@ -67,7 +67,7 @@ describe("recordCoFundedAudit", () => {
       callMc: 10_000,
       callPrice: null,
     });
-    expect(id).not.toBeNull();
+    expect(id).toBeGreaterThan(0);
     const rows = await t.sql`SELECT trust, status FROM signals WHERE mint = 'Mint333' ORDER BY id`;
     expect(rows.map((r) => `${r.trust}/${r.status}`)).toEqual([
       "co_funded/closed",
