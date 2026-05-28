@@ -32,7 +32,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDb.sql.unsafe(
-    "TRUNCATE auth_tokens, smart_trades, tracked_wallets, wallet_checks, wallets, token_scans, funders, intel_aggregates, watches, watch_events, helius_webhooks RESTART IDENTITY CASCADE;",
+    "TRUNCATE auth_tokens, smart_trades, tracked_wallets, wallet_checks, wallets, token_scans, funders, intel_aggregates, watches, watch_events, helius_webhooks, signals RESTART IDENTITY CASCADE;",
   );
   const t = generateToken();
   await testDb.db.insert(authTokens).values({ token: t.token, expiresAt: t.expiresAt });
@@ -243,6 +243,77 @@ describe("smart-money webhook ingest", () => {
     expect(cd.mint).toBe(FIXTURE_MINT);
     expect(cd.count).toBe(2);
     expect(cd.wallets.sort()).toEqual([WALLET_A, WALLET_B].sort());
+
+    unsub();
+  });
+
+  test("two independent tracked buys promote one open signal + emit smartmoney:signal", async () => {
+    const WALLET_A = FIXTURE_WALLET;
+    const WALLET_B = "WaLLeT2222222222222222222222222222222222222";
+
+    // Independent: insert into tracked_wallets only, NOT into `wallets` — so
+    // areCoFunded finds no shared first_funder and the confluence is independent.
+    await testDb.db.insert(trackedWallets).values([
+      { address: WALLET_A, label: "Alpha A", winRate: "0.70" },
+      { address: WALLET_B, label: "Alpha B", winRate: "0.68" },
+    ]);
+
+    const seen: IntelEvent[] = [];
+    const unsub = subscribe((e) => seen.push(e));
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const evtA = { ...buyFixture, timestamp: nowSec };
+    const evtB = {
+      ...buyFixture,
+      signature: "5xBuySig22222222222222222222222222222222222222222222222222222222",
+      timestamp: nowSec,
+      feePayer: WALLET_B,
+      nativeTransfers: [
+        {
+          fromUserAccount: WALLET_B,
+          toUserAccount: "PooL9999999999999999999999999999999999999999",
+          amount: 1500000000,
+        },
+      ],
+      tokenTransfers: [
+        {
+          fromUserAccount: "PooL9999999999999999999999999999999999999999",
+          toUserAccount: WALLET_B,
+          mint: FIXTURE_MINT,
+          tokenAmount: 1000000,
+        },
+      ],
+      accountData: [{ account: WALLET_B, nativeBalanceChange: -1500005000 }],
+    };
+
+    await app.request("/api/helius-webhook", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify([evtA]),
+    });
+    await waitFor(() => seen.filter((e) => e.event === "smartmoney:trade").length === 1);
+
+    await app.request("/api/helius-webhook", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify([evtB]),
+    });
+
+    await waitFor(() => seen.filter((e) => e.event === "smartmoney:signal").length === 1);
+
+    const sigEvts = seen.filter((e) => e.event === "smartmoney:signal");
+    expect(sigEvts).toHaveLength(1);
+    const sd = sigEvts[0]!.data as { mint: string; trust: string; walletCount: number };
+    expect(sd.mint).toBe(FIXTURE_MINT);
+    expect(sd.trust).toBe("independent");
+    expect(sd.walletCount).toBe(2);
+
+    const rows =
+      await testDb.sql`SELECT trust, status, wallet_count FROM signals WHERE mint = ${FIXTURE_MINT}`;
+    expect(rows.length).toBe(1);
+    expect(rows[0]!.trust).toBe("independent");
+    expect(rows[0]!.status).toBe("open");
+    expect(rows[0]!.wallet_count).toBe(2);
 
     unsub();
   });

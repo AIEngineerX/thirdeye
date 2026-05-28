@@ -22,13 +22,14 @@
 // fails. Per-event errors are logged but don't fail the batch.
 
 import { timingSafeEqual } from "node:crypto";
-import { type DbClient, trackedWallets, watchEvents, watches } from "@thirdeye/db";
+import { type DbClient, tokens, trackedWallets, watchEvents, watches } from "@thirdeye/db";
 import type { HeliusInboundEvent } from "@thirdeye/helius";
 import { parseWalletTrade } from "@thirdeye/scanner";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { heliusWebhookAuth } from "../../env";
 import { publish } from "../../lib/intel-bus";
+import { promoteOrUpdateSignal, recordCoFundedAudit } from "../../lib/signals";
 import { areCoFunded, detectBuyConfluence, persistTrade } from "../../lib/smart-money";
 
 // Constant-time string compare. Plain !== short-circuits on the first
@@ -162,6 +163,54 @@ heliusWebhook.post("/", async (c) => {
                       sharedFunder: cf.sharedFunder,
                     },
                   });
+
+                  // call_mc snapshot from the tokens cache (free DexScreener
+                  // refresh). Null when the mint hasn't been priced yet — the
+                  // outcome worker backfills current/ath later either way.
+                  const cached = await db
+                    .select({ mcUsd: tokens.mcUsd, priceUsd: tokens.priceUsd })
+                    .from(tokens)
+                    .where(eq(tokens.mint, trade.mint))
+                    .limit(1);
+                  const callMc = cached[0]?.mcUsd != null ? Number(cached[0].mcUsd) : null;
+                  const callPrice = cached[0]?.priceUsd != null ? Number(cached[0].priceUsd) : null;
+                  const firstBuyAtMs = trade.tradedAt.getTime();
+
+                  if (cf.coFunded) {
+                    // Suppressed: audit only, never scored.
+                    await recordCoFundedAudit(db, {
+                      mint: conf.mint,
+                      symbol: null,
+                      wallets: conf.wallets,
+                      firstBuyAtMs,
+                      sharedFunder: cf.sharedFunder,
+                    });
+                  } else {
+                    const id = await promoteOrUpdateSignal(db, {
+                      mint: conf.mint,
+                      symbol: null,
+                      wallets: conf.wallets,
+                      firstBuyAtMs,
+                      callMc,
+                      callPrice,
+                    });
+                    if (id !== null) {
+                      await publish({
+                        event: "smartmoney:signal",
+                        data: {
+                          id,
+                          mint: conf.mint,
+                          symbol: null,
+                          walletCount: conf.count,
+                          wallets: conf.wallets,
+                          trust: "independent",
+                          sharedFunder: null,
+                          callMc,
+                          firstBuyAt: trade.tradedAt.toISOString(),
+                        },
+                      });
+                    }
+                  }
                 }
               }
             }
