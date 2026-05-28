@@ -227,6 +227,9 @@ export const trackedWallets = pgTable("tracked_wallets", {
   identity: jsonb("identity"),
   pnlSyncedAt: timestamp("pnl_synced_at", { withTimezone: true }),
   addedAt: timestamp("added_at", { withTimezone: true }).notNull().defaultNow(),
+  signalSignals: integer("signal_signals").notNull().default(0),
+  signalWins: integer("signal_wins").notNull().default(0),
+  signalWinrate: numeric("signal_winrate"),
 });
 
 // Normalized swaps parsed from tracked wallets' Helius enhanced events. Source
@@ -253,6 +256,41 @@ export const smartTrades = pgTable(
     sigWalletUniq: unique("smart_trades_sig_wallet_uniq").on(t.signature, t.wallet),
     mintSideTimeIdx: index("smart_trades_mint_side_time_idx").on(t.mint, t.side, t.tradedAt.desc()),
     tradedAtIdx: index("smart_trades_traded_at_idx").on(t.tradedAt.desc()),
+  }),
+);
+
+// A promoted independent buy-confluence, tracked to an outcome. co_funded
+// clusters are written here too (status='closed', trust='co_funded') as an
+// audit trail of what a naive tracker would have called but we suppressed.
+export const signals = pgTable(
+  "signals",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    mint: text("mint").notNull(),
+    symbol: text("symbol"),
+    walletCount: integer("wallet_count").notNull(),
+    wallets: jsonb("wallets").notNull(), // string[] — jsonb dodges the array-binding bug
+    trust: text("trust").notNull(), // 'independent' | 'co_funded'
+    sharedFunder: text("shared_funder"),
+    callMc: numeric("call_mc"),
+    callPrice: numeric("call_price"),
+    firstBuyAt: timestamp("first_buy_at", { withTimezone: true }).notNull(),
+    detectedAt: timestamp("detected_at", { withTimezone: true }).notNull().defaultNow(),
+    safePromotedAt: timestamp("safe_promoted_at", { withTimezone: true }),
+    safeCallMc: numeric("safe_call_mc"),
+    currentMc: numeric("current_mc"),
+    athMc: numeric("ath_mc"),
+    athMultiplier: numeric("ath_multiplier"),
+    safeAthMultiplier: numeric("safe_ath_multiplier"),
+    isHit: boolean("is_hit").notNull().default(false),
+    safeIsHit: boolean("safe_is_hit").notNull().default(false),
+    peakAt: timestamp("peak_at", { withTimezone: true }),
+    status: text("status").notNull().default("open"), // 'open' | 'closed'
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    statusDetectedIdx: index("signals_status_detected_idx").on(t.status, t.detectedAt.desc()),
+    mintIdx: index("signals_mint_idx").on(t.mint),
   }),
 );
 

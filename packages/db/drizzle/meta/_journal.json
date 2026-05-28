@@ -78,6 +78,13 @@
       "when": 1779732569755,
       "tag": "0010_smart_money_feed",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779987539090,
+      "tag": "0011_signals",
+      "breakpoints": true
     }
   ]
 }
