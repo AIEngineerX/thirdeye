@@ -58,6 +58,33 @@ export type IntelEvent =
         coFunded: boolean;
         sharedFunder: string | null;
       };
+    }
+  | {
+      event: "smartmoney:signal";
+      data: {
+        id: number;
+        mint: string;
+        symbol: string | null;
+        walletCount: number;
+        wallets: string[];
+        trust: "independent" | "co_funded";
+        sharedFunder: string | null;
+        callMc: number | null;
+        firstBuyAt: string; // ISO
+      };
+    }
+  | {
+      event: "smartmoney:outcome";
+      data: {
+        id: number;
+        mint: string;
+        symbol: string | null;
+        currentMc: number | null;
+        athMultiplier: number | null;
+        safeAthMultiplier: number | null;
+        isHit: boolean;
+        status: "open" | "closed";
+      };
     };
 
 type Handler = (evt: IntelEvent) => void;
