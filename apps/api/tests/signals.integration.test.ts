@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import { setupTestDb, type TestDb } from "./setup";
 import { promoteOrUpdateSignal, recordCoFundedAudit } from "../src/lib/signals";
+import { type TestDb, setupTestDb } from "./setup";
 
 let t: TestDb;
 

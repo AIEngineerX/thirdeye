@@ -6,7 +6,7 @@
 // worker uses (computeOutcome + walletsInWindow) so calibration matches runtime.
 
 import { Database } from "bun:sqlite";
-import { computeOutcome, walletsInWindow, type BuyEvent } from "@thirdeye/scanner";
+import { type BuyEvent, computeOutcome, walletsInWindow } from "@thirdeye/scanner";
 
 interface CorpusBuy {
   wallet: string;
@@ -88,7 +88,10 @@ function replay(buys: CorpusBuy[], windows: number[], multipliers: number[]): Gr
         // open-signal-per-mint uniqueness of the live engine).
         let detectedAt: number | null = null;
         let callMc: number | null = null;
-        const events: BuyEvent[] = evs.map((e) => ({ wallet: e.wallet, tradedAtMs: e.blockTimeMs }));
+        const events: BuyEvent[] = evs.map((e) => ({
+          wallet: e.wallet,
+          tradedAtMs: e.blockTimeMs,
+        }));
         for (let i = 0; i < evs.length; i++) {
           const asOf = evs[i]!.blockTimeMs;
           if (walletsInWindow(events, asOf, windowMin).length >= 2) {
