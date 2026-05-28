@@ -69,3 +69,6 @@ CLAUDE.md
 docs/superpowers/plans/
 docs/superpowers/research/
 docs/superpowers/reviews/
+
+# Backtest corpus snapshots + JSONL exports (local only)
+data/backtest/
