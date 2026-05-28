@@ -352,7 +352,11 @@ export const candidateWallets = pgTable(
     importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    rankIdx: index("candidate_wallets_rank_idx").on(t.promoted, t.earlyRate.desc(), t.srcPnlAll.desc()),
+    rankIdx: index("candidate_wallets_rank_idx").on(
+      t.promoted,
+      t.earlyRate.desc(),
+      t.srcPnlAll.desc(),
+    ),
   }),
 );
 
