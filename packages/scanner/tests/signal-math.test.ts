@@ -61,3 +61,27 @@ describe("computeOutcome", () => {
     expect(r.safeIsHit).toBe(false);
   });
 });
+
+import { walletsInWindow } from "../src/signal-math";
+
+describe("walletsInWindow", () => {
+  const t = (min: number) => new Date(2026, 0, 1, 0, min, 0).getTime();
+  const buys = [
+    { wallet: "A", tradedAtMs: t(0) },
+    { wallet: "B", tradedAtMs: t(5) },
+    { wallet: "A", tradedAtMs: t(6) }, // dup wallet — counts once
+    { wallet: "C", tradedAtMs: t(40) },
+  ];
+
+  test("distinct wallets within a 15m window ending at asOf", () => {
+    expect(walletsInWindow(buys, t(6), 15).sort()).toEqual(["A", "B"]);
+  });
+
+  test("excludes buys outside the window", () => {
+    expect(walletsInWindow(buys, t(40), 15)).toEqual(["C"]);
+  });
+
+  test("excludes buys after asOf (no lookahead)", () => {
+    expect(walletsInWindow(buys, t(0), 15)).toEqual(["A"]);
+  });
+});

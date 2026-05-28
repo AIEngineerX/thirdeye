@@ -46,3 +46,22 @@ export function computeOutcome(input: OutcomeInput): OutcomeResult {
     newPeak,
   };
 }
+
+export interface BuyEvent {
+  wallet: string;
+  tradedAtMs: number;
+}
+
+/**
+ * Distinct wallets that bought within (asOfMs - windowMin*60_000, asOfMs].
+ * Mirrors the live detectBuyConfluence SQL semantics but evaluated as-of an
+ * arbitrary instant so historical replay (backtest) is possible.
+ */
+export function walletsInWindow(buys: BuyEvent[], asOfMs: number, windowMin: number): string[] {
+  const startMs = asOfMs - windowMin * 60_000;
+  const seen = new Set<string>();
+  for (const b of buys) {
+    if (b.tradedAtMs > startMs && b.tradedAtMs <= asOfMs) seen.add(b.wallet);
+  }
+  return [...seen];
+}
