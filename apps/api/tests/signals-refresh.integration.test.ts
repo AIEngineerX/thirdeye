@@ -123,4 +123,28 @@ describe("refreshSignals", () => {
     expect(Number(w[0]!.signal_wins)).toBe(2); // both hit
     expect(Number(w[0]!.signal_winrate)).toBeCloseTo(1.0, 4);
   });
+
+  test("a price-source failure does not throw out of the tick", async () => {
+    await t.sql`
+      INSERT INTO signals (mint, wallet_count, wallets, trust, call_mc, first_buy_at, detected_at)
+      VALUES ('MERR',2,'["W1"]'::jsonb,'independent',1000, now(), now())`;
+    const throwingSource: PriceSource = {
+      name: "boom",
+      async fetch() {
+        throw new Error("upstream down");
+      },
+    };
+    const stats = await refreshSignals(t.db, {
+      source: throwingSource,
+      hitMultiplier: 2,
+      closeAfterHours: 48,
+    });
+    // Resilience (spec §9): the tick reports the failure and touches nothing
+    // rather than throwing — graphile-worker keeps firing on the next cron.
+    expect(stats.errored).toBe(1);
+    expect(stats.updated).toBe(0);
+    const rows = await t.sql`SELECT status, current_mc FROM signals WHERE mint='MERR'`;
+    expect(rows[0]!.status).toBe("open");
+    expect(rows[0]!.current_mc).toBeNull();
+  });
 });

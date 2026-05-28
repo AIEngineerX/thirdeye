@@ -32,7 +32,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await testDb.sql.unsafe(
-    "TRUNCATE auth_tokens, smart_trades, tracked_wallets, wallet_checks, wallets, token_scans, funders, intel_aggregates, watches, watch_events, helius_webhooks, signals RESTART IDENTITY CASCADE;",
+    "TRUNCATE auth_tokens, smart_trades, tracked_wallets, wallet_checks, wallets, token_scans, funders, intel_aggregates, watches, watch_events, helius_webhooks, signals, tokens RESTART IDENTITY CASCADE;",
   );
   const t = generateToken();
   await testDb.db.insert(authTokens).values({ token: t.token, expiresAt: t.expiresAt });
@@ -411,5 +411,69 @@ describe("smart-money webhook ingest", () => {
     expect(r.status).toBe(200);
     const rows = await testDb.db.select().from(smartTrades);
     expect(rows).toHaveLength(0);
+  });
+
+  test("snapshots call_mc/call_price from the tokens cache when the mint is priced", async () => {
+    const WALLET_A = FIXTURE_WALLET;
+    const WALLET_B = "WaLLeT2222222222222222222222222222222222222";
+    await testDb.db.insert(trackedWallets).values([
+      { address: WALLET_A, label: "A" },
+      { address: WALLET_B, label: "B" },
+    ]);
+    // Price the mint in the tokens cache so promotion snapshots a real call MC.
+    await testDb.sql`INSERT INTO tokens (mint, mc_usd, price_usd) VALUES (${FIXTURE_MINT}, 123456, 0.05)`;
+
+    const seen: IntelEvent[] = [];
+    const unsub = subscribe((e) => seen.push(e));
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const evtA = { ...buyFixture, timestamp: nowSec };
+    const evtB = {
+      ...buyFixture,
+      signature: "5xBuySig44444444444444444444444444444444444444444444444444444444",
+      timestamp: nowSec,
+      feePayer: WALLET_B,
+      nativeTransfers: [
+        {
+          fromUserAccount: WALLET_B,
+          toUserAccount: "PooL9999999999999999999999999999999999999999",
+          amount: 1500000000,
+        },
+      ],
+      tokenTransfers: [
+        {
+          fromUserAccount: "PooL9999999999999999999999999999999999999999",
+          toUserAccount: WALLET_B,
+          mint: FIXTURE_MINT,
+          tokenAmount: 1000000,
+        },
+      ],
+      accountData: [{ account: WALLET_B, nativeBalanceChange: -1500005000 }],
+    };
+
+    await app.request("/api/helius-webhook", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify([evtA]),
+    });
+    await waitFor(() => seen.filter((e) => e.event === "smartmoney:trade").length === 1);
+    await app.request("/api/helius-webhook", {
+      method: "POST",
+      headers: AUTH,
+      body: JSON.stringify([evtB]),
+    });
+    await waitFor(() => seen.filter((e) => e.event === "smartmoney:signal").length === 1);
+
+    // SSE payload carries the snapshotted MC (a real number, not null).
+    const sd = seen.find((e) => e.event === "smartmoney:signal")!.data as { callMc: number | null };
+    expect(sd.callMc).toBe(123456);
+
+    // DB row persisted the call snapshot from the tokens cache.
+    const rows =
+      await testDb.sql`SELECT call_mc, call_price FROM signals WHERE mint = ${FIXTURE_MINT}`;
+    expect(Number(rows[0]!.call_mc)).toBe(123456);
+    expect(Number(rows[0]!.call_price)).toBe(0.05);
+
+    unsub();
   });
 });
