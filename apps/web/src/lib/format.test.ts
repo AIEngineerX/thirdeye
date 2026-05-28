@@ -3,6 +3,7 @@ import {
   fmtClockMs,
   fmtDaysUntil,
   fmtInt,
+  fmtMoneyCompact,
   fmtNumber,
   fmtPct,
   fmtRelative,
@@ -98,6 +99,14 @@ describe("format", () => {
     expect(fmtDaysUntil("2026-05-20T12:05:00Z", now)).toBe("5m");
     expect(fmtDaysUntil("2026-05-20T18:00:00Z", now)).toBe("6h");
     expect(fmtDaysUntil("2026-05-27T12:00:00Z", now)).toBe("7d");
+  });
+
+  test("fmtMoneyCompact k/m/b suffixes lowercase", () => {
+    expect(fmtMoneyCompact(75_000)).toBe("$75k");
+    expect(fmtMoneyCompact(1_200_000)).toBe("$1.2m");
+    expect(fmtMoneyCompact(2_400_000_000)).toBe("$2.4b");
+    expect(fmtMoneyCompact(500)).toBe("$500");
+    expect(fmtMoneyCompact(null)).toBe("—");
   });
 
   test("isValidSolanaAddress", () => {

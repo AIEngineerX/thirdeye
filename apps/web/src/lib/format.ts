@@ -116,3 +116,16 @@ export function fmtDaysUntil(iso: string, nowMs: number = Date.now()): string {
 export function isValidSolanaAddress(s: string): boolean {
   return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
 }
+
+/**
+ * Compact money formatter for signal cards: $75k, $1.2m, $2.4b.
+ * Lowercase suffixes to match the terminal aesthetic. Null → "—".
+ */
+export function fmtMoneyCompact(n: number | null): string {
+  if (n === null || !Number.isFinite(n)) return "—";
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `$${(abs / 1e9).toFixed(1)}b`;
+  if (abs >= 1e6) return `$${(abs / 1e6).toFixed(1)}m`;
+  if (abs >= 1e3) return `$${(abs / 1e3).toFixed(0)}k`;
+  return `$${abs.toFixed(0)}`;
+}
