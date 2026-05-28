@@ -52,11 +52,18 @@ export async function startWorker(opts: RunnerOptions): Promise<Runner> {
         });
       },
       "signals-refresh": async () => {
-        await refreshSignals(opts.db, {
+        const stats = await refreshSignals(opts.db, {
           source: priceSource,
           hitMultiplier: signalHitMultiplier(),
           closeAfterHours: 48,
         });
+        // Quiet on idle ticks; surface activity (closes) and failures so the
+        // worker's behaviour is observable in logs, matching cleanup-tables.
+        if (stats.closed > 0 || stats.errored > 0) {
+          console.log(
+            `[signals-refresh] selected=${stats.selected} updated=${stats.updated} closed=${stats.closed} errored=${stats.errored}`,
+          );
+        }
       },
       "cleanup-tables": async () => {
         const stats = await cleanupTables(opts.db);
