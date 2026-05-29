@@ -521,7 +521,7 @@ export default function TokenDetailPage() {
             meta={state.metadata?.symbol ?? undefined}
           />
           <div className="mt-2 px-1">
-            <ActionRow address={mint} kind="mint" />
+            <ActionRow address={mint} kind="mint" variant="extras" />
           </div>
         </div>
 

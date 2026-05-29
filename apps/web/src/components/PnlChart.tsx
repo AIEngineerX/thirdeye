@@ -36,6 +36,7 @@ export function PnlChart({ days }: { days: WalletPerformanceDay[] }) {
         background: { color: "transparent" },
         textColor: TEXT,
         fontFamily: "var(--font-plex-mono)",
+        attributionLogo: false,
       },
       grid: { vertLines: { color: GRID }, horzLines: { color: GRID } },
       rightPriceScale: { borderColor: GRID },

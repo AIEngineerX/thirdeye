@@ -32,6 +32,7 @@ export function PriceChart({
         background: { color: "transparent" },
         textColor: TEXT,
         fontFamily: "var(--font-plex-mono)",
+        attributionLogo: false,
       },
       grid: {
         vertLines: { color: GRID },

@@ -1,6 +1,5 @@
 "use client";
 
-import { ActionRow } from "@/components/ActionRow";
 import { Chip } from "@/components/Chip";
 import { type Column, DataTable } from "@/components/DataTable";
 import { EvidenceStrip } from "@/components/EvidenceStrip";
@@ -131,7 +130,6 @@ export default function WalletDetailPage() {
               : undefined
           }
         />
-        <ActionRow address={addr} kind="wallet" />
       </div>
 
       {status === "error" ? (
@@ -262,15 +260,15 @@ function WalletPerformanceHero({
       <div className="grid border-t border-border-subtle md:grid-cols-3">
         <WindowStat
           label="best day"
-          value={fmtUsdSigned(performance.bestDay.realizedPnl)}
-          detail={performance.bestDay.date}
-          tone={tone(performance.bestDay.realizedPnl)}
+          value={performance.bestDay ? fmtUsdSigned(performance.bestDay.realizedPnl) : "—"}
+          detail={performance.bestDay?.date ?? "—"}
+          tone={tone(performance.bestDay?.realizedPnl ?? 0)}
         />
         <WindowStat
           label="worst day"
-          value={fmtUsdSigned(performance.worstDay.realizedPnl)}
-          detail={performance.worstDay.date}
-          tone={tone(performance.worstDay.realizedPnl)}
+          value={performance.worstDay ? fmtUsdSigned(performance.worstDay.realizedPnl) : "—"}
+          detail={performance.worstDay?.date ?? "—"}
+          tone={tone(performance.worstDay?.realizedPnl ?? 0)}
         />
         <WindowStat
           label="current streak"

@@ -53,8 +53,8 @@ export interface WalletPerformance {
   identity: string | null;
   window: number;
   totals: { realizedPnl: number; volume: number; trades: number };
-  bestDay: WalletPerformanceDay;
-  worstDay: WalletPerformanceDay;
+  bestDay: WalletPerformanceDay | null;
+  worstDay: WalletPerformanceDay | null;
   streaks: {
     positive: number;
     negative: number;
