@@ -1,10 +1,14 @@
 "use client";
 
+import { ActionRow } from "@/components/ActionRow";
 import { EvidenceStrip } from "@/components/EvidenceStrip";
+import { MarketPanel, type MarketPanelData } from "@/components/MarketPanel";
 import { MetricStamp } from "@/components/MetricStamp";
+import { AMBER, MINT, PriceChart } from "@/components/PriceChart";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { Ticker, type TickerItem } from "@/components/Ticker";
 import { useSse } from "@/hooks/useSse";
+import { getOhlcv, getToken, getTokenMarkers } from "@/lib/api";
 import type {
   LpHolder,
   TokenCluster,
@@ -14,9 +18,10 @@ import type {
   TopHolder,
 } from "@/lib/api-types";
 import { fmtInt, fmtPct, isValidSolanaAddress, shortAddr } from "@/lib/format";
+import type { ChartMarker, OhlcvCandle } from "@/lib/ohlcv-types";
 import type { SseFrame } from "@/lib/sse";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 interface TokenState {
   cached: boolean | null;
@@ -380,6 +385,63 @@ export default function TokenDetailPage() {
   const state = useMemo(() => reduceEvents(events), [events]);
   const tickerItems = useMemo(() => tickerFromEvents(events), [events]);
 
+  const [candles, setCandles] = useState<OhlcvCandle[]>([]);
+  const [markers, setMarkers] = useState<ChartMarker[]>([]);
+  const [marketData, setMarketData] = useState<MarketPanelData | null>(null);
+
+  useEffect(() => {
+    if (!valid) return;
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const [ohlcv, mk, tok] = await Promise.allSettled([
+          getOhlcv(mint),
+          getTokenMarkers(mint),
+          getToken(mint),
+        ]);
+
+        if (cancelled) return;
+
+        if (ohlcv.status === "fulfilled") setCandles(ohlcv.value);
+
+        if (mk.status === "fulfilled") {
+          const ms: ChartMarker[] = [];
+          if (mk.value.call) {
+            ms.push({
+              time: mk.value.call.time,
+              position: "aboveBar",
+              color: AMBER,
+              shape: "arrowDown",
+              text: mk.value.call.multiplier ? `${mk.value.call.multiplier.toFixed(1)}x` : "call",
+            });
+          }
+          for (const b of mk.value.buys) {
+            ms.push({ time: b.time, position: "belowBar", color: MINT, shape: "circle" });
+          }
+          setMarkers(ms);
+        }
+
+        if (tok.status === "fulfilled" && tok.value) {
+          setMarketData({
+            priceUsd: tok.value.priceUsd,
+            mcUsd: tok.value.mcUsd,
+            mc24hPct: tok.value.mc24hPct,
+            liquidityUsd: tok.value.liquidityUsd,
+            fdvUsd: null,
+          });
+        }
+      } catch {
+        // tolerate failure — chart/panel show "—"/empty state
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [mint, valid]);
+
   if (!valid) {
     return (
       <div className="mx-auto max-w-6xl px-6 py-12">
@@ -451,228 +513,250 @@ export default function TokenDetailPage() {
           </div>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-4">
           <EvidenceStrip
             address={mint}
             kind="mint"
             label="mint evidence"
             meta={state.metadata?.symbol ?? undefined}
           />
-        </div>
-
-        <TokenForensicHero
-          state={state}
-          risk={risk}
-          verdict={verdict}
-          isStreaming={isStreaming}
-          isDone={isDone}
-        />
-
-        <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-          <MetricStamp
-            rows={[
-              {
-                label: "risk",
-                value:
-                  risk === null ? (
-                    <span className="text-tertiary">—</span>
-                  ) : (
-                    <span className="text-3xl">{risk}</span>
-                  ),
-                tone: verdictTone(verdict),
-              },
-              {
-                label: "verdict",
-                value: verdict ? (
-                  <SeverityBadge
-                    severity={
-                      verdict === "LOW_RISK" ? "LOW" : verdict === "HIGH_RISK" ? "HIGH" : "CLEAN"
-                    }
-                    pulse={isDone}
-                    className="text-2xs"
-                  />
-                ) : (
-                  <span className="text-tertiary">—</span>
-                ),
-                mono: false,
-              },
-              {
-                label: "bundle flag",
-                value: state.result ? (
-                  state.result.sybilFlag ? (
-                    <span className="text-high">detected</span>
-                  ) : (
-                    "false"
-                  )
-                ) : (
-                  "—"
-                ),
-              },
-              {
-                label: "supply",
-                value: state.metadata ? state.metadata.supply : "—",
-              },
-              {
-                label: "holders",
-                value: state.holdersTotal === null ? "—" : `${fmtInt(state.holdersTotal)}`,
-              },
-              {
-                label: "scanned",
-                value: state.holdersScanned === null ? "—" : fmtInt(state.holdersScanned),
-              },
-              {
-                label: "lp pct",
-                value: fmtPct(state.lpPct, 2),
-                tone: "primary",
-              },
-              {
-                label: "locked pct",
-                value: fmtPct(state.lockedPct, 2),
-                tone: "primary",
-              },
-              {
-                label: "clustered pct",
-                value: state.result ? fmtPct(state.result.totalClusteredPct, 2) : "—",
-                tone:
-                  state.result && state.result.totalClusteredPct > 50
-                    ? "high"
-                    : state.result && state.result.totalClusteredPct > 20
-                      ? "med"
-                      : "primary",
-              },
-            ]}
-          />
-
-          <div className="space-y-6">
-            {state.fundingProgress ? (
-              <section className="border border-border-subtle bg-card px-4 py-3">
-                <div className="flex items-center justify-between font-mono text-2xs uppercase tracking-[0.18em]">
-                  <span className="text-tertiary">funder lookups</span>
-                  <span className="tabular text-secondary">
-                    {fmtInt(state.fundingProgress.scanned)} / {fmtInt(state.fundingProgress.total)}
-                    {state.fundingProgress.errored > 0 ? (
-                      <span className="ml-2 text-high">
-                        · {fmtInt(state.fundingProgress.errored)} err
-                      </span>
-                    ) : null}
-                  </span>
-                </div>
-                <div className="mt-2 h-[3px] w-full bg-base">
-                  <div
-                    className="h-full bg-accent transition-all duration-300"
-                    style={{
-                      width: `${Math.min(100, (state.fundingProgress.scanned / Math.max(1, state.fundingProgress.total)) * 100)}%`,
-                    }}
-                  />
-                </div>
-              </section>
-            ) : null}
-
-            {state.clusters.length > 0 ? (
-              <section className="border border-border-subtle bg-card">
-                <header className="flex items-baseline justify-between border-b border-border-subtle px-4 py-3">
-                  <h3 className="font-mono text-2xs uppercase tracking-[0.22em] text-secondary">
-                    clusters
-                  </h3>
-                  <span className="font-mono text-2xs tabular text-tertiary">
-                    {state.clusters.length} detected
-                  </span>
-                </header>
-                <ol>
-                  {state.clusters.slice(0, 12).map((c, i) => (
-                    <li
-                      key={`${c.root}-${i}`}
-                      className="grid grid-cols-[2rem_1fr_auto_auto] items-baseline gap-3 border-b border-border-subtle/60 px-4 py-2 last:border-b-0"
-                    >
-                      <span className="font-mono text-2xs tabular text-tertiary">{i + 1}</span>
-                      <span
-                        className="truncate font-mono tabular text-sm text-primary"
-                        title={c.root}
-                      >
-                        {shortAddr(c.root, 6, 6)}
-                      </span>
-                      <span className="font-mono text-2xs tabular text-tertiary">
-                        {fmtInt(c.members.length)} members
-                      </span>
-                      <span
-                        className={`font-mono tabular text-sm ${
-                          c.totalPct > 10
-                            ? "text-high"
-                            : c.totalPct > 3
-                              ? "text-med"
-                              : "text-primary"
-                        }`}
-                      >
-                        {fmtPct(c.totalPct, 2)}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            ) : null}
-
-            {state.topHolders.length > 0 && state.clusters.length === 0 ? (
-              <section className="border border-border-subtle bg-card">
-                <header className="border-b border-border-subtle px-4 py-3">
-                  <h3 className="font-mono text-2xs uppercase tracking-[0.22em] text-secondary">
-                    top holders
-                  </h3>
-                </header>
-                <ol>
-                  {state.topHolders.slice(0, 10).map((h, i) => (
-                    <li
-                      key={`${h.owner}-${i}`}
-                      className="grid grid-cols-[2rem_1fr_auto] items-baseline gap-3 border-b border-border-subtle/60 px-4 py-2 last:border-b-0"
-                    >
-                      <span className="font-mono text-2xs tabular text-tertiary">{i + 1}</span>
-                      <span
-                        className="truncate font-mono tabular text-sm text-primary"
-                        title={h.owner}
-                      >
-                        {shortAddr(h.owner, 6, 6)}
-                      </span>
-                      <span className="font-mono tabular text-sm text-primary">
-                        {fmtPct(h.pct, 2)}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            ) : null}
-
-            {state.scannerError ? (
-              <section className="border border-high/60 bg-high/10 p-5">
-                <header className="mb-2 font-mono text-2xs uppercase tracking-[0.22em] text-high">
-                  ▸ {state.scannerError.error}
-                </header>
-                <p className="font-sans text-sm text-primary">{state.scannerError.message}</p>
-                <button
-                  type="button"
-                  onClick={forceRescan}
-                  className="mt-4 border border-high/60 px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-high hover:bg-high/20"
-                >
-                  retry
-                </button>
-              </section>
-            ) : null}
-
-            {status === "error" && error ? (
-              <section className="border border-high/60 bg-high/10 p-5">
-                <header className="mb-2 font-mono text-2xs uppercase tracking-[0.22em] text-high">
-                  ▸ stream failed
-                </header>
-                <p className="font-sans text-sm text-primary">{error.message}</p>
-                <button
-                  type="button"
-                  onClick={forceRescan}
-                  className="mt-4 border border-high/60 px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-high hover:bg-high/20"
-                >
-                  retry
-                </button>
-              </section>
-            ) : null}
+          <div className="mt-2 px-1">
+            <ActionRow address={mint} kind="mint" />
           </div>
         </div>
+
+        <div className="mb-2 h-[260px]">
+          <PriceChart candles={candles} markers={markers} />
+        </div>
+        <div className="mb-6">
+          <MarketPanel data={marketData} />
+        </div>
+
+        <details className="mb-6 border border-border-subtle bg-card">
+          <summary className="cursor-pointer px-4 py-3 font-mono text-2xs uppercase tracking-[0.18em] text-tertiary">
+            ▸ forensics
+          </summary>
+          <div className="p-4">
+            <TokenForensicHero
+              state={state}
+              risk={risk}
+              verdict={verdict}
+              isStreaming={isStreaming}
+              isDone={isDone}
+            />
+
+            <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+              <MetricStamp
+                rows={[
+                  {
+                    label: "risk",
+                    value:
+                      risk === null ? (
+                        <span className="text-tertiary">—</span>
+                      ) : (
+                        <span className="text-3xl">{risk}</span>
+                      ),
+                    tone: verdictTone(verdict),
+                  },
+                  {
+                    label: "verdict",
+                    value: verdict ? (
+                      <SeverityBadge
+                        severity={
+                          verdict === "LOW_RISK"
+                            ? "LOW"
+                            : verdict === "HIGH_RISK"
+                              ? "HIGH"
+                              : "CLEAN"
+                        }
+                        pulse={isDone}
+                        className="text-2xs"
+                      />
+                    ) : (
+                      <span className="text-tertiary">—</span>
+                    ),
+                    mono: false,
+                  },
+                  {
+                    label: "bundle flag",
+                    value: state.result ? (
+                      state.result.sybilFlag ? (
+                        <span className="text-high">detected</span>
+                      ) : (
+                        "false"
+                      )
+                    ) : (
+                      "—"
+                    ),
+                  },
+                  {
+                    label: "supply",
+                    value: state.metadata ? state.metadata.supply : "—",
+                  },
+                  {
+                    label: "holders",
+                    value: state.holdersTotal === null ? "—" : `${fmtInt(state.holdersTotal)}`,
+                  },
+                  {
+                    label: "scanned",
+                    value: state.holdersScanned === null ? "—" : fmtInt(state.holdersScanned),
+                  },
+                  {
+                    label: "lp pct",
+                    value: fmtPct(state.lpPct, 2),
+                    tone: "primary",
+                  },
+                  {
+                    label: "locked pct",
+                    value: fmtPct(state.lockedPct, 2),
+                    tone: "primary",
+                  },
+                  {
+                    label: "clustered pct",
+                    value: state.result ? fmtPct(state.result.totalClusteredPct, 2) : "—",
+                    tone:
+                      state.result && state.result.totalClusteredPct > 50
+                        ? "high"
+                        : state.result && state.result.totalClusteredPct > 20
+                          ? "med"
+                          : "primary",
+                  },
+                ]}
+              />
+
+              <div className="space-y-6">
+                {state.fundingProgress ? (
+                  <section className="border border-border-subtle bg-card px-4 py-3">
+                    <div className="flex items-center justify-between font-mono text-2xs uppercase tracking-[0.18em]">
+                      <span className="text-tertiary">funder lookups</span>
+                      <span className="tabular text-secondary">
+                        {fmtInt(state.fundingProgress.scanned)} /{" "}
+                        {fmtInt(state.fundingProgress.total)}
+                        {state.fundingProgress.errored > 0 ? (
+                          <span className="ml-2 text-high">
+                            · {fmtInt(state.fundingProgress.errored)} err
+                          </span>
+                        ) : null}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-[3px] w-full bg-base">
+                      <div
+                        className="h-full bg-accent transition-all duration-300"
+                        style={{
+                          width: `${Math.min(100, (state.fundingProgress.scanned / Math.max(1, state.fundingProgress.total)) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </section>
+                ) : null}
+
+                {state.clusters.length > 0 ? (
+                  <section className="border border-border-subtle bg-card">
+                    <header className="flex items-baseline justify-between border-b border-border-subtle px-4 py-3">
+                      <h3 className="font-mono text-2xs uppercase tracking-[0.22em] text-secondary">
+                        clusters
+                      </h3>
+                      <span className="font-mono text-2xs tabular text-tertiary">
+                        {state.clusters.length} detected
+                      </span>
+                    </header>
+                    <ol>
+                      {state.clusters.slice(0, 12).map((c, i) => (
+                        <li
+                          key={`${c.root}-${i}`}
+                          className="grid grid-cols-[2rem_1fr_auto_auto] items-baseline gap-3 border-b border-border-subtle/60 px-4 py-2 last:border-b-0"
+                        >
+                          <span className="font-mono text-2xs tabular text-tertiary">{i + 1}</span>
+                          <span
+                            className="truncate font-mono tabular text-sm text-primary"
+                            title={c.root}
+                          >
+                            {shortAddr(c.root, 6, 6)}
+                          </span>
+                          <span className="font-mono text-2xs tabular text-tertiary">
+                            {fmtInt(c.members.length)} members
+                          </span>
+                          <span
+                            className={`font-mono tabular text-sm ${
+                              c.totalPct > 10
+                                ? "text-high"
+                                : c.totalPct > 3
+                                  ? "text-med"
+                                  : "text-primary"
+                            }`}
+                          >
+                            {fmtPct(c.totalPct, 2)}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                ) : null}
+
+                {state.topHolders.length > 0 && state.clusters.length === 0 ? (
+                  <section className="border border-border-subtle bg-card">
+                    <header className="border-b border-border-subtle px-4 py-3">
+                      <h3 className="font-mono text-2xs uppercase tracking-[0.22em] text-secondary">
+                        top holders
+                      </h3>
+                    </header>
+                    <ol>
+                      {state.topHolders.slice(0, 10).map((h, i) => (
+                        <li
+                          key={`${h.owner}-${i}`}
+                          className="grid grid-cols-[2rem_1fr_auto] items-baseline gap-3 border-b border-border-subtle/60 px-4 py-2 last:border-b-0"
+                        >
+                          <span className="font-mono text-2xs tabular text-tertiary">{i + 1}</span>
+                          <span
+                            className="truncate font-mono tabular text-sm text-primary"
+                            title={h.owner}
+                          >
+                            {shortAddr(h.owner, 6, 6)}
+                          </span>
+                          <span className="font-mono tabular text-sm text-primary">
+                            {fmtPct(h.pct, 2)}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                ) : null}
+
+                {state.scannerError ? (
+                  <section className="border border-high/60 bg-high/10 p-5">
+                    <header className="mb-2 font-mono text-2xs uppercase tracking-[0.22em] text-high">
+                      ▸ {state.scannerError.error}
+                    </header>
+                    <p className="font-sans text-sm text-primary">{state.scannerError.message}</p>
+                    <button
+                      type="button"
+                      onClick={forceRescan}
+                      className="mt-4 border border-high/60 px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-high hover:bg-high/20"
+                    >
+                      retry
+                    </button>
+                  </section>
+                ) : null}
+
+                {status === "error" && error ? (
+                  <section className="border border-high/60 bg-high/10 p-5">
+                    <header className="mb-2 font-mono text-2xs uppercase tracking-[0.22em] text-high">
+                      ▸ stream failed
+                    </header>
+                    <p className="font-sans text-sm text-primary">{error.message}</p>
+                    <button
+                      type="button"
+                      onClick={forceRescan}
+                      className="mt-4 border border-high/60 px-3 py-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-high hover:bg-high/20"
+                    >
+                      retry
+                    </button>
+                  </section>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   );

@@ -133,3 +133,24 @@ export async function getTokenMarkers(mint: string, client?: ApiClient): Promise
   if (!res.ok) throw new Error(`markers ${res.status}`);
   return (await res.json()) as TokenMarkers;
 }
+
+export interface TokenCacheRow {
+  mint: string;
+  symbol: string | null;
+  name: string | null;
+  priceUsd: number | null;
+  mcUsd: number | null;
+  mc24hPct: number | null;
+  liquidityUsd: number | null;
+  firstSeenAt: string | null;
+  lastRefreshedAt: string | null;
+}
+
+/** Fetch token price-cache row from `GET /api/db/tokens/:mint`. Returns null on 404. */
+export async function getToken(mint: string, client?: ApiClient): Promise<TokenCacheRow | null> {
+  const c = client ?? getApiClient();
+  const res = await c.fetch(`/api/db/tokens/${mint}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`token ${res.status}`);
+  return (await res.json()) as TokenCacheRow;
+}
