@@ -1,5 +1,6 @@
 import type {
   Leaderboard,
+  TokenChart,
   WalletPerformance,
   WalletPnlSummary,
   WalletPositions,
@@ -82,6 +83,11 @@ export class SolanaTrackerClient {
   /** Top traders by realized PnL (ST's strict-mode leaderboard). */
   leaderboard(): Promise<Leaderboard> {
     return this.get<Leaderboard>("/v2/pnl/leaderboard/top");
+  }
+
+  /** OHLCV candles for a mint. `type` is the candle interval (e.g. "1h", "15m"). */
+  tokenChart(mint: string, type = "1h"): Promise<TokenChart> {
+    return this.get<TokenChart>(`/chart/${mint}?type=${encodeURIComponent(type)}`);
   }
 
   private async get<T>(path: string): Promise<T> {

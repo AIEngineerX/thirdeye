@@ -144,3 +144,17 @@ export interface LeaderboardTrader {
 export interface Leaderboard {
   traders: LeaderboardTrader[];
 }
+
+/** One OHLCV candle. `time` is a Unix-seconds timestamp. */
+export interface OhlcvCandle {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  time: number;
+}
+/** ST /chart response — note the upstream key is misspelled `oclhv`. */
+export interface TokenChart {
+  oclhv: OhlcvCandle[];
+}
