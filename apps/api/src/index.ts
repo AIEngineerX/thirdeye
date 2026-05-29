@@ -11,15 +11,7 @@ import { rateLimit } from "./middleware/rate-limit";
 import { authRoutes } from "./routes/auth";
 import { candidatesRoutes } from "./routes/candidates";
 import { dashboardRoutes } from "./routes/dashboard";
-import {
-  balances,
-  batchIdentity,
-  fundedBy,
-  rpc as heliusRpc,
-  identity,
-  transactions,
-  transactionsBySig,
-} from "./routes/helius";
+import { rpc as heliusRpc } from "./routes/helius";
 import { heliusWebhook } from "./routes/helius-webhook";
 import { intelAggregatesRoutes, intelFeed, intelFundersRoutes } from "./routes/intel";
 import { tokenScan } from "./routes/token";
@@ -85,17 +77,6 @@ const heliusProxyLimit = rateLimit({
   windowSec: env.HELIUS_PROXY_WINDOW_SEC,
   bypassOnByok: true,
 });
-
-const heliusRouter = new Hono<{ Variables: Variables }>();
-heliusRouter.use("*", requireAuth);
-heliusRouter.use("*", heliusProxyLimit);
-heliusRouter.route("/", identity);
-heliusRouter.route("/", balances);
-heliusRouter.route("/", fundedBy);
-heliusRouter.route("/", transactions);
-heliusRouter.route("/", batchIdentity);
-heliusRouter.route("/", transactionsBySig);
-app.route("/api/helius", heliusRouter);
 
 const heliusRpcRouter = new Hono<{ Variables: Variables }>();
 heliusRpcRouter.use("*", requireAuth);
