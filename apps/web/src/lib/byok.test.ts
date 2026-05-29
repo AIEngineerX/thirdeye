@@ -32,16 +32,14 @@ describe("byok store", () => {
 
   test("snapshot starts empty", () => {
     const s = createByokStore(storage);
-    expect(s.snapshot()).toEqual({ helius: null, anthropic: null });
+    expect(s.snapshot()).toEqual({ helius: null });
   });
 
   test("set + get round-trip", () => {
     const s = createByokStore(storage);
     s.set("helius", "hel-xyz");
-    s.set("anthropic", "sk-ant-abc");
     expect(s.get("helius")).toBe("hel-xyz");
-    expect(s.get("anthropic")).toBe("sk-ant-abc");
-    expect(s.snapshot()).toEqual({ helius: "hel-xyz", anthropic: "sk-ant-abc" });
+    expect(s.snapshot()).toEqual({ helius: "hel-xyz" });
   });
 
   test("set trims whitespace; empty string clears", () => {
@@ -52,30 +50,24 @@ describe("byok store", () => {
     expect(s.get("helius")).toBeNull();
   });
 
-  test("clear removes a single kind, leaves the other", () => {
+  test("clear removes the stored key", () => {
     const s = createByokStore(storage);
     s.set("helius", "h");
-    s.set("anthropic", "a");
     s.clear("helius");
-    expect(s.snapshot()).toEqual({ helius: null, anthropic: "a" });
+    expect(s.snapshot()).toEqual({ helius: null });
   });
 
   test("subscribe fires on set/clear", () => {
     const s = createByokStore(storage);
-    const seen: { helius: string | null; anthropic: string | null }[] = [];
+    const seen: { helius: string | null }[] = [];
     const unsubscribe = s.subscribe((snap) => seen.push(snap));
 
     s.set("helius", "h1");
-    s.set("anthropic", "a1");
     s.clear("helius");
     unsubscribe();
     s.set("helius", "ignored-after-unsubscribe");
 
-    expect(seen).toEqual([
-      { helius: "h1", anthropic: null },
-      { helius: "h1", anthropic: "a1" },
-      { helius: null, anthropic: "a1" },
-    ]);
+    expect(seen).toEqual([{ helius: "h1" }, { helius: null }]);
   });
 
   test("emit() triggers subscribers without state change (cross-tab bridge path)", () => {
@@ -95,8 +87,7 @@ describe("byok store", () => {
   test("null storage returns a no-op store", () => {
     const s = createByokStore(null);
     s.set("helius", "ignored");
-    s.set("anthropic", "ignored");
-    expect(s.snapshot()).toEqual({ helius: null, anthropic: null });
+    expect(s.snapshot()).toEqual({ helius: null });
   });
 
   test("uses prefixed keys to avoid collisions with other localStorage entries", () => {

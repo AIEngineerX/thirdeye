@@ -27,12 +27,10 @@ function buildHeaders(
   base: HeadersInit | undefined,
   token: string,
   helius: string | null,
-  anthropic: string | null,
 ): Headers {
   const h = new Headers(base);
   h.set("X-Auth-Token", token);
   if (helius) h.set("X-User-Helius-Key", helius);
-  if (anthropic) h.set("X-User-Anthropic-Key", anthropic);
   return h;
 }
 
@@ -44,7 +42,7 @@ export function createApiClient(deps: ApiDeps): ApiClient {
     async fetch(path, init = {}) {
       const token = await deps.auth.getOrIssueToken();
       const snap = deps.byok.snapshot();
-      const headers = buildHeaders(init.headers, token, snap.helius, snap.anthropic);
+      const headers = buildHeaders(init.headers, token, snap.helius);
       const first = await deps.fetchImpl(path, { ...init, headers });
 
       if (first.status !== 401) return first;
@@ -54,7 +52,7 @@ export function createApiClient(deps: ApiDeps): ApiClient {
       // exactly once with a brand-new token.
       deps.auth.invalidate();
       const newToken = await deps.auth.getOrIssueToken();
-      const retryHeaders = buildHeaders(init.headers, newToken, snap.helius, snap.anthropic);
+      const retryHeaders = buildHeaders(init.headers, newToken, snap.helius);
       return deps.fetchImpl(path, { ...init, headers: retryHeaders });
     },
   };

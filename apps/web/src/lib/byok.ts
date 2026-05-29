@@ -1,8 +1,8 @@
 /**
  * BYOK (Bring Your Own Key) storage helpers.
  *
- * Persists user-supplied Helius and Anthropic API keys in localStorage so they
- * survive reloads and ride on every authenticated request via headers.
+ * Persists the user-supplied Helius API key in localStorage so it survives
+ * reloads and rides on every authenticated request via headers.
  *
  * Pure-logic functions take a Storage backend so they can be unit-tested with
  * an in-memory shim. Production callers use `getByokStore()` which binds to
@@ -10,13 +10,12 @@
  * subscribers.
  */
 
-export type ByokKind = "helius" | "anthropic";
+export type ByokKind = "helius";
 
 const KEY_PREFIX = "thirdeye.byok.";
 
 export interface ByokSnapshot {
   helius: string | null;
-  anthropic: string | null;
 }
 
 export interface ByokStore {
@@ -58,7 +57,6 @@ export function createByokStore(storage: MinimalStorage | null): ByokStore & {
 
   const snapshot = (): ByokSnapshot => ({
     helius: read("helius"),
-    anthropic: read("anthropic"),
   });
 
   const emit = (): void => {

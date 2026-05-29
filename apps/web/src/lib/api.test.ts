@@ -94,17 +94,10 @@ describe("api wrapper", () => {
     );
     await client.fetch("/api/test");
     expect(apiCalls[0]!.headers["x-user-helius-key"]).toBeUndefined();
-    expect(apiCalls[0]!.headers["x-user-anthropic-key"]).toBeUndefined();
 
     byok.set("helius", "hel-xyz");
     await client.fetch("/api/test");
     expect(apiCalls[1]!.headers["x-user-helius-key"]).toBe("hel-xyz");
-    expect(apiCalls[1]!.headers["x-user-anthropic-key"]).toBeUndefined();
-
-    byok.set("anthropic", "sk-ant-abc");
-    await client.fetch("/api/test");
-    expect(apiCalls[2]!.headers["x-user-helius-key"]).toBe("hel-xyz");
-    expect(apiCalls[2]!.headers["x-user-anthropic-key"]).toBe("sk-ant-abc");
   });
 
   test("401 → invalidates session + retries once with fresh token", async () => {

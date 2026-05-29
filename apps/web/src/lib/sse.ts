@@ -3,7 +3,7 @@
  *
  * Why not EventSource: the browser's EventSource constructor doesn't expose
  * header customization, so we couldn't attach `X-Auth-Token` /
- * `X-User-Helius-Key` / `X-User-Anthropic-Key` to the request. Using `fetch`
+ * `X-User-Helius-Key` to the request. Using `fetch`
  * instead lets the same auth + BYOK headers ride every request, and clean
  * cancellation works via AbortController.
  *

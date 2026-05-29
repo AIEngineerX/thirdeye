@@ -2,7 +2,7 @@
 
 import { KbdInput } from "@/components/KbdInput";
 import { getApiClient } from "@/lib/api";
-import { type ByokKind, type ByokSnapshot, getByokStore } from "@/lib/byok";
+import { type ByokSnapshot, getByokStore } from "@/lib/byok";
 import { useEffect, useState } from "react";
 
 const HELIUS_TEST_RPC = {
@@ -30,7 +30,6 @@ const EMPTY_STATUS: KeyStatus = {
 
 export default function SettingsPage() {
   const [helius, setHelius] = useState<KeyStatus>(EMPTY_STATUS);
-  const [anthropic, setAnthropic] = useState<KeyStatus>(EMPTY_STATUS);
 
   // Sync local view from store on mount + on cross-tab storage events.
   useEffect(() => {
@@ -41,34 +40,21 @@ export default function SettingsPage() {
         saved: snap.helius,
         draft: snap.helius ?? "",
       }));
-      setAnthropic((prev) => ({
-        ...prev,
-        saved: snap.anthropic,
-        draft: snap.anthropic ?? "",
-      }));
     };
     sync(store.snapshot());
     return store.subscribe(sync);
   }, []);
 
-  const save = (kind: ByokKind) => {
-    const value = (kind === "helius" ? helius.draft : anthropic.draft).trim();
+  const save = () => {
+    const value = helius.draft.trim();
     if (value.length === 0) return;
-    getByokStore().set(kind, value);
-    if (kind === "helius") {
-      setHelius((p) => ({ ...p, testStatus: "idle", testMessage: null }));
-    } else {
-      setAnthropic((p) => ({ ...p, testStatus: "idle", testMessage: null }));
-    }
+    getByokStore().set("helius", value);
+    setHelius((p) => ({ ...p, testStatus: "idle", testMessage: null }));
   };
 
-  const clear = (kind: ByokKind) => {
-    getByokStore().clear(kind);
-    if (kind === "helius") {
-      setHelius({ ...EMPTY_STATUS });
-    } else {
-      setAnthropic({ ...EMPTY_STATUS });
-    }
+  const clear = () => {
+    getByokStore().clear("helius");
+    setHelius({ ...EMPTY_STATUS });
   };
 
   const testHelius = async () => {
@@ -118,23 +104,10 @@ export default function SettingsPage() {
         status={helius}
         onDraft={(v) => setHelius((p) => ({ ...p, draft: v }))}
         onReveal={() => setHelius((p) => ({ ...p, revealed: !p.revealed }))}
-        onSave={() => save("helius")}
-        onClear={() => clear("helius")}
+        onSave={save}
+        onClear={clear}
         onTest={testHelius}
         testable
-      />
-
-      <div className="my-8 h-px bg-border-subtle" />
-
-      <KeySection
-        title="Anthropic API key"
-        envVarHint="ANTHROPIC_API_KEY"
-        dashboardUrl="https://console.anthropic.com"
-        status={anthropic}
-        onDraft={(v) => setAnthropic((p) => ({ ...p, draft: v }))}
-        onReveal={() => setAnthropic((p) => ({ ...p, revealed: !p.revealed }))}
-        onSave={() => save("anthropic")}
-        onClear={() => clear("anthropic")}
       />
     </div>
   );
