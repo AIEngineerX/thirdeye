@@ -1,6 +1,8 @@
 import { type DbClient, tokens } from "@thirdeye/db";
+import { SolanaTrackerClient } from "@thirdeye/solanatracker";
 import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { env } from "../../env";
 import { clampInt, toIso } from "../../lib/http";
 import { isValidSolanaAddress } from "../../lib/solana-address";
 
@@ -36,6 +38,21 @@ function parseMinMcChange(raw: string | undefined): number | null {
   }
   const n = Number.parseFloat(trimmed);
   return Number.isFinite(n) ? n : null;
+}
+
+interface OhlcvOut {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+const ohlcvCache = new Map<string, { at: number; candles: OhlcvOut[] }>();
+const OHLCV_TTL_MS = 60_000;
+
+export function _resetOhlcvCache(): void {
+  ohlcvCache.clear();
 }
 
 // IMPORTANT — register `/hot` BEFORE `/:mint` so the static segment
@@ -74,6 +91,36 @@ tokensRoutes.get("/hot", async (c) => {
     minMcChangePct: minPct,
     limit,
   });
+});
+
+// IMPORTANT — register `/:mint/ohlcv` BEFORE `/:mint` for the same reason
+// `/hot` is registered before `/:mint`: Hono matches in declaration order.
+// Without this ordering, a request to `/:mint/ohlcv` would be captured by
+// the bare `/:mint` pattern with mint="<addr>" and never reach this handler.
+tokensRoutes.get("/:mint/ohlcv", async (c) => {
+  const mint = c.req.param("mint");
+  const type = c.req.query("type") ?? "1h";
+  if (!isValidSolanaAddress(mint)) return c.json({ error: "invalid_mint" }, 400);
+  if (!env.SOLANATRACKER_API_KEY) return c.json({ error: "ohlcv_unconfigured" }, 503);
+  const key = `${mint}:${type}`;
+  const hit = ohlcvCache.get(key);
+  if (hit && Date.now() - hit.at < OHLCV_TTL_MS) {
+    return c.json({ candles: hit.candles }, 200, { "X-ThirdEye-Cache": "HIT" });
+  }
+  const client = new SolanaTrackerClient({ apiKey: env.SOLANATRACKER_API_KEY });
+  const chart = await client.tokenChart(mint, type);
+  const candles: OhlcvOut[] = chart.oclhv
+    .map((k) => ({
+      time: k.time,
+      open: k.open,
+      high: k.high,
+      low: k.low,
+      close: k.close,
+      volume: k.volume,
+    }))
+    .sort((a, b) => a.time - b.time);
+  ohlcvCache.set(key, { at: Date.now(), candles });
+  return c.json({ candles }, 200, { "X-ThirdEye-Cache": "MISS" });
 });
 
 tokensRoutes.get("/:mint", async (c) => {
