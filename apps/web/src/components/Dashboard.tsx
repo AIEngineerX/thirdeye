@@ -10,6 +10,8 @@
  *   responsive grid (live signals left, trending + top traders right).
  */
 
+import { ActionRow } from "@/components/ActionRow";
+import { DEFAULT_FILTERS, FilterBar, type SignalFilters } from "@/components/FilterBar";
 import { KbdInput } from "@/components/KbdInput";
 import { SignalCard } from "@/components/SignalCard";
 import { StatsStrip } from "@/components/StatsStrip";
@@ -115,7 +117,7 @@ function TrendingRow({
   const pctTone = pctNum === null ? "text-tertiary" : pctNum >= 0 ? "text-clean" : "text-high";
 
   return (
-    <li className="flex items-center gap-2 border-b border-border-subtle/60 px-3 py-2 last:border-b-0">
+    <li className="flex flex-wrap items-center gap-2 border-b border-border-subtle/60 px-3 py-2 last:border-b-0">
       <Link
         href={`/token/${mint}`}
         className="font-mono text-sm text-primary hover:text-accent"
@@ -127,6 +129,7 @@ function TrendingRow({
         {pctStr ? <span className={`font-mono tabular text-xs ${pctTone}`}>{pctStr}</span> : null}
         <span className="font-mono tabular text-2xs text-tertiary">{fmtMoneyCompact(mc_usd)}</span>
       </span>
+      <ActionRow address={mint} kind="mint" />
     </li>
   );
 }
@@ -154,7 +157,7 @@ function TraderRow({
   const glyphVariant = tagGlyphVariant("SMART_MONEY");
 
   return (
-    <li className="flex items-center gap-2 border-b border-border-subtle/60 px-3 py-2 last:border-b-0">
+    <li className="flex flex-wrap items-center gap-2 border-b border-border-subtle/60 px-3 py-2 last:border-b-0">
       <WalletClassGlyph variant={glyphVariant} size={12} className="text-accent-dim shrink-0" />
       <Link
         href={`/wallet/${address}`}
@@ -169,6 +172,7 @@ function TraderRow({
         </span>
         {wr ? <span className="font-mono tabular text-xs text-clean">{wr}</span> : null}
       </span>
+      <ActionRow address={address} kind="wallet" />
     </li>
   );
 }
@@ -185,6 +189,7 @@ export function Dashboard() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [bundle, setBundle] = useState<DashboardBundle | null>(null);
   const [signals, setSignals] = useState<DashboardSignal[]>([]);
+  const [filters, setFilters] = useState<SignalFilters>(DEFAULT_FILTERS);
 
   // Command-bar search
   const searchRef = useRef<HTMLInputElement>(null);
@@ -316,7 +321,8 @@ export function Dashboard() {
           <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_360px]">
             {/* Left: Live Signals */}
             <section>
-              <header className="mb-2 flex items-center gap-2 px-1">
+              <FilterBar value={filters} onChange={setFilters} />
+              <header className="mb-2 mt-3 flex items-center gap-2 px-1">
                 <span className="font-mono text-2xs uppercase tracking-[0.22em] text-tertiary">
                   ▸ LIVE SIGNALS
                 </span>
@@ -325,19 +331,42 @@ export function Dashboard() {
                 </span>
               </header>
 
-              {signals.length === 0 ? (
-                <div className="border border-border-subtle px-4 py-8">
-                  <p className="font-mono text-sm text-tertiary">
-                    no signals yet — promote some smart-money wallets
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  {signals.map((sig) => (
-                    <SignalCard key={sig.id} signal={sig} />
-                  ))}
-                </div>
-              )}
+              {(() => {
+                const shown = signals.filter(
+                  (s) =>
+                    (!filters.independentOnly || s.trust === "independent") &&
+                    s.wallet_count >= filters.minWallets &&
+                    (filters.minCallMc === null || (s.call_mc ?? 0) >= filters.minCallMc) &&
+                    (filters.maxAgeHours === null ||
+                      Date.now() - new Date(s.detected_at).getTime() <=
+                        filters.maxAgeHours * 3_600_000),
+                );
+                if (signals.length === 0) {
+                  return (
+                    <div className="border border-border-subtle px-4 py-8">
+                      <p className="font-mono text-sm text-tertiary">
+                        no signals yet — promote some smart-money wallets
+                      </p>
+                    </div>
+                  );
+                }
+                if (shown.length === 0) {
+                  return (
+                    <div className="border border-border-subtle px-4 py-8">
+                      <p className="font-mono text-sm text-tertiary">
+                        no signals match the current filters
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex flex-col gap-1.5">
+                    {shown.map((sig) => (
+                      <SignalCard key={sig.id} signal={sig} />
+                    ))}
+                  </div>
+                );
+              })()}
             </section>
 
             {/* Right: Trending + Top Traders */}

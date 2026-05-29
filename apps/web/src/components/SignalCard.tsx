@@ -4,6 +4,8 @@
  * call→ATH multiple, and a proportional bar + relative age.
  */
 
+import { ActionRow } from "@/components/ActionRow";
+import { Chip } from "@/components/Chip";
 import type { DashboardSignal } from "@/lib/api-types";
 import { fmtMoneyCompact, fmtRelative, shortAddr } from "@/lib/format";
 import Link from "next/link";
@@ -71,13 +73,9 @@ export function SignalCard({ signal }: SignalCardProps) {
         </span>
 
         {/* trust chip — right-aligned */}
-        <span
-          className={[
-            "ml-auto font-mono text-2xs uppercase tracking-[0.16em]",
-            isIndep ? "text-clean" : "text-high",
-          ].join(" ")}
-        >
-          {isIndep ? "indep" : "⚠ co-funded"}
+        <span className="ml-auto flex items-center gap-1.5">
+          <Chip tone={isIndep ? "mint" : "crimson"}>{isIndep ? "indep" : "⚠ co-funded"}</Chip>
+          {is_hit ? <Chip tone="mint">HIT</Chip> : null}
         </span>
       </div>
 
@@ -99,15 +97,11 @@ export function SignalCard({ signal }: SignalCardProps) {
           </span>
         ) : null}
 
-        {is_hit ? (
-          <span className="ml-auto rounded-sm bg-clean/15 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-[0.18em] text-clean">
-            HIT
-          </span>
-        ) : (
+        {!is_hit ? (
           <span className="ml-auto font-mono text-2xs uppercase tracking-[0.18em] text-tertiary/60">
             open
           </span>
-        )}
+        ) : null}
       </div>
 
       {/* Row 3: proportional bar + age */}
@@ -121,6 +115,11 @@ export function SignalCard({ signal }: SignalCardProps) {
         <span className="shrink-0 font-mono text-2xs tabular text-tertiary">
           {fmtRelative(detected_at)}
         </span>
+      </div>
+
+      {/* Footer: action buttons */}
+      <div className="border-t border-border-subtle/60 px-3 py-2">
+        <ActionRow address={mint} kind="mint" />
       </div>
     </article>
   );
