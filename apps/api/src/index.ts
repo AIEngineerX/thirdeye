@@ -13,7 +13,7 @@ import { candidatesRoutes } from "./routes/candidates";
 import { dashboardRoutes } from "./routes/dashboard";
 import { rpc as heliusRpc } from "./routes/helius";
 import { heliusWebhook } from "./routes/helius-webhook";
-import { intelAggregatesRoutes, intelFeed, intelFundersRoutes } from "./routes/intel";
+import { intelFeed } from "./routes/intel";
 import { tokenScan } from "./routes/token";
 import { tokensRoutes } from "./routes/tokens";
 import { trackedRoutes } from "./routes/tracked";
@@ -113,13 +113,6 @@ tokenRouter.use("*", requireAuth);
 tokenRouter.use("*", scanTokenLimit);
 tokenRouter.route("/", tokenScan);
 app.route("/api/token", tokenRouter);
-
-// Intel module — read aggregates + funders apply requireAuth per-route
-// (NOT via use("*")) because SSE feed lives at the same /api/db/intel
-// prefix. A wildcard middleware would leak across sub-routers and
-// intercept /feed before its query-param token check could run.
-app.route("/api/db/intel", intelAggregatesRoutes);
-app.route("/api/db/intel", intelFundersRoutes);
 
 const watchesRouter = new Hono<{ Variables: Variables }>();
 watchesRouter.use("*", requireAuth);

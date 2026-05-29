@@ -8,7 +8,6 @@ import { initIntelBus } from "../lib/intel-bus";
 import { syncLeaderboardCandidates } from "../lib/wallet-universe";
 import { cleanupTables } from "./cleanup-tables";
 import { enrichWallet } from "./enrich-wallet";
-import { refreshAggregates } from "./refresh-aggregates";
 import { refreshSignals } from "./signals-refresh";
 import { refreshTokens } from "./tokens-refresh";
 
@@ -25,7 +24,6 @@ export interface RunnerOptions {
 }
 
 const CRONTAB = `
-* * * * * refresh-aggregates ?fill=1m
 * * * * * tokens-refresh ?fill=1m
 * * * * * signals-refresh ?fill=1m
 0 * * * * enrich-wallet ?fill=1h
@@ -43,9 +41,6 @@ export async function startWorker(opts: RunnerOptions): Promise<Runner> {
     concurrency: 4,
     pollInterval: 1000,
     taskList: {
-      "refresh-aggregates": async () => {
-        await refreshAggregates(opts.db);
-      },
       "tokens-refresh": async () => {
         await refreshTokens(opts.db, { source: priceSource });
       },
