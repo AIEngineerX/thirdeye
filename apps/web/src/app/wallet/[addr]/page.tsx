@@ -1,5 +1,8 @@
 "use client";
 
+import { ActionRow } from "@/components/ActionRow";
+import { Chip } from "@/components/Chip";
+import { type Column, DataTable } from "@/components/DataTable";
 import { EvidenceStrip } from "@/components/EvidenceStrip";
 import { api } from "@/lib/api";
 import {
@@ -19,6 +22,7 @@ import {
   type WalletPnlSummary,
   type WalletTrade,
 } from "@/lib/pnl-types";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -116,7 +120,7 @@ export default function WalletDetailPage() {
         </div>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-col gap-2">
         <EvidenceStrip
           address={addr}
           kind="wallet"
@@ -127,6 +131,7 @@ export default function WalletDetailPage() {
               : undefined
           }
         />
+        <ActionRow address={addr} kind="wallet" />
       </div>
 
       {status === "error" ? (
@@ -435,51 +440,111 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
+interface PositionRow extends Record<string, unknown> {
+  token: string;
+  symbol: string;
+  name: string;
+  rugged: boolean;
+  realized: number;
+  unrealized: number;
+  total: number;
+  roi: number | null;
+  invested: number;
+  value: number;
+}
+
+const POSITION_COLUMNS: Column<PositionRow>[] = [
+  {
+    key: "symbol",
+    label: "token",
+    sortable: false,
+    align: "left",
+    render: (row) => (
+      <div className="flex min-w-40 flex-wrap items-center gap-1.5">
+        <div className="flex flex-col gap-0.5">
+          <Link href={`/token/${row.token}`} className="text-accent hover:underline">
+            {row.symbol || "?"}
+          </Link>
+          <span className="truncate text-[11px] normal-case tracking-normal text-tertiary">
+            {row.name || shortAddr(row.token, 5, 5)}
+          </span>
+        </div>
+        {row.rugged ? <Chip tone="crimson">rugged</Chip> : null}
+      </div>
+    ),
+  },
+  {
+    key: "total",
+    label: "pnl",
+    sortable: true,
+    align: "right",
+    render: (row) => <span className={TONE_CLASS[tone(row.total)]}>{fmtUsdSigned(row.total)}</span>,
+  },
+  {
+    key: "realized",
+    label: "realized",
+    sortable: true,
+    align: "right",
+    render: (row) => (
+      <span className={TONE_CLASS[tone(row.realized)]}>{fmtUsdSigned(row.realized)}</span>
+    ),
+  },
+  {
+    key: "unrealized",
+    label: "unrealized",
+    sortable: true,
+    align: "right",
+    render: (row) => (
+      <span className={TONE_CLASS[tone(row.unrealized)]}>{fmtUsdSigned(row.unrealized)}</span>
+    ),
+  },
+  {
+    key: "roi",
+    label: "roi",
+    sortable: true,
+    align: "right",
+    render: (row) => (
+      <span className={row.roi === null ? "text-tertiary" : TONE_CLASS[tone(row.roi)]}>
+        {row.roi === null ? "—" : fmtPct(row.roi, 0)}
+      </span>
+    ),
+  },
+  {
+    key: "value",
+    label: "holding",
+    sortable: true,
+    align: "right",
+    render: (row) => (
+      <span className="text-secondary">{row.value > 0 ? fmtUsd(row.value) : "—"}</span>
+    ),
+  },
+];
+
 function PositionsTable({ positions }: { positions: TokenPosition[] }) {
+  const rows: PositionRow[] = positions.map((p) => ({
+    token: p.token,
+    symbol: p.meta.symbol,
+    name: p.meta.name,
+    rugged: p.meta.rugged,
+    realized: p.pnl.realized,
+    unrealized: p.pnl.unrealized,
+    total: p.pnl.total,
+    roi: p.roi,
+    invested: p.invested,
+    value: p.current.value,
+  }));
+
   return (
     <Section title={`positions · top ${positions.length} by impact`}>
       {positions.length === 0 ? (
         <Empty label="no positions" />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse font-mono text-sm">
-            <thead>
-              <Tr head>
-                <Th>token</Th>
-                <Th right>pnl</Th>
-                <Th right>roi</Th>
-                <Th right>invested</Th>
-                <Th right>holding</Th>
-              </Tr>
-            </thead>
-            <tbody>
-              {positions.map((p) => (
-                <Tr key={p.token}>
-                  <Th>
-                    <div className="flex min-w-40 flex-col gap-0.5">
-                      <span className="text-primary">{p.meta.symbol || "?"}</span>
-                      <span className="truncate text-[11px] normal-case tracking-normal text-tertiary">
-                        {p.meta.name || shortAddr(p.token, 5, 5)}
-                      </span>
-                    </div>
-                    {p.meta.rugged ? (
-                      <span className="ml-2 text-2xs uppercase tracking-[0.15em] text-high">
-                        rug
-                      </span>
-                    ) : null}
-                  </Th>
-                  <Td right className={TONE_CLASS[tone(p.pnl.total)]}>
-                    {fmtUsdSigned(p.pnl.total)}
-                  </Td>
-                  <Td right className={p.roi === null ? "text-tertiary" : TONE_CLASS[tone(p.roi)]}>
-                    {fmtPct(p.roi, 0)}
-                  </Td>
-                  <Td right>{fmtUsd(p.invested)}</Td>
-                  <Td right>{p.current.value > 0 ? fmtUsd(p.current.value) : "—"}</Td>
-                </Tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable<PositionRow>
+            rows={rows}
+            columns={POSITION_COLUMNS}
+            initialSort={{ key: "total", dir: "desc" }}
+          />
         </div>
       )}
     </Section>
