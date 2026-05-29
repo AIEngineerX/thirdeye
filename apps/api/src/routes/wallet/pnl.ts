@@ -29,10 +29,12 @@ walletPnl.get("/:addr/pnl", async (c) => {
   try {
     const summary = await client.walletPnl(addr);
     const positions = await client.walletPositions(addr);
+    const performance = await client.walletPerformance(addr);
     const trades = await client.walletTrades(addr);
     return c.json({
       summary,
       positions: positions.positions,
+      performance,
       trades: trades.trades,
       hasMoreTrades: trades.hasNextPage,
     });

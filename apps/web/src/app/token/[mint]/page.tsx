@@ -1,6 +1,6 @@
 "use client";
 
-import { AddressBanner } from "@/components/AddressBanner";
+import { EvidenceStrip } from "@/components/EvidenceStrip";
 import { MetricStamp } from "@/components/MetricStamp";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { Ticker, type TickerItem } from "@/components/Ticker";
@@ -156,6 +156,213 @@ function verdictTone(v: TokenVerdict | null): "primary" | "clean" | "med" | "hig
   }
 }
 
+function TokenForensicHero({
+  state,
+  risk,
+  verdict,
+  isStreaming,
+  isDone,
+}: {
+  state: TokenState;
+  risk: number | null;
+  verdict: TokenVerdict | null;
+  isStreaming: boolean;
+  isDone: boolean;
+}) {
+  const topHolderPct = state.topHolders.slice(0, 10).reduce((sum, h) => sum + h.pct, 0);
+  const clusteredPct = state.result?.totalClusteredPct ?? 0;
+  const scanned =
+    state.fundingProgress === null
+      ? 0
+      : (state.fundingProgress.scanned / Math.max(1, state.fundingProgress.total)) * 100;
+  const bars = [
+    ["clustered", clusteredPct, clusteredPct > 50 ? "high" : clusteredPct > 20 ? "med" : "clean"],
+    ["top 10", topHolderPct, topHolderPct > 50 ? "high" : topHolderPct > 25 ? "med" : "primary"],
+    ["lp", state.lpPct ?? 0, "primary"],
+    ["locked", state.lockedPct ?? 0, (state.lockedPct ?? 0) > 50 ? "clean" : "med"],
+    ["scan", scanned, isStreaming ? "med" : isDone ? "clean" : "primary"],
+  ] as const;
+
+  return (
+    <section className="mb-6 border border-border-subtle bg-card">
+      <div className="grid gap-px bg-border-subtle lg:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.8fr)]">
+        <div className="bg-card p-4">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="font-mono text-2xs uppercase tracking-[0.22em] text-tertiary">
+                forensic exposure
+              </div>
+              <div className="mt-2 flex flex-wrap items-baseline gap-3">
+                <span className={`font-mono text-4xl tabular ${toneClass(verdictTone(verdict))}`}>
+                  {risk === null ? "--" : risk}
+                </span>
+                <span className="font-mono text-2xs uppercase tracking-[0.18em] text-secondary">
+                  {verdict ?? "scanning"}
+                </span>
+              </div>
+            </div>
+            <div className="font-mono text-2xs uppercase tracking-[0.14em] text-tertiary">
+              {isStreaming ? (
+                <span className="cursor-blink text-secondary">streaming scan</span>
+              ) : isDone ? (
+                "scan complete"
+              ) : (
+                "waiting"
+              )}
+            </div>
+          </div>
+          <ClusterBubbleMap clusters={state.clusters} topHolders={state.topHolders} />
+        </div>
+        <div className="bg-card p-4">
+          <div className="font-mono text-2xs uppercase tracking-[0.22em] text-tertiary">
+            exposure mix
+          </div>
+          <div className="mt-4 space-y-3">
+            {bars.map(([label, value, tone]) => (
+              <ExposureBar key={label} label={label} value={value} tone={tone} />
+            ))}
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-px bg-border-subtle font-mono">
+            <MiniCell
+              label="holders"
+              value={state.holdersTotal === null ? "--" : fmtInt(state.holdersTotal)}
+            />
+            <MiniCell
+              label="scanned"
+              value={state.holdersScanned === null ? "--" : fmtInt(state.holdersScanned)}
+            />
+            <MiniCell label="clusters" value={fmtInt(state.clusters.length)} />
+            <MiniCell
+              label="bundle flag"
+              value={state.result?.sybilFlag ? "detected" : state.result ? "clear" : "--"}
+              tone={state.result?.sybilFlag ? "high" : "primary"}
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ClusterBubbleMap({
+  clusters,
+  topHolders,
+}: {
+  clusters: TokenCluster[];
+  topHolders: TopHolder[];
+}) {
+  const items =
+    clusters.length > 0
+      ? clusters.slice(0, 14).map((c, i) => ({
+          id: `${c.root}-${i}`,
+          label: shortAddr(c.root, 3, 3),
+          pct: c.totalPct,
+          detail: `${fmtInt(c.members.length)} wallets`,
+        }))
+      : topHolders.slice(0, 14).map((h, i) => ({
+          id: `${h.owner}-${i}`,
+          label: shortAddr(h.owner, 3, 3),
+          pct: h.pct,
+          detail: "holder",
+        }));
+  if (items.length === 0) {
+    return (
+      <div className="flex h-64 items-center justify-center border border-border-subtle bg-base font-mono text-2xs uppercase tracking-[0.2em] text-tertiary">
+        awaiting holder stream
+      </div>
+    );
+  }
+  const max = Math.max(...items.map((i) => i.pct), 1);
+  return (
+    <div className="grid min-h-64 grid-cols-2 gap-px bg-border-subtle sm:grid-cols-4 lg:grid-cols-7">
+      {items.map((item, i) => {
+        const scale = 0.42 + (item.pct / max) * 0.58;
+        const tone =
+          item.pct > 10
+            ? "bg-high text-primary"
+            : item.pct > 3
+              ? "bg-accent-bg text-accent"
+              : "bg-base text-secondary";
+        return (
+          <div
+            key={item.id}
+            className="flex min-h-28 items-center justify-center bg-card p-2"
+            title={`${item.label} · ${fmtPct(item.pct, 2)} · ${item.detail}`}
+          >
+            <div
+              className={`flex aspect-square min-h-12 min-w-12 flex-col items-center justify-center rounded-full border border-border-emphasis px-2 text-center font-mono ${tone}`}
+              style={{ transform: `scale(${scale})` }}
+            >
+              <span className="text-2xs tabular">{i + 1}</span>
+              <span className="mt-1 text-2xs tabular">{fmtPct(item.pct, 1)}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ExposureBar({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "primary" | "clean" | "med" | "high";
+}) {
+  const width = Math.max(2, Math.min(100, value));
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between font-mono text-2xs uppercase tracking-[0.14em]">
+        <span className="text-tertiary">{label}</span>
+        <span className={toneClass(tone)}>{fmtPct(value, 1)}</span>
+      </div>
+      <div className="h-2 bg-base">
+        <div className={`h-full ${barClass(tone)}`} style={{ width: `${width}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function MiniCell({
+  label,
+  value,
+  tone = "primary",
+}: {
+  label: string;
+  value: string;
+  tone?: "primary" | "clean" | "med" | "high";
+}) {
+  return (
+    <div className="bg-card px-3 py-2">
+      <div className="text-2xs uppercase tracking-[0.15em] text-tertiary">{label}</div>
+      <div className={`mt-1 text-sm tabular ${toneClass(tone)}`}>{value}</div>
+    </div>
+  );
+}
+
+function toneClass(tone: "primary" | "clean" | "med" | "high") {
+  return tone === "clean"
+    ? "text-clean"
+    : tone === "med"
+      ? "text-med"
+      : tone === "high"
+        ? "text-high"
+        : "text-primary";
+}
+
+function barClass(tone: "primary" | "clean" | "med" | "high") {
+  return tone === "clean"
+    ? "bg-clean"
+    : tone === "med"
+      ? "bg-med"
+      : tone === "high"
+        ? "bg-high"
+        : "bg-accent";
+}
+
 export default function TokenDetailPage() {
   const params = useParams<{ mint: string }>();
   const router = useRouter();
@@ -244,9 +451,22 @@ export default function TokenDetailPage() {
           </div>
         </div>
 
-        <div className="mb-8">
-          <AddressBanner address={mint} label="mint address" />
+        <div className="mb-6">
+          <EvidenceStrip
+            address={mint}
+            kind="mint"
+            label="mint evidence"
+            meta={state.metadata?.symbol ?? undefined}
+          />
         </div>
+
+        <TokenForensicHero
+          state={state}
+          risk={risk}
+          verdict={verdict}
+          isStreaming={isStreaming}
+          isDone={isDone}
+        />
 
         <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
           <MetricStamp
@@ -277,10 +497,10 @@ export default function TokenDetailPage() {
                 mono: false,
               },
               {
-                label: "sybil flag",
+                label: "bundle flag",
                 value: state.result ? (
                   state.result.sybilFlag ? (
-                    <span className="text-high">▲ true</span>
+                    <span className="text-high">detected</span>
                   ) : (
                     "false"
                   )

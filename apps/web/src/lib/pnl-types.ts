@@ -40,9 +40,35 @@ export interface WalletTrade {
   time: number;
 }
 
+export interface WalletPerformanceDay {
+  date: string;
+  realizedPnl: number;
+  volume: number;
+  totalPnl: number;
+  trades: number;
+}
+
+export interface WalletPerformance {
+  wallet: string;
+  identity: string | null;
+  window: number;
+  totals: { realizedPnl: number; volume: number; trades: number };
+  bestDay: WalletPerformanceDay;
+  worstDay: WalletPerformanceDay;
+  streaks: {
+    positive: number;
+    negative: number;
+    currentPositive: number;
+    currentNegative: number;
+  };
+  drawdown: { amount: number; percent: number };
+  days: WalletPerformanceDay[];
+}
+
 export interface WalletPnlResponse {
   summary: WalletPnlSummary;
   positions: TokenPosition[];
+  performance: WalletPerformance;
   trades: WalletTrade[];
   hasMoreTrades: boolean;
 }

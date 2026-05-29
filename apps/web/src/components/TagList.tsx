@@ -1,23 +1,17 @@
-/**
- * Behavioral tag list with per-tag color coding.
- *
- * Tag color scheme (resolves the spec-taste reviewer's "four things red"
- * complaint — every distinct danger signal now has its own hue):
- *
- *   SMART_MONEY     → mint    (rare positive signal)
- *   BUNDLER         → amber   (active manipulation, brand accent)
- *   SYBIL           → crimson (most severe: multi-account fraud)
- *   FRESH_WALLET    → slate   (caution flag, not crime)
- *   default         → slate   (neutral)
- */
+import { WalletClassGlyph, tagGlyphVariant, tagLabel } from "./WalletClassGlyph";
 
 type TagTone = "mint" | "amber" | "crimson" | "slate";
 
 const TAG_TONE: Record<string, TagTone> = {
   SMART_MONEY: "mint",
   BUNDLER: "amber",
+  BUNDLER_TIGHT: "amber",
   SYBIL: "crimson",
   FRESH_WALLET: "slate",
+  FUND_DISTRIBUTOR: "amber",
+  SNIPER: "crimson",
+  WHALE: "slate",
+  EXCHANGE: "slate",
 };
 
 const TONE_CLASSES: Record<TagTone, { color: string; border: string; bg: string }> = {
@@ -47,15 +41,16 @@ export function TagList({ tags }: TagListProps) {
         return (
           <li
             key={tag}
+            title={tag}
             className={[
-              "inline-flex items-center border px-2.5 py-1 font-mono text-2xs uppercase tracking-[0.18em]",
+              "inline-flex items-center gap-1.5 border px-2.5 py-1 font-mono text-2xs uppercase tracking-[0.18em]",
               tone.color,
               tone.border,
               tone.bg,
             ].join(" ")}
           >
-            <span className="mr-1.5 opacity-60">▢</span>
-            {tag}
+            <WalletClassGlyph variant={tagGlyphVariant(tag)} size={12} className="opacity-75" />
+            {tagLabel(tag)}
           </li>
         );
       })}

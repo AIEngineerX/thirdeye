@@ -23,6 +23,9 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "ThirdEye",
   description: "Solana wallet & token forensics — the eye that sees what the other two cannot.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 const NAV = [
