@@ -4,10 +4,11 @@
  * /leaderboard — ranked view of tracked traders.
  *
  * Toggle between two sort modes sourced from a single getDashboard() fetch:
- *   - Outcome-scored (default): rank by signal_winrate desc, then signal_wins desc.
+ *   - Outcome-scored (default): rank by signal_winrate desc.
  *   - ST-PnL: rank by realized_pnl_usd desc.
  */
 
+import { type Column, DataTable } from "@/components/DataTable";
 import { WalletClassGlyph, tagGlyphVariant } from "@/components/WalletClassGlyph";
 import { getDashboard } from "@/lib/api";
 import type { DashboardTrader } from "@/lib/api-types";
@@ -16,126 +17,104 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 // ---------------------------------------------------------------------------
-// Sorting helpers
+// Column definitions
 // ---------------------------------------------------------------------------
 
-function sortOutcome(traders: DashboardTrader[]): DashboardTrader[] {
-  return [...traders].sort((a, b) => {
-    // nulls last
-    if (a.signal_winrate === null && b.signal_winrate === null)
-      return b.signal_wins - a.signal_wins;
-    if (a.signal_winrate === null) return 1;
-    if (b.signal_winrate === null) return -1;
-    if (b.signal_winrate !== a.signal_winrate) return b.signal_winrate - a.signal_winrate;
-    return b.signal_wins - a.signal_wins;
-  });
-}
+type TraderRow = DashboardTrader & Record<string, unknown>;
 
-function sortPnl(traders: DashboardTrader[]): DashboardTrader[] {
-  return [...traders].sort((a, b) => {
-    if (a.realized_pnl_usd === null && b.realized_pnl_usd === null) return 0;
-    if (a.realized_pnl_usd === null) return 1;
-    if (b.realized_pnl_usd === null) return -1;
-    return b.realized_pnl_usd - a.realized_pnl_usd;
-  });
-}
+const traderCol: Column<TraderRow> = {
+  key: "address",
+  label: "trader",
+  sortable: false,
+  align: "left",
+  render: (row) => {
+    const display = row.label ?? shortAddr(row.address);
+    const glyphVariant = tagGlyphVariant("SMART_MONEY");
+    return (
+      <span className="flex items-center gap-2">
+        <WalletClassGlyph variant={glyphVariant} size={12} className="shrink-0 text-accent-dim" />
+        <Link
+          href={`/wallet/${row.address}`}
+          className="font-mono text-sm text-primary hover:text-accent"
+          title={row.address}
+        >
+          {display}
+        </Link>
+      </span>
+    );
+  },
+};
 
-// ---------------------------------------------------------------------------
-// Row components
-// ---------------------------------------------------------------------------
+const outcomeCols: Column<TraderRow>[] = [
+  traderCol,
+  {
+    key: "signal_wins",
+    label: "wins/signals",
+    sortable: true,
+    align: "right",
+    render: (row) => (
+      <span className="text-tertiary">
+        {row.signal_wins}/{row.signal_signals}
+      </span>
+    ),
+  },
+  {
+    key: "signal_winrate",
+    label: "win rate",
+    sortable: true,
+    align: "right",
+    render: (row) => {
+      const wr =
+        row.signal_winrate !== null && Number.isFinite(row.signal_winrate as number)
+          ? `${Math.round((row.signal_winrate as number) * 100)}%`
+          : null;
+      return wr !== null ? (
+        <span className="text-clean">{wr}</span>
+      ) : (
+        <span className="text-tertiary">—</span>
+      );
+    },
+  },
+];
 
-function OutcomeRow({
-  rank,
-  trader,
-}: {
-  rank: number;
-  trader: DashboardTrader;
-}) {
-  const display = trader.label ?? shortAddr(trader.address);
-  const wr =
-    trader.signal_winrate !== null && Number.isFinite(trader.signal_winrate)
-      ? `${Math.round(trader.signal_winrate * 100)}%`
-      : null;
-  const glyphVariant = tagGlyphVariant("SMART_MONEY");
-
-  return (
-    <tr className="border-b border-border-subtle/60 last:border-b-0 hover:bg-card-hover/40">
-      <td className="w-10 px-3 py-2 font-mono tabular text-2xs text-tertiary">{rank}</td>
-      <td className="px-3 py-2">
-        <span className="flex items-center gap-2">
-          <WalletClassGlyph variant={glyphVariant} size={12} className="shrink-0 text-accent-dim" />
-          <Link
-            href={`/wallet/${trader.address}`}
-            className="font-mono text-sm text-primary hover:text-accent"
-            title={trader.address}
-          >
-            {display}
-          </Link>
-        </span>
-      </td>
-      <td className="px-3 py-2 text-right font-mono tabular text-xs text-tertiary">
-        {trader.signal_wins}/{trader.signal_signals}
-      </td>
-      <td className="px-3 py-2 text-right font-mono tabular text-xs">
-        {wr !== null ? (
-          <span className="text-clean">{wr}</span>
-        ) : (
-          <span className="text-tertiary">—</span>
-        )}
-      </td>
-    </tr>
-  );
-}
-
-function PnlRow({
-  rank,
-  trader,
-}: {
-  rank: number;
-  trader: DashboardTrader;
-}) {
-  const display = trader.label ?? shortAddr(trader.address);
-  const pnlStr = fmtUsdSigned(trader.realized_pnl_usd);
-  const pnlTone =
-    trader.realized_pnl_usd === null
-      ? "text-tertiary"
-      : trader.realized_pnl_usd > 0
-        ? "text-clean"
-        : trader.realized_pnl_usd < 0
-          ? "text-high"
-          : "text-secondary";
-  const wr =
-    trader.win_rate !== null && Number.isFinite(trader.win_rate)
-      ? `${Math.round(trader.win_rate * 100)}%`
-      : null;
-  const glyphVariant = tagGlyphVariant("SMART_MONEY");
-
-  return (
-    <tr className="border-b border-border-subtle/60 last:border-b-0 hover:bg-card-hover/40">
-      <td className="w-10 px-3 py-2 font-mono tabular text-2xs text-tertiary">{rank}</td>
-      <td className="px-3 py-2">
-        <span className="flex items-center gap-2">
-          <WalletClassGlyph variant={glyphVariant} size={12} className="shrink-0 text-accent-dim" />
-          <Link
-            href={`/wallet/${trader.address}`}
-            className="font-mono text-sm text-primary hover:text-accent"
-            title={trader.address}
-          >
-            {display}
-          </Link>
-        </span>
-      </td>
-      <td className={`px-3 py-2 text-right font-mono tabular text-xs ${pnlTone}`}>{pnlStr}</td>
-      <td className="px-3 py-2 text-right font-mono tabular text-xs">
-        {wr !== null ? (
-          <span className="text-secondary">{wr}</span>
-        ) : (
-          <span className="text-tertiary">—</span>
-        )}
-      </td>
-    </tr>
-  );
-}
+const pnlCols: Column<TraderRow>[] = [
+  traderCol,
+  {
+    key: "realized_pnl_usd",
+    label: "realized PnL",
+    sortable: true,
+    align: "right",
+    render: (row) => {
+      const pnlStr = fmtUsdSigned(row.realized_pnl_usd as number | null);
+      const pnlTone =
+        row.realized_pnl_usd === null
+          ? "text-tertiary"
+          : (row.realized_pnl_usd as number) > 0
+            ? "text-clean"
+            : (row.realized_pnl_usd as number) < 0
+              ? "text-high"
+              : "text-secondary";
+      return <span className={`font-mono tabular ${pnlTone}`}>{pnlStr}</span>;
+    },
+  },
+  {
+    key: "win_rate",
+    label: "win rate",
+    sortable: true,
+    align: "right",
+    render: (row) => {
+      const wr =
+        row.win_rate !== null && Number.isFinite(row.win_rate as number)
+          ? `${Math.round((row.win_rate as number) * 100)}%`
+          : null;
+      return wr !== null ? (
+        <span className="text-secondary">{wr}</span>
+      ) : (
+        <span className="text-tertiary">—</span>
+      );
+    },
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Page
@@ -168,7 +147,7 @@ export default function LeaderboardPage() {
     };
   }, []);
 
-  const sorted = mode === "outcome" ? sortOutcome(traders) : sortPnl(traders);
+  const rows = traders as TraderRow[];
 
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-8">
@@ -229,53 +208,26 @@ export default function LeaderboardPage() {
       {/* Table */}
       {loadState === "ready" && (
         <>
-          {sorted.length === 0 ? (
+          {rows.length === 0 ? (
             <div className="border border-border-subtle px-4 py-8">
               <p className="font-mono text-sm text-tertiary">no tracked traders yet</p>
             </div>
           ) : (
             <div className="border border-border-subtle bg-card">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-border-subtle">
-                    <th className="px-3 py-2 text-left font-mono text-2xs uppercase tracking-[0.18em] text-tertiary">
-                      #
-                    </th>
-                    <th className="px-3 py-2 text-left font-mono text-2xs uppercase tracking-[0.18em] text-tertiary">
-                      trader
-                    </th>
-                    {mode === "outcome" ? (
-                      <>
-                        <th className="px-3 py-2 text-right font-mono text-2xs uppercase tracking-[0.18em] text-tertiary">
-                          wins/signals
-                        </th>
-                        <th className="px-3 py-2 text-right font-mono text-2xs uppercase tracking-[0.18em] text-tertiary">
-                          win rate
-                        </th>
-                      </>
-                    ) : (
-                      <>
-                        <th className="px-3 py-2 text-right font-mono text-2xs uppercase tracking-[0.18em] text-tertiary">
-                          realized PnL
-                        </th>
-                        <th className="px-3 py-2 text-right font-mono text-2xs uppercase tracking-[0.18em] text-tertiary">
-                          win rate
-                        </th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {mode === "outcome"
-                    ? sorted.map((t, i) => <OutcomeRow key={t.address} rank={i + 1} trader={t} />)
-                    : sorted.map((t, i) => <PnlRow key={t.address} rank={i + 1} trader={t} />)}
-                </tbody>
-              </table>
+              <DataTable
+                rows={rows}
+                columns={mode === "outcome" ? outcomeCols : pnlCols}
+                initialSort={
+                  mode === "outcome"
+                    ? { key: "signal_winrate", dir: "desc" }
+                    : { key: "realized_pnl_usd", dir: "desc" }
+                }
+              />
             </div>
           )}
 
           <p className="mt-3 font-mono text-2xs text-tertiary/60">
-            {sorted.length} trader{sorted.length !== 1 ? "s" : ""}
+            {rows.length} trader{rows.length !== 1 ? "s" : ""}
           </p>
         </>
       )}
