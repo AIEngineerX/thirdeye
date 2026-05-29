@@ -5,14 +5,12 @@ import { KbdInput } from "@/components/KbdInput";
 export interface SignalFilters {
   independentOnly: boolean;
   minWallets: number;
-  maxAgeHours: number | null;
   minCallMc: number | null;
 }
 
 export const DEFAULT_FILTERS: SignalFilters = {
   independentOnly: true,
   minWallets: 2,
-  maxAgeHours: null,
   minCallMc: null,
 };
 
@@ -49,9 +47,11 @@ export function FilterBar({
       <span className="w-24">
         <KbdInput
           value={value.minCallMc === null ? "" : String(value.minCallMc)}
-          onChange={(v: string) =>
-            onChange({ ...value, minCallMc: v.trim() === "" ? null : Number(v) })
-          }
+          onChange={(v: string) => {
+            const tval = v.trim();
+            const n = Number(tval);
+            onChange({ ...value, minCallMc: tval === "" || !Number.isFinite(n) ? null : n });
+          }}
           onSubmit={() => {}}
           placeholder="min MC"
           aria-label="min call market cap"

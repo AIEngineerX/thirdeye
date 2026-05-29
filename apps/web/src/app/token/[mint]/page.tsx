@@ -419,6 +419,7 @@ export default function TokenDetailPage() {
           for (const b of mk.value.buys) {
             ms.push({ time: b.time, position: "belowBar", color: MINT, shape: "circle" });
           }
+          ms.sort((a, b) => a.time - b.time);
           setMarkers(ms);
         }
 

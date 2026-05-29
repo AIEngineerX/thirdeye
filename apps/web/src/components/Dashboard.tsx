@@ -336,10 +336,7 @@ export function Dashboard() {
                   (s) =>
                     (!filters.independentOnly || s.trust === "independent") &&
                     s.wallet_count >= filters.minWallets &&
-                    (filters.minCallMc === null || (s.call_mc ?? 0) >= filters.minCallMc) &&
-                    (filters.maxAgeHours === null ||
-                      Date.now() - new Date(s.detected_at).getTime() <=
-                        filters.maxAgeHours * 3_600_000),
+                    (filters.minCallMc === null || (s.call_mc ?? 0) >= filters.minCallMc),
                 );
                 if (signals.length === 0) {
                   return (
