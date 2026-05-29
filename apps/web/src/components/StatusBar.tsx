@@ -14,13 +14,12 @@ interface SessionView {
 }
 
 /**
- * Persistent bottom status bar. Three segments:
+ * Persistent bottom status bar. Two segments:
  *
- *   [●] api: <state>   ·   session: <ttl>   ·   ready
+ *   [●] api: <state>   ·   session: <ttl>
  *
  * The api dot polls `/health` every 30s. Session TTL ticks every second so
- * the countdown feels live. The "ready" segment is a placeholder for a
- * future live event-tail subscription (deferred — see plan).
+ * the countdown feels live.
  */
 export function StatusBar() {
   const [health, setHealth] = useState<HealthState>("checking");
@@ -69,8 +68,6 @@ export function StatusBar() {
         <HealthSegment state={health} />
         <span className="text-tertiary">·</span>
         <SessionSegment expiresAt={session.expiresAt} nowMs={nowMs} />
-        <span className="text-tertiary">·</span>
-        <ReadySegment />
       </div>
     </footer>
   );
@@ -114,12 +111,4 @@ function SessionSegment({
         ? "text-med"
         : "text-secondary";
   return <span className={tone}>session: {ttl}</span>;
-}
-
-function ReadySegment() {
-  // Placeholder — future enhancement: subscribe to /intel/feed at the layout
-  // level and surface the most recent event here. Single-connection-per-token
-  // limit (api feed.ts:67-69) makes this a real design decision; deferring
-  // until the /intel page reveals what's actually useful.
-  return <span className="text-tertiary">ready</span>;
 }

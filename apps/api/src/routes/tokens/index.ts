@@ -3,42 +3,12 @@ import { SolanaTrackerClient } from "@thirdeye/solanatracker";
 import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { env } from "../../env";
-import { clampInt, toIso } from "../../lib/http";
+import { toIso } from "../../lib/http";
 import { isValidSolanaAddress } from "../../lib/solana-address";
 
 type Variables = { db: DbClient };
 
 export const tokensRoutes = new Hono<{ Variables: Variables }>();
-
-// `since` parameter parser. Accepts forms like 1h, 6h, 24h, 7d, 30m.
-// Anything unparseable falls back to the default. We intentionally
-// only support the exact suffixes the spec calls out — yagni on
-// composite formats like "1h30m".
-function parseSince(raw: string | undefined, fallbackMin: number): number {
-  if (!raw) return fallbackMin;
-  const m = /^(\d+)\s*(m|h|d)$/.exec(raw.trim());
-  if (!m) return fallbackMin;
-  const n = Number.parseInt(m[1]!, 10);
-  if (!Number.isFinite(n) || n <= 0) return fallbackMin;
-  const unit = m[2]!;
-  if (unit === "m") return n;
-  if (unit === "h") return n * 60;
-  return n * 60 * 24;
-}
-
-// `minMcChange` is documented as "5x" in the spec — a multiplier shorthand
-// where 5x ≡ +400% in 24h. Accept that form and a plain percent number.
-function parseMinMcChange(raw: string | undefined): number | null {
-  if (!raw) return null;
-  const trimmed = raw.trim();
-  const x = /^(\d+(?:\.\d+)?)x$/i.exec(trimmed);
-  if (x) {
-    const n = Number.parseFloat(x[1]!);
-    return Number.isFinite(n) ? (n - 1) * 100 : null;
-  }
-  const n = Number.parseFloat(trimmed);
-  return Number.isFinite(n) ? n : null;
-}
 
 interface OhlcvOut {
   time: number;
@@ -55,48 +25,10 @@ export function _resetOhlcvCache(): void {
   ohlcvCache.clear();
 }
 
-// IMPORTANT — register `/hot` BEFORE `/:mint` so the static segment
-// match wins routing precedence. Hono evaluates registered routes in
-// declaration order; flipping these would let `:mint = "hot"` capture
-// the request and the static handler would never fire.
-tokensRoutes.get("/hot", async (c) => {
-  const sinceMin = parseSince(c.req.query("since"), 6 * 60); // default: last 6h
-  const minPct = parseMinMcChange(c.req.query("minMcChange"));
-  const limit = clampInt(c.req.query("limit"), 20, 1, 100);
-  const db = c.get("db");
-
-  const conditions: ReturnType<typeof sql>[] = [
-    sql`${tokens.lastRefreshedAt} >= now() - (${sinceMin}::int * interval '1 minute')`,
-    sql`${tokens.priceUsd} IS NOT NULL`,
-  ];
-  if (minPct !== null) {
-    conditions.push(sql`${tokens.mc24hPct} >= ${minPct}`);
-  }
-
-  const where = conditions.reduce(
-    (acc, cond, i) => (i === 0 ? cond : sql`${acc} AND ${cond}`),
-    sql``,
-  );
-
-  const rows = await db
-    .select()
-    .from(tokens)
-    .where(where)
-    .orderBy(sql`${tokens.mc24hPct} DESC NULLS LAST, ${tokens.liquidityUsd} DESC NULLS LAST`)
-    .limit(limit);
-
-  return c.json({
-    items: rows.map(serialize),
-    sinceMin,
-    minMcChangePct: minPct,
-    limit,
-  });
-});
-
-// IMPORTANT — register `/:mint/ohlcv` BEFORE `/:mint` for the same reason
-// `/hot` is registered before `/:mint`: Hono matches in declaration order.
-// Without this ordering, a request to `/:mint/ohlcv` would be captured by
-// the bare `/:mint` pattern with mint="<addr>" and never reach this handler.
+// IMPORTANT — register `/:mint/ohlcv` BEFORE the bare `/:mint` route: Hono
+// matches in declaration order. Without this ordering, a request to
+// `/:mint/ohlcv` would be captured by the `/:mint` pattern with
+// mint="<addr>" and never reach this handler.
 tokensRoutes.get("/:mint/ohlcv", async (c) => {
   const mint = c.req.param("mint");
   const type = c.req.query("type") ?? "1h";
