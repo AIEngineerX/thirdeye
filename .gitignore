@@ -53,7 +53,8 @@ scripts/diagnose-*.ts
 
 # Local research / session artifacts
 .playwright-mcp/
-redacted-reference.png
+*-verify.png
+*-reference.png
 
 # Claude Code workspace — agent definitions, slash-command orchestrators,
 # settings. Useful for the maintainer locally; noise for OSS contributors.
