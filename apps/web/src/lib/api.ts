@@ -9,7 +9,7 @@
 import type { CandidateRow, DashboardBundle } from "./api-types";
 import { type AuthClient, getAuthClient } from "./auth";
 import { type ByokStore, getByokStore } from "./byok";
-import type { OhlcvCandle } from "./ohlcv-types";
+import type { OhlcvCandle, TokenMarkers } from "./ohlcv-types";
 
 export interface ApiClient {
   fetch(path: string, init?: RequestInit): Promise<Response>;
@@ -124,4 +124,12 @@ export async function getOhlcv(
   const res = await c.fetch(`/api/db/tokens/${mint}/ohlcv?type=${type}`);
   if (!res.ok) throw new Error(`ohlcv ${res.status}`);
   return ((await res.json()) as { candles: OhlcvCandle[] }).candles;
+}
+
+/** Fetch chart markers from `GET /api/db/tokens/:mint/markers`. */
+export async function getTokenMarkers(mint: string, client?: ApiClient): Promise<TokenMarkers> {
+  const c = client ?? getApiClient();
+  const res = await c.fetch(`/api/db/tokens/${mint}/markers`);
+  if (!res.ok) throw new Error(`markers ${res.status}`);
+  return (await res.json()) as TokenMarkers;
 }

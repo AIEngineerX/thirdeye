@@ -123,6 +123,31 @@ tokensRoutes.get("/:mint/ohlcv", async (c) => {
   return c.json({ candles }, 200, { "X-ThirdEye-Cache": "MISS" });
 });
 
+// IMPORTANT — register `/:mint/markers` BEFORE `/:mint` for the same reason
+// as `/:mint/ohlcv`: Hono matches in declaration order.
+tokensRoutes.get("/:mint/markers", async (c) => {
+  const mint = c.req.param("mint");
+  if (!isValidSolanaAddress(mint)) return c.json({ error: "invalid_mint" }, 400);
+  const db = c.get("db");
+  const sigRows = (await db.execute(sql`
+    SELECT extract(epoch FROM detected_at)::bigint AS t, ath_multiplier AS m
+    FROM signals WHERE mint = ${mint} AND trust = 'independent'
+    ORDER BY detected_at DESC LIMIT 1
+  `)) as unknown as Array<{ t: string | number; m: string | null }>;
+  const buyRows = (await db.execute(sql`
+    SELECT extract(epoch FROM traded_at)::bigint AS t
+    FROM smart_trades WHERE mint = ${mint} AND side = 'buy'
+    ORDER BY traded_at DESC LIMIT 50
+  `)) as unknown as Array<{ t: string | number }>;
+  const call = sigRows[0]
+    ? {
+        time: Number(sigRows[0].t),
+        multiplier: sigRows[0].m === null ? null : Number(sigRows[0].m),
+      }
+    : null;
+  return c.json({ call, buys: buyRows.map((r) => ({ time: Number(r.t) })) });
+});
+
 tokensRoutes.get("/:mint", async (c) => {
   const mint = c.req.param("mint");
   // L1 (audit): match the validation pattern used on every other

@@ -14,3 +14,9 @@ export interface ChartMarker {
   shape: "arrowDown" | "arrowUp" | "circle";
   text?: string;
 }
+
+// Mirror of GET /api/db/tokens/:mint/markers
+export interface TokenMarkers {
+  call: { time: number; multiplier: number | null } | null;
+  buys: { time: number }[];
+}
