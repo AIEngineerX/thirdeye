@@ -9,6 +9,7 @@
 import type { CandidateRow, DashboardBundle } from "./api-types";
 import { type AuthClient, getAuthClient } from "./auth";
 import { type ByokStore, getByokStore } from "./byok";
+import type { OhlcvCandle } from "./ohlcv-types";
 
 export interface ApiClient {
   fetch(path: string, init?: RequestInit): Promise<Response>;
@@ -111,4 +112,16 @@ export async function promoteCandidate(address: string, client?: ApiClient): Pro
   const c = client ?? getApiClient();
   const res = await c.fetch(`/api/db/candidates/${address}/promote`, { method: "POST" });
   if (!res.ok) throw new Error(`promote ${res.status}`);
+}
+
+/** Fetch OHLCV candles from `GET /api/db/tokens/:mint/ohlcv?type=`. */
+export async function getOhlcv(
+  mint: string,
+  type = "1h",
+  client?: ApiClient,
+): Promise<OhlcvCandle[]> {
+  const c = client ?? getApiClient();
+  const res = await c.fetch(`/api/db/tokens/${mint}/ohlcv?type=${type}`);
+  if (!res.ok) throw new Error(`ohlcv ${res.status}`);
+  return ((await res.json()) as { candles: OhlcvCandle[] }).candles;
 }
