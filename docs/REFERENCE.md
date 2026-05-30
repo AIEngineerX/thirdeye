@@ -18,7 +18,7 @@ The web dashboard uses this same token mechanism — it caches the token in `ses
 
 | Header | Purpose | Behavior |
 |---|---|---|
-| `X-User-Helius-Key` | Override server's `HELIUS_API_KEY` for this request | Bypasses Helius proxy rate limits on `/api/helius/*` and `/api/helius-rpc`; bypasses scan-token rate limit on `/api/token/:mint/scan`. **Wallet check** still rate-limited regardless. |
+| `X-User-Helius-Key` | Override server's `HELIUS_API_KEY` for this request | Bypasses the Helius proxy rate limit on `/api/helius-rpc`; bypasses scan-token rate limit on `/api/token/:mint/scan`. **Wallet check** still rate-limited regardless. |
 
 Server code never branches on which key source is in use.
 
@@ -31,18 +31,12 @@ Server code never branches on which key source is in use.
 | `GET` | `/health` | Liveness + db ping. Returns `{"ok":true,"db":"ok"}` or 503. |
 | `POST` | `/api/db/auth` | Issue anonymous session token (7-day expiry). |
 
-### Helius proxy (Phase 1)
+### Helius proxy
 
-LRU-cached pass-through. Every response carries `X-ThirdEye-Cache: HIT|MISS` and `X-ThirdEye-Proxy-Duration-Ms: <n>`.
+LRU-cached JSON-RPC pass-through. The response carries `X-ThirdEye-Cache: HIT|MISS` and `X-ThirdEye-Proxy-Duration-Ms: <n>`. (The Phase-1 REST proxy routes under `/api/helius/*` were removed — the scanner reaches Helius in-process via `@thirdeye/helius`, not over HTTP.)
 
 | Method | Path | Cache | Notes |
 |---|---|---|---|
-| `GET` | `/api/helius/v1/wallet/:addr/identity` | 5min | Name, type, category. |
-| `GET` | `/api/helius/v1/wallet/:addr/balances` | 5min | SOL + SPL token balances. |
-| `GET` | `/api/helius/v1/wallet/:addr/funded-by` | **24h** | Funder address + timestamp. Immutable so long cache. |
-| `GET` | `/api/helius/v0/addresses/:addr/transactions` | 5min | Parsed tx history. |
-| `POST` | `/api/helius/v1/wallet/batch-identity` | 5min/elem | Body `{ addresses: [≤100] }`. |
-| `POST` | `/api/helius/v0/transactions` | **24h**/sig | Body `{ transactions: [sigs ≤100] }`. |
 | `POST` | `/api/helius-rpc` | per-method | JSON-RPC pass-through. Mutating methods (`sendTransaction`, `requestAirdrop`, etc.) are denied via allowlist. |
 
 ### Wallet (Phase 2)
@@ -71,13 +65,8 @@ LRU-cached pass-through. Every response carries `X-ThirdEye-Cache: HIT|MISS` and
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET` | `/api/db/intel/aggregates` | 24h pulse, all-time totals, risk distribution, heatmap data. |
-| `GET` | `/api/db/intel/recent/scans` | Recent token scans across the network. |
-| `GET` | `/api/db/intel/recent/checks` | Recent wallet checks across the network. |
 | `POST` | `/api/db/intel/feed/ticket` | Issue a 30s single-use ticket. Auth via `X-Auth-Token` header. Use when the SSE client (e.g. browser EventSource) can't set custom headers. |
 | `GET` | `/api/db/intel/feed?ticket=<single-use>` | **SSE** live intel-bus feed. |
-| `GET` | `/api/db/intel/funders/top-clustered` | Top funders by `cluster_count` (cross-token bundler view). |
-| `GET` | `/api/db/intel/funders/:addr/clusters` | Per-funder cluster history across all scanned tokens. |
 
 **Intel-bus event kinds (today):** `hello`, `ping`, `scan:start`, `scan:complete`, `check:start`, `check:complete`, `tag:applied`, `watch:event`, `smartmoney:trade`, `smartmoney:confluence`, `smartmoney:signal`, `smartmoney:outcome`.
 
@@ -97,8 +86,9 @@ The `smartmoney:*` events ride the same feed: `trade` (a tracked wallet bought/s
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET` | `/api/db/tokens/hot` | Filter the price cache. Query: `since=6h` (`Nm`/`Nh`/`Nd`), `minMcChange=5x` (or plain percent), `limit=20`. |
 | `GET` | `/api/db/tokens/:mint` | Single mint lookup, 404 if not in cache. |
+| `GET` | `/api/db/tokens/:mint/ohlcv` | OHLCV candles via Solana Tracker (60s cache). Query: `type=1h`. |
+| `GET` | `/api/db/tokens/:mint/markers` | Chart markers — signal call + tracked-wallet buys for the mint. |
 
 Backed by the `tokens` table. Every scan auto-seeds the mint, and the `tokens-refresh` worker hits DexScreener every 60s to keep price/MC/liquidity fresh. Source plumbed via the `PriceSource` interface in `@thirdeye/prices` (Birdeye/Jupiter documented as escape hatches in code comments).
 
@@ -130,7 +120,7 @@ Full reference in [`.env.example`](../.env.example). Quick guide to what matters
 | Var | Default | Purpose |
 |---|---|---|
 | `DATABASE_URL` | `postgres://thirdeye:thirdeye@localhost:5432/thirdeye` | Postgres connection. |
-| `HELIUS_API_KEY` | unset | Required for `/api/helius/*` and `/api/helius-rpc`. [Get one free.](https://dashboard.helius.dev/api-keys) |
+| `HELIUS_API_KEY` | unset | Required for `/api/helius-rpc` and all scanner/Helius features (wallet check, token scan, webhook enrichment). [Get one free.](https://dashboard.helius.dev/api-keys) |
 | `PORT` | `3001` | API listen port. |
 | `CORS_ORIGIN` | `http://localhost:3000` | Browser origin allowed by CORS. Comma-separated for multiple. |
 
@@ -173,7 +163,7 @@ Consumed by `apps/web` at build/dev time.
 
 ## Response headers
 
-Every `/api/helius/*` and `/api/helius-rpc` response carries:
+Every `/api/helius-rpc` response carries:
 
 | Header | Meaning |
 |---|---|

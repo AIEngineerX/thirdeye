@@ -81,11 +81,11 @@ curl -N http://localhost:3001/api/token/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyT
 
 ### 1. Browser dashboard (recommended)
 
-`apps/web` — Next.js + Tailwind dashboard with five pages: landing (paste a wallet or mint), `/wallet/[addr]` and `/token/[mint]` with SSE-streamed scan results, `/intel` live event feed (with a smart-money tab: tracked-wallet trades + confluence + watchlist), `/settings` BYOK keys. Forensics-terminal aesthetic — IBM Plex Mono/Sans, deep-navy + amber palette, the full base58 address rendered as the visual anchor of every detail page. See [`apps/web/README.md`](apps/web/README.md).
+`apps/web` — Next.js + Tailwind dashboard with six pages: landing (paste a wallet or mint), `/wallet/[addr]` and `/token/[mint]` with SSE-streamed scan results, `/intel` live event feed (with a smart-money tab: tracked-wallet trades + confluence + watchlist), `/leaderboard` outcome-scored top traders, `/settings` Helius BYOK key. Forensics-terminal aesthetic — IBM Plex Mono/Sans, deep-navy + amber palette, the full base58 address rendered as the visual anchor of every detail page. See [`apps/web/README.md`](apps/web/README.md).
 
 ### 2. Raw HTTP API
 
-The dashboard is a thin client on top of the same HTTP API. Full surface in [`docs/REFERENCE.md`](docs/REFERENCE.md) — health, auth, Helius proxy, wallet check, token scan, intel aggregates + feed, watches, tokens cache.
+The dashboard is a thin client on top of the same HTTP API. Full surface in [`docs/REFERENCE.md`](docs/REFERENCE.md) — health, auth, Helius RPC proxy, wallet check, token scan, intel feed, watches, tokens cache.
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:3001/api/db/auth | jq -r .token)
@@ -142,7 +142,7 @@ BYOK transparent: set `X-User-Helius-Key` to bypass the server's Helius key and 
 | 0 – 5e | v1 backend — auth, Helius proxy, Check Wallet, Scan Token, Intel analytics, alpha-extraction hardening (SMART_MONEY, cluster CoV, cross-token bundler view), webhook watches |
 | 6.0 | Intel-bus on Postgres LISTEN/NOTIFY (cross-process events) |
 | 6a | Tokens cache + DexScreener + hot-tokens API |
-| 6f-min | `apps/web` — five-page web dashboard |
+| 6f-min | `apps/web` — six-page web dashboard |
 | 6f | Smart-money feed — curated tracked wallets, live trade stream, confluence detection with a co-funded trust filter (`/intel` smart-money tab) |
 | signal engine | Signal-outcome tracking — independent confluence promoted to a tracked signal, market cap followed to its ATH multiple + hit/miss with a conservative "safe" replay, outcome-scored wallet attribution (backend: `signals` table + `signals-refresh` worker) |
 
