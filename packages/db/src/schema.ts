@@ -297,39 +297,6 @@ export const signals = pgTable(
   }),
 );
 
-// Phase 6b — audit trail for every agent run plus source of truth for the
-// daily-budget cap. Sum of cost_usd over today (UTC) is what the advisory
-// lock at packages/agent/src/budget.ts reads + writes inside one tx guarded
-// by pg_advisory_xact_lock(hashtext('agent_daily_budget')).
-export const agentRuns = pgTable(
-  "agent_runs",
-  {
-    id: bigserial("id", { mode: "number" }).primaryKey(),
-    kind: text("kind").notNull(), // 'discovery' | 'anomaly' | 'morning_brief' | 'cluster_expand' | 'tg_query'
-    status: text("status").notNull(), // 'running' | 'success' | 'failed' | 'skipped_budget' | 'capped'
-    model: text("model").notNull(),
-    toolCallsMade: integer("tool_calls_made").notNull().default(0),
-    inputTokens: integer("input_tokens").notNull().default(0),
-    outputTokens: integer("output_tokens").notNull().default(0),
-    // Cache-read tokens (cheap tier, ~$0.10/MTok). Older rows here may
-    // include cache-creation tokens summed in — they were not split until
-    // migration 0006.
-    cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
-    // Cache-creation tokens (expensive tier, ~$1.25/MTok for Sonnet).
-    // Added in migration 0006 so audit-row cost reconstruction is accurate.
-    cacheCreationTokens: integer("cache_creation_tokens").notNull().default(0),
-    costUsd: numeric("cost_usd").notNull().default("0"),
-    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
-    endedAt: timestamp("ended_at", { withTimezone: true }),
-    errorMessage: text("error_message"),
-    metadata: jsonb("metadata").notNull().default(sql`'{}'::jsonb`),
-  },
-  (t) => ({
-    startedAtIdx: index("agent_runs_started_at_idx").on(t.startedAt.desc()),
-    kindStartedAtIdx: index("agent_runs_kind_started_at_idx").on(t.kind, t.startedAt.desc()),
-  }),
-);
-
 // Dormant candidate pool (spec §6). Never webhook-subscribed; promotion copies
 // a row into tracked_wallets. Behavior columns computed from the seed corpus.
 export const candidateWallets = pgTable(
@@ -359,16 +326,3 @@ export const candidateWallets = pgTable(
     ),
   }),
 );
-
-// Migration 0009 adds a partial unique index on agent_runs that closes the
-// tg-bot dedup race (audit L4 / bug-scan L4). Two concurrent Telegram
-// updates with the same telegram_msg_id used to be able to both pass the
-// SELECT EXISTS check before either INSERT committed, racing into double
-// agent runs. The unique index over (metadata->>'telegram_msg_id') WHERE
-// status != 'failed' makes the second INSERT fail at the DB level, so the
-// dispatch handler can catch the unique-violation and treat it as
-// "already handled" without a second agent run.
-//
-// Defined as raw SQL in the migration because drizzle's index() doesn't
-// model `WHERE` clauses on partial indexes. Schema definition kept above
-// as documentation.
