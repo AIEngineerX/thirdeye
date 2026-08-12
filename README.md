@@ -1,5 +1,25 @@
 # ThirdEye
 
+> ## ⚠ ARCHIVED — 2026-08-12. Superseded, not running. Last commit 2026-05-29.
+>
+> Evaluated and dropped during the OmegaOS consolidation. Reasoning in
+> `OmegaOS/research/reviews/2026-08-08-thirdeye-vs-alphatracking.md`. Two reasons:
+>
+> 1. **The forensics half is duplicated.** `chaos-agent` carries a larger equivalent
+>    (`wallet_graph`, `smart_wallet_tracker`, `owner_deep_pass`) and runs it daily.
+> 2. **The alpha half is the thesis AlphaTracking measured to a null.** ThirdEye's
+>    confluence trigger — "≥2 independent wallets into the same token" — fires roughly
+>    **once every five days** on the owner's real wallet list, and the only lever that
+>    raises that frequency is curation, which is the same lever that makes the signals
+>    mean less. ThirdEye's own `2026-05-21-phase-7-alpha-tracker-pivot-review` returned
+>    6 blockers and 13 high findings a week before the repo went quiet.
+>
+> **Live system:** `AIEngineerX/chaos-agent`. **Research trail:** `AIEngineerX/alphatracking`
+> (also archived). **Consolidation plan:** `AIEngineerX/OmegaOS` (frozen).
+>
+> Kept for the forensics techniques and the UI, which are genuinely good. Do not restart it
+> as a trading system.
+
 > *The eye that sees what the other two cannot.*
 
 Open-source Solana wallet & token forensics — with smart-money alpha tracking on top. Paste a wallet address, get its funding chain, sibling cluster, behavioral tags, realized PnL, risk score. Paste a token mint, get its holder concentration grouped by first funder — bundles and sybil rings light up immediately. Curate a set of smart-money wallets and ThirdEye streams their trades, flags confluence (≥2 *independent* wallets into the same token), and scores each signal by the market-cap multiple it goes on to hit. Self-hostable, MIT licensed.
